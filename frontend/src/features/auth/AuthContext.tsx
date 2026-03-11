@@ -45,8 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     try {
       await apiClient('/auth/logout', { method: 'POST' })
-    } catch {
-      // Ignore errors on logout
+    } catch (err) {
+      console.warn('Logout API call failed:', err)
     } finally {
       clearAuth()
     }
@@ -68,7 +68,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAccessToken(response.accessToken)
       setRefreshToken(response.refreshToken)
       setUser(response.user)
-    } catch {
+    } catch (err) {
+      console.warn('Session refresh failed:', err)
       clearAuth()
     }
   }, [clearAuth])

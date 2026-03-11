@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AuthProvider } from '@/features/auth/AuthContext'
@@ -115,5 +115,62 @@ describe('AuthContext', () => {
 
     expect(mockSetAccessToken).toHaveBeenCalledWith(null)
     expect(mockSetRefreshToken).toHaveBeenCalledWith(null)
+  })
+
+  it('triggers inactivity timeout after 30 minutes', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+
+    // Login first
+    mockApiClient.mockResolvedValueOnce({
+      accessToken: 'token',
+      refreshToken: 'refresh',
+      expiresAt: new Date().toISOString(),
+      user: { id: 1, email: 'test@baterio.fr', firstName: 'Test', lastName: 'User', role: 'Admin', tenantId: 1 },
+    })
+
+    // Mock window.location to prevent navigation error
+    const originalLocation = window.location
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: { ...originalLocation, href: '/' },
+    })
+
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('loading').textContent).toBe('false')
+    })
+
+    // Login via direct state update
+    await act(async () => {
+      screen.getByText('Login').click()
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('authenticated').textContent).toBe('true')
+    })
+
+    // Advance time by 30 minutes
+    await act(async () => {
+      vi.advanceTimersByTime(30 * 60 * 1000)
+    })
+
+    // After timeout, auth should be cleared
+    await waitFor(() => {
+      expect(screen.getByTestId('authenticated').textContent).toBe('false')
+    })
+
+    expect(mockSetAccessToken).toHaveBeenCalledWith(null)
+
+    // Restore
+    Object.defineProperty(window, 'location', {
+      writable: true,
+      value: originalLocation,
+    })
+    vi.useRealTimers()
   })
 })

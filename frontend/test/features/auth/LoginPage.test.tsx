@@ -107,4 +107,45 @@ describe('LoginPage', () => {
       user: { id: 1, email: 'a@b.c', firstName: null, lastName: null, role: 'Admin', tenantId: 1 },
     })
   })
+
+  it('shows generic error when error has no message property', async () => {
+    const user = userEvent.setup()
+    mockApiClient.mockRejectedValueOnce('string-error')
+
+    renderLoginPage()
+
+    await user.type(screen.getByLabelText('Email'), 'wrong@email.com')
+    await user.type(screen.getByLabelText('Mot de passe'), 'wrong')
+    await user.click(screen.getByRole('button', { name: 'Se connecter' }))
+
+    await waitFor(() => {
+      expect(screen.getByText("Une erreur inattendue s'est produite")).toBeInTheDocument()
+    })
+  })
+
+  it('redirects to / when already authenticated', async () => {
+    // Mock a successful refresh (simulates already authenticated)
+    mockApiClient.mockResolvedValueOnce({
+      accessToken: 'token',
+      refreshToken: 'refresh',
+      expiresAt: new Date().toISOString(),
+      user: { id: 1, email: 'test@baterio.fr', firstName: 'Test', lastName: 'User', role: 'Admin', tenantId: 1 },
+    })
+
+    const { getRefreshToken } = await import('@/lib/api-client')
+    vi.mocked(getRefreshToken).mockReturnValue('existing-refresh-token')
+
+    render(
+      <BrowserRouter>
+        <AuthProvider>
+          <LoginPage />
+        </AuthProvider>
+      </BrowserRouter>,
+    )
+
+    await waitFor(() => {
+      // When authenticated, LoginPage renders Navigate to="/" — so login form should NOT be present
+      expect(screen.queryByLabelText('Email')).not.toBeInTheDocument()
+    })
+  })
 })

@@ -40,6 +40,7 @@ public class ApiExceptionFilter : IExceptionFilter
         context.Result = new JsonResult(new
         {
             type = "ServerError",
+            code = "ServerError",
             status = 500,
             message = "Une erreur inattendue s'est produite"
         })

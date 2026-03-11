@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using BackEnd.Shared.Enums;
+using BackEnd.Shared.Exceptions;
 using BackEnd.Shared.Interfaces;
 using Serilog.Context;
 
@@ -34,17 +36,26 @@ public class TenantMiddleware
             var tenantClaim = context.User.FindFirst("tenant_id")?.Value;
             var userIdClaim = context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
-            if (int.TryParse(tenantClaim, out var tenantId))
+            if (!int.TryParse(tenantClaim, out var tenantId) || tenantId <= 0)
             {
-                tenantContext.TenantId = tenantId;
+                throw new ApiErrorException(ApiError.Unauthorized);
             }
 
-            using (LogContext.PushProperty("TenantId", tenantClaim))
-            using (LogContext.PushProperty("UserId", userIdClaim))
+            tenantContext.TenantId = tenantId;
+
+            // LogContext properties kept alive for the entire request pipeline
+            var tenantProp = LogContext.PushProperty("TenantId", tenantId);
+            var userProp = LogContext.PushProperty("UserId", userIdClaim);
+            try
             {
                 await _next(context);
-                return;
             }
+            finally
+            {
+                userProp.Dispose();
+                tenantProp.Dispose();
+            }
+            return;
         }
 
         await _next(context);

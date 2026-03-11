@@ -28,7 +28,7 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
 
         // Global Query Filter — multi-tenancy row-level
-        // When CurrentTenantId == 0, filter is disabled (no tenant context or not set)
-        modelBuilder.Entity<User>().HasQueryFilter(u => CurrentTenantId == 0 || u.TenantId == CurrentTenantId);
+        // Filter is always applied; when CurrentTenantId == 0, no rows match (safe default)
+        modelBuilder.Entity<User>().HasQueryFilter(u => u.TenantId == CurrentTenantId);
     }
 }

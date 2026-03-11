@@ -8,6 +8,7 @@ using BackEnd.Shared.Models.Auth;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace BackEnd.Tests;
 
@@ -39,8 +40,8 @@ public class AuthServiceTests : IDisposable
             })
             .Build();
 
-        var jwtService = new JwtService(config);
-        _authService = new AuthService(_db, jwtService);
+        var jwtService = new JwtService(config, NullLogger<JwtService>.Instance);
+        _authService = new AuthService(_db, jwtService, config);
     }
 
     public void Dispose()

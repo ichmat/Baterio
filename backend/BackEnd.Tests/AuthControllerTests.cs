@@ -129,4 +129,59 @@ public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory>
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
+
+    [Fact]
+    public async Task Refresh_WithRevokedToken_Returns401()
+    {
+        await _factory.SeedTestDataAsync();
+
+        // Login to get tokens
+        var loginResponse = await _client.PostAsJsonAsync("/api/auth/login", new LoginRequest
+        {
+            Email = "test@baterio.fr",
+            Password = "Test123!"
+        });
+        var loginResult = await loginResponse.Content.ReadFromJsonAsync<LoginResponse>();
+
+        // Refresh once — the original token gets revoked (rotation)
+        await _client.PostAsJsonAsync("/api/auth/refresh", new RefreshTokenRequest
+        {
+            RefreshToken = loginResult!.RefreshToken
+        });
+
+        // Try to use the old (now revoked) refresh token
+        var response = await _client.PostAsJsonAsync("/api/auth/refresh", new RefreshTokenRequest
+        {
+            RefreshToken = loginResult.RefreshToken
+        });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Logout_ThenRefresh_Fails()
+    {
+        await _factory.SeedTestDataAsync();
+
+        // Login to get tokens
+        var loginResponse = await _client.PostAsJsonAsync("/api/auth/login", new LoginRequest
+        {
+            Email = "test@baterio.fr",
+            Password = "Test123!"
+        });
+        var loginResult = await loginResponse.Content.ReadFromJsonAsync<LoginResponse>();
+
+        // Logout
+        var logoutRequest = new HttpRequestMessage(HttpMethod.Post, "/api/auth/logout");
+        logoutRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", loginResult!.AccessToken);
+        await _client.SendAsync(logoutRequest);
+
+        // Try to use refresh token after logout — should fail
+        var refreshResponse = await _client.PostAsJsonAsync("/api/auth/refresh", new RefreshTokenRequest
+        {
+            RefreshToken = loginResult.RefreshToken
+        });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, refreshResponse.StatusCode);
+    }
 }

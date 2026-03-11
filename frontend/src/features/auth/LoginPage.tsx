@@ -27,8 +27,11 @@ export function LoginPage() {
       await login(email, password)
       navigate('/')
     } catch (err: unknown) {
-      const apiError = err as { message?: string }
-      setError(apiError?.message || 'Une erreur inattendue s\'est produite')
+      if (err && typeof err === 'object' && 'message' in err && typeof (err as Record<string, unknown>).message === 'string') {
+        setError((err as Record<string, unknown>).message as string)
+      } else {
+        setError('Une erreur inattendue s\'est produite')
+      }
     } finally {
       setIsSubmitting(false)
     }

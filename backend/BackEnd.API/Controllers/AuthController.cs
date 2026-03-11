@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using BackEnd.Shared.Enums;
+using BackEnd.Shared.Exceptions;
 using BackEnd.Shared.Interfaces;
 using BackEnd.Shared.Models.Auth;
 using Microsoft.AspNetCore.Authorization;
@@ -37,7 +39,12 @@ public class AuthController : ControllerBase
     [Authorize]
     public async Task<IActionResult> Logout()
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var userClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+        if (userClaim == null || !int.TryParse(userClaim.Value, out var userId))
+        {
+            throw new ApiErrorException(ApiError.Unauthorized);
+        }
+
         await _authService.RevokeRefreshTokenAsync(userId);
         return NoContent();
     }

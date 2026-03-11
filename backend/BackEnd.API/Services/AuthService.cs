@@ -6,6 +6,7 @@ using BackEnd.Shared.Exceptions;
 using BackEnd.Shared.Interfaces;
 using BackEnd.Shared.Models.Auth;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace BackEnd.API.Services;
 
@@ -13,11 +14,13 @@ public class AuthService : IAuthService
 {
     private readonly AppDbContext _db;
     private readonly JwtService _jwtService;
+    private readonly int _accessTokenExpirationMinutes;
 
-    public AuthService(AppDbContext db, JwtService jwtService)
+    public AuthService(AppDbContext db, JwtService jwtService, IConfiguration configuration)
     {
         _db = db;
         _jwtService = jwtService;
+        _accessTokenExpirationMinutes = configuration.GetValue<int>("Jwt:ExpirationInMinutes");
     }
 
     public async Task<LoginResponse> LoginAsync(LoginRequest request)
@@ -43,6 +46,7 @@ public class AuthService : IAuthService
     public async Task<LoginResponse> RefreshTokenAsync(RefreshTokenRequest request)
     {
         var storedToken = await _db.RefreshTokens
+            .IgnoreQueryFilters()
             .Include(r => r.User)
             .FirstOrDefaultAsync(r => r.Token == request.RefreshToken);
 
@@ -66,6 +70,7 @@ public class AuthService : IAuthService
     public async Task RevokeRefreshTokenAsync(int userId)
     {
         var tokens = await _db.RefreshTokens
+            .IgnoreQueryFilters()
             .Where(r => r.UserId == userId && r.RevokedAt == null)
             .ToListAsync();
 
@@ -97,7 +102,7 @@ public class AuthService : IAuthService
         {
             AccessToken = accessToken,
             RefreshToken = refreshTokenString,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(30),
+            ExpiresAt = DateTime.UtcNow.AddMinutes(_accessTokenExpirationMinutes),
             User = new UserInfo
             {
                 Id = user.Id,
