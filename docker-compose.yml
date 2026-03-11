@@ -1,14 +1,14 @@
 services:
   nginx:
     build:
-      context: ./nginx
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: nginx/Dockerfile
     ports:
       - "80:80"
+    restart: unless-stopped
     depends_on:
       - backend
     volumes:
-      - frontend_build:/usr/share/nginx/html/app
       - ./landing:/usr/share/nginx/html/landing:ro
     networks:
       - app-network
@@ -17,6 +17,7 @@ services:
     build:
       context: ./backend
       dockerfile: BackEnd.API/Dockerfile
+    restart: unless-stopped
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ConnectionStrings__DefaultConnection=Server=mysql;Port=3306;Database=${MYSQL_DATABASE};User=${MYSQL_USER};Password=${MYSQL_PASSWORD};
@@ -24,6 +25,8 @@ services:
       - Jwt__Issuer=${JWT_ISSUER}
       - Jwt__Audience=${JWT_AUDIENCE}
       - Cors__Origins=${CORS_ORIGINS}
+    volumes:
+      - uploads:/app/uploads
     depends_on:
       mysql:
         condition: service_healthy
@@ -32,6 +35,7 @@ services:
 
   mysql:
     image: mysql:8.4
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
@@ -49,7 +53,6 @@ services:
 
 volumes:
   mysql_data:
-  frontend_build:
   uploads:
 
 networks:
