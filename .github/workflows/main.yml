@@ -29,6 +29,7 @@ jobs:
       with:
         node-version: '22'
         cache: 'npm'
+        working-directory: ./frontend
     - name: ⬇️ Install Frontend
       working-directory: ./frontend
       run: npm ci
