@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="BackEnd.API/BackEnd.API.csproj" />
+  <Project Path="BackEnd.Shared/BackEnd.Shared.csproj" Id="aea20a80-c8ac-4742-ab12-e5f30865ec82" />
+  <Project Path="BackEnd.Tests/BackEnd.Tests.csproj" />
+</Solution>

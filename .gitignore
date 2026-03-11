@@ -1,0 +1,46 @@
+# === Node / Frontend ===
+node_modules/
+dist/
+.vite/
+*.local
+
+# === .NET / Backend ===
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+*.DotSettings.user
+[Bb]uild[Ll]og.*
+[Tt]est[Rr]esult*/
+
+# === Docker ===
+.docker/
+
+# === Environment ===
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# === IDE ===
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# === OS ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Logs ===
+logs/
+*.log
+npm-debug.log*
+
+# === Uploads ===
+uploads/
