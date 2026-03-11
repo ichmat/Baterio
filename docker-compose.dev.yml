@@ -25,7 +25,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - DOTNET_USE_POLLING_FILE_WATCHER=1
-      - ConnectionStrings__DefaultConnection=Server=mysql;Port=3306;Database=${MYSQL_DATABASE:-ds_chape};User=${MYSQL_USER:-ds_chape_user};Password=${MYSQL_PASSWORD:-changeme};
+      - ConnectionStrings__DefaultConnection=Server=mysql;Port=3306;Database=${MYSQL_DATABASE:-baterio};User=${MYSQL_USER:-baterio_user};Password=${MYSQL_PASSWORD:-changeme};
       - Cors__Origins=http://localhost:5173
     volumes:
       - ./backend:/src
@@ -41,8 +41,8 @@ services:
       - "127.0.0.1:3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-changeme}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-ds_chape}
-      MYSQL_USER: ${MYSQL_USER:-ds_chape_user}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-baterio}
+      MYSQL_USER: ${MYSQL_USER:-baterio_user}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-changeme}
     volumes:
       - mysql_data:/var/lib/mysql
