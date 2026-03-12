@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { getCompanyInfo, updateCompanyInfo } from './api'
-import type { CompanyInfoResponse, UpdateCompanyInfoRequest } from './types'
+import type { UpdateCompanyInfoRequest } from './types'
 
 export function CompanySettings() {
   const [loading, setLoading] = useState(true)
