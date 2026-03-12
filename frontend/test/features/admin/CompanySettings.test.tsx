@@ -107,6 +107,24 @@ describe('CompanySettings', () => {
     })
   })
 
+  it('shows error toast on save failure', async () => {
+    vi.mocked(api.getCompanyInfo).mockResolvedValue(emptyCompanyInfo)
+    vi.mocked(api.updateCompanyInfo).mockRejectedValue(new Error('Server error'))
+    const user = userEvent.setup()
+
+    render(<CompanySettings />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Enregistrer')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByText('Enregistrer'))
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Erreur lors de la sauvegarde')
+    })
+  })
+
   it('shows loading state initially', () => {
     vi.mocked(api.getCompanyInfo).mockImplementation(() => new Promise(() => {}))
     render(<CompanySettings />)

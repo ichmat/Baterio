@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using BackEnd.Shared.Enums;
+using BackEnd.Shared.Models.Common;
 using BackEnd.Shared.Models.Company;
 
 namespace BackEnd.Tests;
@@ -36,15 +37,16 @@ public class CompanyControllerTests : IClassFixture<CustomWebApplicationFactory>
     // --- GET /api/company ---
 
     [Fact]
-    public async Task GetCompanyInfo_NoDataYet_Returns200WithEmptyResponse()
+    public async Task GetCompanyInfo_Returns200WithData()
     {
         var (token, _, _) = await SetupAdminAsync();
 
         var response = await _client.SendAsync(CreateRequest(HttpMethod.Get, "/api/company", token));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("data", body);
+        var result = await response.Content.ReadFromJsonAsync<ApiResponse<CompanyInfoResponse>>();
+        Assert.NotNull(result);
+        Assert.NotNull(result.Data);
     }
 
     // --- PUT /api/company ---
@@ -68,9 +70,12 @@ public class CompanyControllerTests : IClassFixture<CustomWebApplicationFactory>
         }));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Test SARL", body);
-        Assert.Contains("12345678901234", body);
+        var result = await response.Content.ReadFromJsonAsync<ApiResponse<CompanyInfoResponse>>();
+        Assert.NotNull(result);
+        Assert.Equal("Test SARL", result.Data.CompanyName);
+        Assert.Equal("12345678901234", result.Data.Siret);
+        Assert.Equal("FR12345678901", result.Data.VatNumber);
+        Assert.Equal("SARL", result.Data.LegalForm);
     }
 
     [Fact]
@@ -92,9 +97,10 @@ public class CompanyControllerTests : IClassFixture<CustomWebApplicationFactory>
         }));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("Updated SAS", body);
-        Assert.Contains("SAS", body);
+        var result = await response.Content.ReadFromJsonAsync<ApiResponse<CompanyInfoResponse>>();
+        Assert.NotNull(result);
+        Assert.Equal("Updated SAS", result.Data.CompanyName);
+        Assert.Equal("SAS", result.Data.LegalForm);
     }
 
     // --- GET /api/company/subscription ---
@@ -107,9 +113,12 @@ public class CompanyControllerTests : IClassFixture<CustomWebApplicationFactory>
         var response = await _client.SendAsync(CreateRequest(HttpMethod.Get, "/api/company/subscription", token));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("data", body);
-        Assert.Contains("Test Tenant", body);
+        var result = await response.Content.ReadFromJsonAsync<ApiResponse<SubscriptionInfoResponse>>();
+        Assert.NotNull(result);
+        Assert.Equal("Test Tenant", result.Data.TenantName);
+        Assert.Equal("MVP Gratuit", result.Data.Plan);
+        Assert.True(result.Data.ActiveUsers > 0);
+        Assert.Equal(10, result.Data.MaxUsers);
     }
 
     // --- Access control ---

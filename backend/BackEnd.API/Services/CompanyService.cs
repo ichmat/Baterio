@@ -46,16 +46,20 @@ public class CompanyService : ICompanyService
             _db.CompanyInfos.Add(companyInfo);
         }
 
-        companyInfo.CompanyName = request.CompanyName;
-        companyInfo.Address = request.Address;
-        companyInfo.Siret = request.Siret;
-        companyInfo.VatNumber = request.VatNumber;
-        companyInfo.LegalForm = request.LegalForm;
-        companyInfo.InsurancePolicyNumber = request.InsurancePolicyNumber;
-        companyInfo.InsuranceProvider = request.InsuranceProvider;
-        companyInfo.InsuranceCoverage = request.InsuranceCoverage;
-        companyInfo.DefaultPaymentTerms = request.DefaultPaymentTerms;
-        companyInfo.UpdatedAt = DateTime.UtcNow;
+        companyInfo.CompanyName = NullIfEmpty(request.CompanyName);
+        companyInfo.Address = NullIfEmpty(request.Address);
+        companyInfo.Siret = NullIfEmpty(request.Siret);
+        companyInfo.VatNumber = NullIfEmpty(request.VatNumber);
+        companyInfo.LegalForm = NullIfEmpty(request.LegalForm);
+        companyInfo.InsurancePolicyNumber = NullIfEmpty(request.InsurancePolicyNumber);
+        companyInfo.InsuranceProvider = NullIfEmpty(request.InsuranceProvider);
+        companyInfo.InsuranceCoverage = NullIfEmpty(request.InsuranceCoverage);
+        companyInfo.DefaultPaymentTerms = NullIfEmpty(request.DefaultPaymentTerms);
+
+        if (companyInfo.Id != 0)
+        {
+            companyInfo.UpdatedAt = DateTime.UtcNow;
+        }
 
         await _db.SaveChangesAsync();
 
@@ -105,6 +109,9 @@ public class CompanyService : ICompanyService
             CreatedAt = tenant.CreatedAt
         };
     }
+
+    private static string? NullIfEmpty(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value;
 
     private static CompanyInfoResponse MapToResponse(CompanyInfo companyInfo)
     {

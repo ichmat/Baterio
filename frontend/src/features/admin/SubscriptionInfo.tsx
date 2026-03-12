@@ -7,12 +7,14 @@ import type { SubscriptionInfoResponse } from './types'
 export function SubscriptionInfo() {
   const [loading, setLoading] = useState(true)
   const [info, setInfo] = useState<SubscriptionInfoResponse | null>(null)
+  const [error, setError] = useState(false)
 
   const loadData = useCallback(async () => {
     try {
       const data = await getSubscriptionInfo()
       setInfo(data)
     } catch {
+      setError(true)
       toast.error('Erreur lors du chargement des informations d\'abonnement')
     } finally {
       setLoading(false)
@@ -28,6 +30,19 @@ export function SubscriptionInfo() {
       <div className="flex items-center justify-center p-8">
         <p className="text-muted-foreground">Chargement...</p>
       </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Abonnement</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-destructive">Impossible de charger les informations d'abonnement.</p>
+        </CardContent>
+      </Card>
     )
   }
 
