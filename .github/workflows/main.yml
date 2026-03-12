@@ -1,9 +1,9 @@
-name: CI Build & Test
+name: CI Build & Test & Deploy
 
 on:
   push:
     branches: [ main, dev ]
-    
+
 jobs:
   backend:
     runs-on: self-hosted
@@ -21,6 +21,7 @@ jobs:
       run: dotnet test --configuration Release --no-build --verbosity normal
 
   frontend:
+    needs: [backend]
     runs-on: self-hosted
     steps:
     - uses: actions/checkout@v4
@@ -39,3 +40,18 @@ jobs:
     - name: ✅ Test Frontend
       working-directory: ./frontend
       run: npm run test --if-present
+
+  deploy-dev: 
+    needs: [backend, frontend]  # Attend succès des deux jobs tests
+    if: github.ref == 'refs/heads/dev'  # Seulement branche dev
+    runs-on: [self-hosted, dev]
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: dev
+
+    - name: 🏗️ Build Docker images
+      run: docker compose build --no-cache
+
+    - name: 🚀 Deploy & clean
+      run: docker compose up -d --remove-orphans --force-recreate
