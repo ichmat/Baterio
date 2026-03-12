@@ -92,13 +92,17 @@ app.UseMiddleware<TenantMiddleware>();
 app.UseAuthorization();
 app.MapControllers();
 
-// Seed data (Development only, not during testing)
-if (app.Environment.IsDevelopment())
+// Apply pending EF Core migrations at startup (skip in Testing — SQLite uses EnsureCreated)
+if (!app.Environment.IsEnvironment("Testing"))
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.EnsureCreatedAsync();
-    await SeedData.InitializeAsync(db);
+    await db.Database.MigrateAsync();
+
+    if (app.Environment.IsDevelopment())
+    {
+        await SeedData.InitializeAsync(db);
+    }
 }
 
 app.Run();
