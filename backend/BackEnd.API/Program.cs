@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using BackEnd.API.Data;
 using BackEnd.API.Infrastructure;
 using BackEnd.API.Services;
@@ -70,6 +71,10 @@ builder.Services.AddCors(options =>
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add<ApiExceptionFilter>();
+})
+.AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 builder.Services.AddOpenApi();
 
