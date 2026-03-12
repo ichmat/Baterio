@@ -44,7 +44,7 @@ jobs:
   deploy-dev: 
     needs: [backend, frontend]  # Attend succès des deux jobs tests
     if: github.ref == 'refs/heads/dev'  # Seulement branche dev
-    runs-on: [self-hosted, dev]
+    runs-on: self-hosted
     steps:
     - uses: actions/checkout@v4
       with:
