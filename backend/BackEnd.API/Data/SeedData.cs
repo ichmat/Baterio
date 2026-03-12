@@ -2,6 +2,7 @@ using BackEnd.Shared.Entities;
 using BackEnd.Shared.Enums;
 using Microsoft.EntityFrameworkCore;
 
+
 namespace BackEnd.API.Data;
 
 public static class SeedData
@@ -47,6 +48,23 @@ public static class SeedData
         };
         db.Users.Add(ouvrier);
 
+        await db.SaveChangesAsync();
+
+        var companyInfo = new CompanyInfo
+        {
+            TenantId = tenant.Id,
+            CompanyName = "Baterio SARL",
+            Address = "12 rue des Artisans, 75011 Paris",
+            Siret = "12345678901234",
+            VatNumber = "FR12345678901",
+            LegalForm = "SARL",
+            InsurancePolicyNumber = "DEC-2024-001234",
+            InsuranceProvider = "AXA Assurances",
+            InsuranceCoverage = "France metropolitaine",
+            DefaultPaymentTerms = "Paiement a 30 jours",
+            CreatedAt = DateTime.UtcNow
+        };
+        db.CompanyInfos.Add(companyInfo);
         await db.SaveChangesAsync();
     }
 }

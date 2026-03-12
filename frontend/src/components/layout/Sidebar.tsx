@@ -12,7 +12,7 @@ export function Sidebar() {
             to="/admin"
             className="block rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
           >
-            Gestion utilisateurs
+            Administration
           </Link>
         )}
       </div>

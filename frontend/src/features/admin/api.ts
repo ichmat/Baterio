@@ -1,5 +1,5 @@
 import { apiClient } from '@/lib/api-client'
-import type { CreateUserRequest, UpdateUserRoleRequest, UserResponse } from './types'
+import type { CreateUserRequest, UpdateUserRoleRequest, UserResponse, UpdateCompanyInfoRequest, CompanyInfoResponse, SubscriptionInfoResponse } from './types'
 
 interface ApiResponse<T> {
   data: T
@@ -37,4 +37,22 @@ export async function deactivateUser(id: number): Promise<void> {
 
 export async function reactivateUser(id: number): Promise<void> {
   await apiClient<void>(`/users/${id}/reactivate`, { method: 'PATCH' })
+}
+
+export async function getCompanyInfo(): Promise<CompanyInfoResponse> {
+  const response = await apiClient<ApiResponse<CompanyInfoResponse>>('/company')
+  return response.data
+}
+
+export async function updateCompanyInfo(data: UpdateCompanyInfoRequest): Promise<CompanyInfoResponse> {
+  const response = await apiClient<ApiResponse<CompanyInfoResponse>>('/company', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+  return response.data
+}
+
+export async function getSubscriptionInfo(): Promise<SubscriptionInfoResponse> {
+  const response = await apiClient<ApiResponse<SubscriptionInfoResponse>>('/company/subscription')
+  return response.data
 }

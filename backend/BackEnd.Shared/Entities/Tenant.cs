@@ -10,4 +10,5 @@ public class Tenant
     public DateTime? UpdatedAt { get; set; }
 
     public ICollection<User> Users { get; set; } = new List<User>();
+    public CompanyInfo? CompanyInfo { get; set; }
 }

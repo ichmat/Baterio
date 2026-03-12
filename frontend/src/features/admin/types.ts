@@ -19,3 +19,38 @@ export interface UserResponse {
   isActive: boolean
   createdAt: string
 }
+
+export interface UpdateCompanyInfoRequest {
+  companyName?: string
+  address?: string
+  siret?: string
+  vatNumber?: string
+  legalForm?: string
+  insurancePolicyNumber?: string
+  insuranceProvider?: string
+  insuranceCoverage?: string
+  defaultPaymentTerms?: string
+}
+
+export interface CompanyInfoResponse {
+  id: number
+  companyName?: string
+  address?: string
+  siret?: string
+  vatNumber?: string
+  legalForm?: string
+  insurancePolicyNumber?: string
+  insuranceProvider?: string
+  insuranceCoverage?: string
+  defaultPaymentTerms?: string
+  createdAt: string
+  updatedAt?: string
+}
+
+export interface SubscriptionInfoResponse {
+  plan: string
+  activeUsers: number
+  maxUsers: number | null
+  tenantName: string
+  createdAt: string
+}

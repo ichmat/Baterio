@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<CompanyInfo> CompanyInfos => Set<CompanyInfo>();
 
     // Safe accessor for the query filter — returns 0 when no tenant context
     private int CurrentTenantId => _tenantContext?.TenantId ?? 0;
@@ -30,5 +31,6 @@ public class AppDbContext : DbContext
         // Global Query Filter — multi-tenancy row-level
         // Filter is always applied; when CurrentTenantId == 0, no rows match (safe default)
         modelBuilder.Entity<User>().HasQueryFilter(u => u.TenantId == CurrentTenantId);
+        modelBuilder.Entity<CompanyInfo>().HasQueryFilter(c => c.TenantId == CurrentTenantId);
     }
 }
