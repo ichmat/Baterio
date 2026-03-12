@@ -4,15 +4,15 @@ import { toast } from 'sonner'
 import { useEffect, useRef } from 'react'
 
 interface RoleRouteProps {
-  role: string
+  roles: string[]
   children: React.ReactNode
 }
 
-export function RoleRoute({ role, children }: RoleRouteProps) {
+export function RoleRoute({ roles, children }: RoleRouteProps) {
   const { user, isAuthenticated, isLoading } = useAuth()
   const toastShown = useRef(false)
 
-  const hasAccess = isAuthenticated && user?.role === role
+  const hasAccess = isAuthenticated && user != null && roles.includes(user.role)
 
   useEffect(() => {
     if (!isLoading && isAuthenticated && !hasAccess && !toastShown.current) {

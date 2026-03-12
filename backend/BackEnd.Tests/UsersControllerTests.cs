@@ -139,18 +139,47 @@ public class UsersControllerTests : IClassFixture<CustomWebApplicationFactory>
             await db.SaveChangesAsync();
         }
 
+        try
+        {
+            var response = await _client.SendAsync(CreateRequest(HttpMethod.Post, "/api/users", token, new CreateUserRequest
+            {
+                Email = $"limit-{Guid.NewGuid():N}@baterio.fr",
+                FirstName = "Limit",
+                LastName = "User",
+                Password = "Password123!",
+                Role = UserRole.Ouvrier
+            }));
+
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.Contains("limite", body);
+        }
+        finally
+        {
+            // Restore original configuration to avoid polluting other tests
+            using var restoreScope = _factory.Services.CreateScope();
+            var restoreDb = restoreScope.ServiceProvider.GetRequiredService<BackEnd.API.Data.AppDbContext>();
+            var restoreTenant = await restoreDb.Tenants.FindAsync(tenantId);
+            restoreTenant!.Configuration = "{\"maxUsers\": 10}";
+            await restoreDb.SaveChangesAsync();
+        }
+    }
+
+    [Fact]
+    public async Task Create_WithAdminRole_Returns400()
+    {
+        var (token, _, _) = await SetupAdminAsync();
+
         var response = await _client.SendAsync(CreateRequest(HttpMethod.Post, "/api/users", token, new CreateUserRequest
         {
-            Email = $"limit-{Guid.NewGuid():N}@baterio.fr",
-            FirstName = "Limit",
-            LastName = "User",
+            Email = $"admin-{Guid.NewGuid():N}@baterio.fr",
+            FirstName = "New",
+            LastName = "Admin",
             Password = "Password123!",
-            Role = UserRole.Ouvrier
+            Role = UserRole.Admin
         }));
 
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("limite", body);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     // --- PATCH /api/users/{id}/role ---
@@ -169,6 +198,35 @@ public class UsersControllerTests : IClassFixture<CustomWebApplicationFactory>
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("Chef", body);
+    }
+
+    [Fact]
+    public async Task UpdateRole_ToAdmin_Returns400()
+    {
+        var (token, _, _) = await SetupAdminAsync();
+        var ouvrierId = await _factory.GetOuvrierUserIdAsync();
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Patch, $"/api/users/{ouvrierId}/role", token, new UpdateUserRoleRequest
+        {
+            Role = UserRole.Admin
+        }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateRole_Self_Returns400()
+    {
+        var (token, _, adminId) = await SetupAdminAsync();
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Patch, $"/api/users/{adminId}/role", token, new UpdateUserRoleRequest
+        {
+            Role = UserRole.Chef
+        }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("CannotChangeOwnRole", body);
     }
 
     // --- PATCH /api/users/{id}/deactivate ---

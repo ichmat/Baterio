@@ -26,12 +26,20 @@ public class UserService : IUserService
 
     public async Task<List<UserResponse>> GetAllUsersAsync()
     {
-        var users = await _db.Users
+        return await _db.Users
             .OrderBy(u => u.LastName)
             .ThenBy(u => u.FirstName)
+            .Select(u => new UserResponse
+            {
+                Id = u.Id,
+                Email = u.Email,
+                FirstName = u.FirstName ?? string.Empty,
+                LastName = u.LastName ?? string.Empty,
+                Role = u.Role.ToString(),
+                IsActive = u.IsActive,
+                CreatedAt = u.CreatedAt
+            })
             .ToListAsync();
-
-        return users.Select(MapToResponse).ToList();
     }
 
     public async Task<UserResponse> GetUserByIdAsync(int id)
@@ -45,6 +53,10 @@ public class UserService : IUserService
 
     public async Task<UserResponse> CreateUserAsync(CreateUserRequest request)
     {
+        // Interdire la création d'un utilisateur Admin
+        if (request.Role == UserRole.Admin)
+            throw new ApiErrorException(ApiError.InvalidRole);
+
         // Vérifier unicité email dans le tenant
         var emailExists = await _db.Users
             .AnyAsync(u => u.Email == request.Email);
@@ -77,9 +89,17 @@ public class UserService : IUserService
 
     public async Task<UserResponse> UpdateUserRoleAsync(int id, UpdateUserRoleRequest request)
     {
+        // Interdire la promotion vers Admin
+        if (request.Role == UserRole.Admin)
+            throw new ApiErrorException(ApiError.InvalidRole);
+
         var user = await _db.Users.FindAsync(id);
         if (user == null)
             throw new ApiErrorException(ApiError.UserNotFound);
+
+        // Interdire de changer son propre rôle
+        if (user.Id == GetCurrentUserId())
+            throw new ApiErrorException(ApiError.CannotChangeOwnRole);
 
         user.Role = request.Role;
         user.UpdatedAt = DateTime.UtcNow;

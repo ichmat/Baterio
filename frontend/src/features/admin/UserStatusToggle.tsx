@@ -35,6 +35,8 @@ export function UserStatusToggle({ userId, userName, isActive, onDeactivate, onR
     try {
       await onDeactivate(userId)
       setConfirmOpen(false)
+    } catch {
+      // Keep dialog open on error so user can retry
     } finally {
       setLoading(false)
     }

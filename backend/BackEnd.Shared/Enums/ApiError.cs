@@ -33,5 +33,8 @@ public enum ApiError
     CannotDeactivateSelf,
 
     [ApiErrorInfo(400, "Rôle invalide")]
-    InvalidRole
+    InvalidRole,
+
+    [ApiErrorInfo(400, "Vous ne pouvez pas modifier votre propre rôle")]
+    CannotChangeOwnRole
 }

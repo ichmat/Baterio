@@ -3,11 +3,11 @@ export interface CreateUserRequest {
   firstName: string
   lastName: string
   password: string
-  role: 'Admin' | 'Chef' | 'Secretaire' | 'Ouvrier'
+  role: 'Chef' | 'Secretaire' | 'Ouvrier'
 }
 
 export interface UpdateUserRoleRequest {
-  role: 'Admin' | 'Chef' | 'Secretaire' | 'Ouvrier'
+  role: 'Chef' | 'Secretaire' | 'Ouvrier'
 }
 
 export interface UserResponse {

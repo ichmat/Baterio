@@ -123,6 +123,21 @@ public class AuthControllerTests : IClassFixture<CustomWebApplicationFactory>
     }
 
     [Fact]
+    public async Task Logout_AsNonAdmin_Returns204()
+    {
+        var (tenantId, _) = await _factory.SeedTestDataAsync();
+        var ouvrierId = await _factory.GetOuvrierUserIdAsync();
+        var token = _factory.GenerateTestToken(ouvrierId, tenantId, BackEnd.Shared.Enums.UserRole.Ouvrier, "ouvrier@test.fr");
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/logout");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Logout_WithoutToken_Returns401()
     {
         var response = await _client.PostAsync("/api/auth/logout", null);

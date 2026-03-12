@@ -19,13 +19,15 @@ import { Badge } from '@/components/ui/badge'
 import { RoleBadge } from './RoleBadge'
 import { UserStatusToggle } from './UserStatusToggle'
 import { CreateUserDialog } from './CreateUserDialog'
+import { useAuth } from '@/features/auth/useAuth'
 import { getUsers, createUser, updateUserRole, deactivateUser, reactivateUser } from './api'
 import type { UserResponse, CreateUserRequest } from './types'
 import { toast } from 'sonner'
 
-const ROLES = ['Admin', 'Chef', 'Secretaire', 'Ouvrier'] as const
+const ROLES = ['Chef', 'Secretaire', 'Ouvrier'] as const
 
 export function UserManagement() {
+  const { user: currentUser } = useAuth()
   const [users, setUsers] = useState<UserResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -70,6 +72,7 @@ export function UserManagement() {
     } catch (err: unknown) {
       const apiError = err as { message?: string }
       toast.error(apiError?.message ?? 'Erreur lors de la désactivation')
+      throw err
     }
   }
 
@@ -125,28 +128,32 @@ export function UserManagement() {
                 </Badge>
               </TableCell>
               <TableCell>
-                <div className="flex items-center gap-3">
-                  <Select
-                    value={user.role}
-                    onValueChange={(value) => handleUpdateRole(user.id, value)}
-                  >
-                    <SelectTrigger className="w-[140px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ROLES.map((r) => (
-                        <SelectItem key={r} value={r}>{r}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <UserStatusToggle
-                    userId={user.id}
-                    userName={`${user.firstName} ${user.lastName}`}
-                    isActive={user.isActive}
-                    onDeactivate={handleDeactivate}
-                    onReactivate={handleReactivate}
-                  />
-                </div>
+                {currentUser?.id !== user.id ? (
+                  <div className="flex items-center gap-3">
+                    <Select
+                      value={user.role}
+                      onValueChange={(value) => handleUpdateRole(user.id, value)}
+                    >
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ROLES.map((r) => (
+                          <SelectItem key={r} value={r}>{r}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <UserStatusToggle
+                      userId={user.id}
+                      userName={`${user.firstName} ${user.lastName}`}
+                      isActive={user.isActive}
+                      onDeactivate={handleDeactivate}
+                      onReactivate={handleReactivate}
+                    />
+                  </div>
+                ) : (
+                  <span className="text-sm text-muted-foreground">—</span>
+                )}
               </TableCell>
             </TableRow>
           ))}

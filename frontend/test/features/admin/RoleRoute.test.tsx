@@ -28,7 +28,7 @@ function renderWithAuth(authValue: AuthContextType, initialRoute = '/admin') {
           <Route
             path="/admin"
             element={
-              <RoleRoute role="Admin">
+              <RoleRoute roles={['Admin']}>
                 <div>Admin Content</div>
               </RoleRoute>
             }

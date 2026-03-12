@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { UserManagement } from '@/features/admin/UserManagement'
+import { AuthContext, type AuthContextType } from '@/features/auth/AuthContext'
 import * as api from '@/features/admin/api'
 import type { UserResponse } from '@/features/admin/types'
 
@@ -19,6 +20,23 @@ const mockUsers: UserResponse[] = [
   { id: 3, email: 'inactif@baterio.fr', firstName: 'Inactif', lastName: 'User', role: 'Chef', isActive: false, createdAt: '2026-01-01T00:00:00Z' },
 ]
 
+const mockAuth: AuthContextType = {
+  user: { id: 1, email: 'admin@baterio.fr', firstName: 'Admin', lastName: 'Baterio', role: 'Admin', tenantId: 1 },
+  isAuthenticated: true,
+  isLoading: false,
+  login: vi.fn(),
+  logout: vi.fn(),
+  refreshSession: vi.fn(),
+}
+
+function renderWithAuth(authValue: AuthContextType = mockAuth) {
+  return render(
+    <AuthContext.Provider value={authValue}>
+      <UserManagement />
+    </AuthContext.Provider>,
+  )
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(api.getUsers).mockResolvedValue(mockUsers)
@@ -26,7 +44,7 @@ beforeEach(() => {
 
 describe('UserManagement', () => {
   it('renders user list with roles and statuses', async () => {
-    render(<UserManagement />)
+    renderWithAuth()
 
     await waitFor(() => {
       expect(screen.getByText('Admin Baterio')).toBeInTheDocument()
@@ -40,12 +58,12 @@ describe('UserManagement', () => {
 
   it('shows loading state initially', () => {
     vi.mocked(api.getUsers).mockImplementation(() => new Promise(() => {}))
-    render(<UserManagement />)
+    renderWithAuth()
     expect(screen.getByText('Chargement...')).toBeInTheDocument()
   })
 
   it('renders add user button', async () => {
-    render(<UserManagement />)
+    renderWithAuth()
 
     await waitFor(() => {
       expect(screen.getByText('Ajouter un utilisateur')).toBeInTheDocument()
@@ -54,7 +72,7 @@ describe('UserManagement', () => {
 
   it('opens create user dialog when add button is clicked', async () => {
     const user = userEvent.setup()
-    render(<UserManagement />)
+    renderWithAuth()
 
     await waitFor(() => {
       expect(screen.getByText('Ajouter un utilisateur')).toBeInTheDocument()
@@ -68,11 +86,22 @@ describe('UserManagement', () => {
   })
 
   it('displays active/inactive badges', async () => {
-    render(<UserManagement />)
+    renderWithAuth()
 
     await waitFor(() => {
       expect(screen.getAllByText('Actif')).toHaveLength(2)
       expect(screen.getByText('Inactif')).toBeInTheDocument()
     })
+  })
+
+  it('hides role selector and toggle for current user', async () => {
+    renderWithAuth()
+
+    await waitFor(() => {
+      expect(screen.getByText('Admin Baterio')).toBeInTheDocument()
+    })
+
+    // Current user (id=1) should show "—" instead of actions
+    expect(screen.getByText('—')).toBeInTheDocument()
   })
 })

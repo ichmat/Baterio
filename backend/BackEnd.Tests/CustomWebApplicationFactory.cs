@@ -65,7 +65,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             return (existingTenant.Id, existingUser.Id);
         }
 
-        var tenant = new Tenant { Name = "Test Tenant", CreatedAt = DateTime.UtcNow };
+        var tenant = new Tenant { Name = "Test Tenant", Configuration = "{\"maxUsers\": 10}", CreatedAt = DateTime.UtcNow };
         db.Tenants.Add(tenant);
         await db.SaveChangesAsync();
 

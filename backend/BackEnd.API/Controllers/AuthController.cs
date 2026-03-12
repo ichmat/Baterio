@@ -38,7 +38,6 @@ public class AuthController : ControllerBase
 
     [HttpPost("logout")]
     [Authorize]
-    [RoleAuthorize(UserRole.Admin)]
     public async Task<IActionResult> Logout()
     {
         var userClaim = User.FindFirst(ClaimTypes.NameIdentifier);

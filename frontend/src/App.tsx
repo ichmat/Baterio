@@ -40,7 +40,7 @@ export default function App() {
             path="/admin"
             element={
               <ProtectedRoute>
-                <RoleRoute role="Admin">
+                <RoleRoute roles={['Admin']}>
                   <AppLayout>
                     <AdminPage />
                   </AppLayout>
