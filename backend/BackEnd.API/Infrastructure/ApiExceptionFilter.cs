@@ -18,7 +18,10 @@ public class ApiExceptionFilter : IExceptionFilter
     {
         if (context.Exception is ApiErrorException apiError)
         {
-            var (status, message) = apiError.Code.GetInfo();
+            var (status, attributeMessage) = apiError.Code.GetInfo();
+            var message = apiError.Message != apiError.Code.ToString()
+                ? apiError.Message
+                : attributeMessage;
 
             context.Result = new JsonResult(new
             {

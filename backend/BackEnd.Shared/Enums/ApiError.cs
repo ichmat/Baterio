@@ -21,5 +21,17 @@ public enum ApiError
     Unauthorized,
 
     [ApiErrorInfo(403, "Accès interdit")]
-    Forbidden
+    Forbidden,
+
+    [ApiErrorInfo(409, "Un utilisateur avec cet email existe déjà")]
+    EmailAlreadyExists,
+
+    [ApiErrorInfo(403, "Vous avez atteint la limite de {0} utilisateurs de votre abonnement")]
+    UserLimitReached,
+
+    [ApiErrorInfo(400, "Vous ne pouvez pas désactiver votre propre compte")]
+    CannotDeactivateSelf,
+
+    [ApiErrorInfo(400, "Rôle invalide")]
+    InvalidRole
 }

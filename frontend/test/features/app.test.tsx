@@ -11,6 +11,14 @@ vi.mock('@/lib/api-client', () => ({
   getRefreshToken: vi.fn(() => null),
 }))
 
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+  Toaster: () => null,
+}))
+
 beforeEach(() => {
   localStorage.clear()
 })

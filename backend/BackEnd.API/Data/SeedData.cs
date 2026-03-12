@@ -15,6 +15,7 @@ public static class SeedData
         var tenant = new Tenant
         {
             Name = "Baterio Dev",
+            Configuration = "{\"maxUsers\": 10}",
             CreatedAt = DateTime.UtcNow
         };
         db.Tenants.Add(tenant);
@@ -32,6 +33,20 @@ public static class SeedData
             CreatedAt = DateTime.UtcNow
         };
         db.Users.Add(admin);
+
+        var ouvrier = new User
+        {
+            TenantId = tenant.Id,
+            Email = "ouvrier@baterio.fr",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Ouvrier123!"),
+            FirstName = "Ouvrier",
+            LastName = "Baterio",
+            Role = UserRole.Ouvrier,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Users.Add(ouvrier);
+
         await db.SaveChangesAsync();
     }
 }

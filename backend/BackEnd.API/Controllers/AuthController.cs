@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using BackEnd.API.Infrastructure;
 using BackEnd.Shared.Enums;
 using BackEnd.Shared.Exceptions;
 using BackEnd.Shared.Interfaces;
@@ -37,6 +38,7 @@ public class AuthController : ControllerBase
 
     [HttpPost("logout")]
     [Authorize]
+    [RoleAuthorize(UserRole.Admin)]
     public async Task<IActionResult> Logout()
     {
         var userClaim = User.FindFirst(ClaimTypes.NameIdentifier);

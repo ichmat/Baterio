@@ -81,9 +81,31 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             CreatedAt = DateTime.UtcNow
         };
         db.Users.Add(user);
+
+        var ouvrier = new User
+        {
+            TenantId = tenant.Id,
+            Email = "ouvrier@test.fr",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Ouvrier123!"),
+            FirstName = "Ouvrier",
+            LastName = "Test",
+            Role = UserRole.Ouvrier,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+        db.Users.Add(ouvrier);
+
         await db.SaveChangesAsync();
 
         return (tenant.Id, user.Id);
+    }
+
+    public async Task<int> GetOuvrierUserIdAsync()
+    {
+        using var scope = Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var ouvrier = await db.Users.IgnoreQueryFilters().FirstAsync(u => u.Email == "ouvrier@test.fr");
+        return ouvrier.Id;
     }
 
     public string GenerateTestToken(int userId, int tenantId, UserRole role = UserRole.Admin, string email = "test@baterio.fr")
