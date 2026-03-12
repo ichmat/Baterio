@@ -51,7 +51,7 @@ jobs:
         ref: dev
 
     - name: 🏗️ Build Docker images
-      run: docker compose build --no-cache
+      run: docker compose -f docker-compose.dev.yml build --no-cache
 
     - name: 🚀 Deploy & clean
-      run: docker compose up -d --remove-orphans --force-recreate
+      run: docker compose -f docker-compose.dev.yml up -d --remove-orphans --force-recreate
