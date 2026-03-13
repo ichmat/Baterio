@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { CreateCustomFieldDialog } from '@/features/admin/CreateCustomFieldDialog'
+import { CreateCustomFieldDialog, type CreateCustomFieldDefaultAppliesTo } from '@/features/admin/CreateCustomFieldDialog'
 import * as api from '@/features/admin/api'
 import { toast } from 'sonner'
 
@@ -50,12 +50,13 @@ beforeEach(() => {
   vi.clearAllMocks()
 })
 
-function renderDialog(open = true) {
+function renderDialog(open = true, defaultAppliesTo: CreateCustomFieldDefaultAppliesTo = 'quotes') {
   return render(
     <CreateCustomFieldDialog
       open={open}
       onOpenChange={mockOnOpenChange}
       onSuccess={mockOnSuccess}
+      defaultAppliesTo={defaultAppliesTo}
     />,
   )
 }

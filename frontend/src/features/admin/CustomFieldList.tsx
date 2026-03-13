@@ -94,7 +94,7 @@ export function CustomFieldList({ fields, allFields, onRefresh }: CustomFieldLis
           <Card key={field.id} size="sm">
             <CardContent className="flex items-center justify-between py-3">
               <div className="flex items-center gap-3">
-                <span className="text-xs text-muted-foreground w-6 text-center">{field.displayOrder}</span>
+                <span className="text-xs text-muted-foreground w-6 text-center">{field.displayOrder + 1}</span>
                 <span className="font-medium">{field.label}</span>
                 <Badge variant="secondary">{FIELD_TYPE_LABELS[field.fieldType] ?? field.fieldType}</Badge>
                 <Badge variant="outline">{OBLIGATION_LABELS[field.obligationLevel] ?? field.obligationLevel}</Badge>

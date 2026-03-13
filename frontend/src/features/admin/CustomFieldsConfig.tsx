@@ -4,13 +4,14 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { getCustomFields } from './api'
 import { CustomFieldList } from './CustomFieldList'
-import { CreateCustomFieldDialog } from './CreateCustomFieldDialog'
+import { CreateCustomFieldDialog, type CreateCustomFieldDefaultAppliesTo } from './CreateCustomFieldDialog'
 import type { CustomFieldResponse } from './types'
 
 export function CustomFieldsConfig() {
   const [fields, setFields] = useState<CustomFieldResponse[]>([])
-  const [loading, setLoading] = useState(true)
-  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [loading, setLoading] = useState<boolean>(true)
+  const [createDialogOpen, setCreateDialogOpen] = useState<boolean>(false);
+  const [defaultAppliesTo, setDefaultAppliesTo] = useState<CreateCustomFieldDefaultAppliesTo>('quotes')
 
   const loadFields = useCallback(async () => {
     try {
@@ -39,7 +40,10 @@ export function CustomFieldsConfig() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Champs Devis</CardTitle>
-          <Button size="sm" onClick={() => setCreateDialogOpen(true)}>Ajouter un champ</Button>
+          <Button size="sm" onClick={() => {
+            setDefaultAppliesTo('quotes');
+            setCreateDialogOpen(true);
+          }}>Ajouter un champ</Button>
         </CardHeader>
         <CardContent>
           <CustomFieldList fields={quoteFields} allFields={fields} onRefresh={loadFields} />
@@ -49,7 +53,10 @@ export function CustomFieldsConfig() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Champs Chantier</CardTitle>
-          <Button size="sm" onClick={() => setCreateDialogOpen(true)}>Ajouter un champ</Button>
+          <Button size="sm" onClick={() => {
+            setDefaultAppliesTo('sites');
+            setCreateDialogOpen(true);
+          }}>Ajouter un champ</Button>
         </CardHeader>
         <CardContent>
           <CustomFieldList fields={siteFields} allFields={fields} onRefresh={loadFields} />
@@ -59,8 +66,9 @@ export function CustomFieldsConfig() {
       <CreateCustomFieldDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
-        onSuccess={loadFields}
-      />
+        onSuccess={loadFields} 
+        defaultAppliesTo={defaultAppliesTo} 
+        />
     </div>
   )
 }

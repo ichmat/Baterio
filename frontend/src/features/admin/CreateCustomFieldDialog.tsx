@@ -28,18 +28,21 @@ interface OptionItem {
   value: string
 }
 
+export type CreateCustomFieldDefaultAppliesTo = 'quotes' | 'sites'
+
 interface CreateCustomFieldDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSuccess: () => void
+  defaultAppliesTo: CreateCustomFieldDefaultAppliesTo
 }
 
-export function CreateCustomFieldDialog({ open, onOpenChange, onSuccess }: CreateCustomFieldDialogProps) {
-  const [label, setLabel] = useState('')
+export function CreateCustomFieldDialog({ open, onOpenChange, onSuccess, defaultAppliesTo }: CreateCustomFieldDialogProps) {
+  const [label, setLabel] = useState<string>('')
   const [fieldType, setFieldType] = useState<string>('')
   const [obligationLevel, setObligationLevel] = useState<string>('')
-  const [appliesToQuotes, setAppliesToQuotes] = useState(true)
-  const [appliesToSites, setAppliesToSites] = useState(true)
+  const [appliesToQuotes, setAppliesToQuotes] = useState<boolean>(true)
+  const [appliesToSites, setAppliesToSites] = useState<boolean>(true)
   const [options, setOptions] = useState<OptionItem[]>([{ id: 1, value: '' }])
   const nextOptionId = useRef(2)
   const [loading, setLoading] = useState(false)
@@ -52,8 +55,8 @@ export function CreateCustomFieldDialog({ open, onOpenChange, onSuccess }: Creat
     setLabel('')
     setFieldType('')
     setObligationLevel('')
-    setAppliesToQuotes(true)
-    setAppliesToSites(true)
+    setAppliesToQuotes(defaultAppliesTo === 'quotes')
+    setAppliesToSites(defaultAppliesTo === 'sites')
     setOptions([{ id: 1, value: '' }])
     nextOptionId.current = 2
     setError(null)
@@ -106,7 +109,7 @@ export function CreateCustomFieldDialog({ open, onOpenChange, onSuccess }: Creat
   }
 
   const handleOpenChange = (value: boolean) => {
-    if (!value) resetForm()
+    if (value) resetForm()
     onOpenChange(value)
   }
 
