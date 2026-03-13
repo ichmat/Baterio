@@ -32,7 +32,12 @@ public class CustomFieldService : ICustomFieldService
         if (appliesToSites == true)
             query = query.Where(f => f.AppliesToSites);
 
-        var fields = await query.OrderBy(f => f.DisplayOrder).ToListAsync();
+        if (appliesToSites == true && appliesToQuotes != true)
+            query = query.OrderBy(f => f.DisplayOrderSites);
+        else
+            query = query.OrderBy(f => f.DisplayOrderQuotes);
+
+        var fields = await query.ToListAsync();
         return fields.Select(MapToResponse).ToList();
     }
 
@@ -64,9 +69,26 @@ public class CustomFieldService : ICustomFieldService
 
         ValidateOptions(request.Options, fieldType);
 
-        var maxOrder = await _db.CustomFieldDefinitions
-            .Select(f => (int?)f.DisplayOrder)
-            .MaxAsync() ?? -1;
+        int? displayOrderQuotes = null;
+        int? displayOrderSites = null;
+
+        if (request.AppliesToQuotes)
+        {
+            var maxOrder = await _db.CustomFieldDefinitions
+                .Where(f => f.AppliesToQuotes)
+                .Select(f => (int?)f.DisplayOrderQuotes)
+                .MaxAsync() ?? -1;
+            displayOrderQuotes = maxOrder + 1;
+        }
+
+        if (request.AppliesToSites)
+        {
+            var maxOrder = await _db.CustomFieldDefinitions
+                .Where(f => f.AppliesToSites)
+                .Select(f => (int?)f.DisplayOrderSites)
+                .MaxAsync() ?? -1;
+            displayOrderSites = maxOrder + 1;
+        }
 
         var field = new CustomFieldDefinition
         {
@@ -77,7 +99,8 @@ public class CustomFieldService : ICustomFieldService
             ObligationLevel = obligationLevel,
             AppliesToQuotes = request.AppliesToQuotes,
             AppliesToSites = request.AppliesToSites,
-            DisplayOrder = maxOrder + 1,
+            DisplayOrderQuotes = displayOrderQuotes,
+            DisplayOrderSites = displayOrderSites,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -118,6 +141,9 @@ public class CustomFieldService : ICustomFieldService
             field.ObligationLevel = obligationLevel;
         }
 
+        var oldAppliesToQuotes = field.AppliesToQuotes;
+        var oldAppliesToSites = field.AppliesToSites;
+
         if (request.AppliesToQuotes.HasValue)
             field.AppliesToQuotes = request.AppliesToQuotes.Value;
 
@@ -126,6 +152,33 @@ public class CustomFieldService : ICustomFieldService
 
         if (!field.AppliesToQuotes && !field.AppliesToSites)
             throw new ApiErrorException(ApiError.AppliesToRequired);
+
+        // Assign display order when a field is newly added to a context
+        if (field.AppliesToQuotes && !oldAppliesToQuotes)
+        {
+            var maxOrder = await _db.CustomFieldDefinitions
+                .Where(f => f.AppliesToQuotes && f.Id != field.Id)
+                .Select(f => (int?)f.DisplayOrderQuotes)
+                .MaxAsync() ?? -1;
+            field.DisplayOrderQuotes = maxOrder + 1;
+        }
+        else if (!field.AppliesToQuotes && oldAppliesToQuotes)
+        {
+            field.DisplayOrderQuotes = null;
+        }
+
+        if (field.AppliesToSites && !oldAppliesToSites)
+        {
+            var maxOrder = await _db.CustomFieldDefinitions
+                .Where(f => f.AppliesToSites && f.Id != field.Id)
+                .Select(f => (int?)f.DisplayOrderSites)
+                .MaxAsync() ?? -1;
+            field.DisplayOrderSites = maxOrder + 1;
+        }
+        else if (!field.AppliesToSites && oldAppliesToSites)
+        {
+            field.DisplayOrderSites = null;
+        }
 
         field.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
@@ -149,29 +202,38 @@ public class CustomFieldService : ICustomFieldService
 
     public async Task<List<CustomFieldResponse>> ReorderAsync(ReorderCustomFieldsRequest request)
     {
+        var context = request.Context?.ToLowerInvariant();
+        if (context != "quotes" && context != "sites")
+            throw new ApiErrorException(ApiError.InvalidReorderContext);
+
         await using var transaction = await _db.Database.BeginTransactionAsync();
 
-        var allFields = await _db.CustomFieldDefinitions.ToListAsync();
+        var contextFields = context == "quotes"
+            ? await _db.CustomFieldDefinitions.Where(f => f.AppliesToQuotes).ToListAsync()
+            : await _db.CustomFieldDefinitions.Where(f => f.AppliesToSites).ToListAsync();
 
         if (request.FieldIds.Distinct().Count() != request.FieldIds.Count)
             throw new ApiErrorException(ApiError.InvalidReorderList);
 
-        if (request.FieldIds.Count != allFields.Count ||
-            !request.FieldIds.All(id => allFields.Any(f => f.Id == id)))
+        if (request.FieldIds.Count != contextFields.Count ||
+            !request.FieldIds.All(id => contextFields.Any(f => f.Id == id)))
         {
             throw new ApiErrorException(ApiError.InvalidReorderList);
         }
 
         for (var i = 0; i < request.FieldIds.Count; i++)
         {
-            var field = allFields.First(f => f.Id == request.FieldIds[i]);
-            field.DisplayOrder = i;
+            var field = contextFields.First(f => f.Id == request.FieldIds[i]);
+            if (context == "quotes")
+                field.DisplayOrderQuotes = i;
+            else
+                field.DisplayOrderSites = i;
         }
 
         await _db.SaveChangesAsync();
         await transaction.CommitAsync();
 
-        _logger.LogInformation("CustomFields reordered for tenant {TenantId}", _tenantContext.TenantId);
+        _logger.LogInformation("CustomFields reordered ({Context}) for tenant {TenantId}", context, _tenantContext.TenantId);
 
         return await GetAllAsync();
     }
@@ -226,7 +288,8 @@ public class CustomFieldService : ICustomFieldService
             ObligationLevel = field.ObligationLevel,
             AppliesToQuotes = field.AppliesToQuotes,
             AppliesToSites = field.AppliesToSites,
-            DisplayOrder = field.DisplayOrder,
+            DisplayOrderQuotes = field.DisplayOrderQuotes,
+            DisplayOrderSites = field.DisplayOrderSites,
             CreatedAt = field.CreatedAt,
             UpdatedAt = field.UpdatedAt
         };

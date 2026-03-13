@@ -10,8 +10,12 @@ export function CustomFieldsConfig() {
   const [createDialogOpen, setCreateDialogOpen] = useState<boolean>(false)
   const [defaultAppliesTo, setDefaultAppliesTo] = useState<CreateCustomFieldDefaultAppliesTo>('quotes')
 
-  const quoteFields = (fields ?? []).filter(f => f.appliesToQuotes)
-  const siteFields = (fields ?? []).filter(f => f.appliesToSites)
+  const quoteFields = (fields ?? [])
+    .filter(f => f.appliesToQuotes)
+    .sort((a, b) => (a.displayOrderQuotes ?? 0) - (b.displayOrderQuotes ?? 0))
+  const siteFields = (fields ?? [])
+    .filter(f => f.appliesToSites)
+    .sort((a, b) => (a.displayOrderSites ?? 0) - (b.displayOrderSites ?? 0))
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Chargement...</p>
@@ -28,7 +32,7 @@ export function CustomFieldsConfig() {
           }}>Ajouter un champ</Button>
         </CardHeader>
         <CardContent>
-          <CustomFieldList fields={quoteFields} allFields={fields ?? []} />
+          <CustomFieldList fields={quoteFields} context="quotes" />
         </CardContent>
       </Card>
 
@@ -41,7 +45,7 @@ export function CustomFieldsConfig() {
           }}>Ajouter un champ</Button>
         </CardHeader>
         <CardContent>
-          <CustomFieldList fields={siteFields} allFields={fields ?? []} />
+          <CustomFieldList fields={siteFields} context="sites" />
         </CardContent>
       </Card>
 

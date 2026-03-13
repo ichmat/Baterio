@@ -57,5 +57,8 @@ public enum ApiError
     FieldTypeNotModifiable,
 
     [ApiErrorInfo(400, "La liste de réordonnancement est invalide")]
-    InvalidReorderList
+    InvalidReorderList,
+
+    [ApiErrorInfo(400, "Le contexte de réordonnancement doit être 'quotes' ou 'sites'")]
+    InvalidReorderContext
 }

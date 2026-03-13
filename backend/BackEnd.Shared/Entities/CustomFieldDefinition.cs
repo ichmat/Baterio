@@ -12,7 +12,8 @@ public class CustomFieldDefinition
     public ObligationLevel ObligationLevel { get; set; }
     public bool AppliesToQuotes { get; set; }
     public bool AppliesToSites { get; set; }
-    public int DisplayOrder { get; set; }
+    public int? DisplayOrderQuotes { get; set; }
+    public int? DisplayOrderSites { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 

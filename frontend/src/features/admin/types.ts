@@ -85,11 +85,15 @@ export interface CustomFieldResponse {
   obligationLevel: ObligationLevel
   appliesToQuotes: boolean
   appliesToSites: boolean
-  displayOrder: number
+  displayOrderQuotes: number | null
+  displayOrderSites: number | null
   createdAt: string
   updatedAt?: string
 }
 
+export type ReorderContext = 'quotes' | 'sites'
+
 export interface ReorderCustomFieldsRequest {
+  context: ReorderContext
   fieldIds: number[]
 }

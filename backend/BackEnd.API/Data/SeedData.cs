@@ -79,7 +79,8 @@ public static class SeedData
                 ObligationLevel = ObligationLevel.Never,
                 AppliesToQuotes = true,
                 AppliesToSites = true,
-                DisplayOrder = 0,
+                DisplayOrderQuotes = 0,
+                DisplayOrderSites = 0,
                 CreatedAt = DateTime.UtcNow
             },
             new CustomFieldDefinition
@@ -91,7 +92,8 @@ public static class SeedData
                 ObligationLevel = ObligationLevel.RequiredAtCreation,
                 AppliesToQuotes = true,
                 AppliesToSites = true,
-                DisplayOrder = 1,
+                DisplayOrderQuotes = 1,
+                DisplayOrderSites = 1,
                 CreatedAt = DateTime.UtcNow
             },
             new CustomFieldDefinition
@@ -102,7 +104,8 @@ public static class SeedData
                 ObligationLevel = ObligationLevel.RequiredForSiteConversion,
                 AppliesToQuotes = true,
                 AppliesToSites = false,
-                DisplayOrder = 2,
+                DisplayOrderQuotes = 2,
+                DisplayOrderSites = null,
                 CreatedAt = DateTime.UtcNow
             }
         };

@@ -22,11 +22,13 @@ public class CustomFieldDefinitionConfiguration : IEntityTypeConfiguration<Custo
             .HasConversion<string>();
         builder.Property(c => c.AppliesToQuotes).HasColumnName("applies_to_quotes").IsRequired();
         builder.Property(c => c.AppliesToSites).HasColumnName("applies_to_sites").IsRequired();
-        builder.Property(c => c.DisplayOrder).HasColumnName("display_order").IsRequired();
+        builder.Property(c => c.DisplayOrderQuotes).HasColumnName("display_order_quotes");
+        builder.Property(c => c.DisplayOrderSites).HasColumnName("display_order_sites");
         builder.Property(c => c.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(c => c.UpdatedAt).HasColumnName("updated_at");
 
-        builder.HasIndex(c => new { c.TenantId, c.DisplayOrder });
+        builder.HasIndex(c => new { c.TenantId, c.DisplayOrderQuotes });
+        builder.HasIndex(c => new { c.TenantId, c.DisplayOrderSites });
 
         builder.HasOne(c => c.Tenant)
             .WithMany()

@@ -106,6 +106,52 @@ public class CustomFieldsControllerTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal("Surface m²", result.Data.Label);
         Assert.Equal(FieldType.Number, result.Data.FieldType);
         Assert.Equal(ObligationLevel.Never, result.Data.ObligationLevel);
+        Assert.NotNull(result.Data.DisplayOrderQuotes);
+        Assert.NotNull(result.Data.DisplayOrderSites);
+    }
+
+    [Fact]
+    public async Task Create_QuotesOnly_SetsOnlyQuotesOrder()
+    {
+        var (token, _, _) = await SetupAdminAsync();
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Post, "/api/custom-fields", token,
+            new CreateCustomFieldRequest
+            {
+                Label = "Quotes Only Order",
+                FieldType = "Text",
+                ObligationLevel = "Never",
+                AppliesToQuotes = true,
+                AppliesToSites = false
+            }));
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<ApiResponse<CustomFieldResponse>>();
+        Assert.NotNull(result);
+        Assert.NotNull(result.Data.DisplayOrderQuotes);
+        Assert.Null(result.Data.DisplayOrderSites);
+    }
+
+    [Fact]
+    public async Task Create_SitesOnly_SetsOnlySitesOrder()
+    {
+        var (token, _, _) = await SetupAdminAsync();
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Post, "/api/custom-fields", token,
+            new CreateCustomFieldRequest
+            {
+                Label = "Sites Only Order",
+                FieldType = "Text",
+                ObligationLevel = "Never",
+                AppliesToQuotes = false,
+                AppliesToSites = true
+            }));
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<ApiResponse<CustomFieldResponse>>();
+        Assert.NotNull(result);
+        Assert.Null(result.Data.DisplayOrderQuotes);
+        Assert.NotNull(result.Data.DisplayOrderSites);
     }
 
     [Fact]
@@ -169,6 +215,41 @@ public class CustomFieldsControllerTests : IClassFixture<CustomWebApplicationFac
     }
 
     [Fact]
+    public async Task Update_AddSitesContext_AssignsOrder()
+    {
+        var (token, _, _) = await SetupAdminAsync();
+        var field = await CreateTestFieldAsync(token, "Add Sites", appliesToQuotes: true, appliesToSites: false);
+        Assert.Null(field.DisplayOrderSites);
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Put,
+            $"/api/custom-fields/{field.Id}", token,
+            new UpdateCustomFieldRequest { AppliesToSites = true }));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<ApiResponse<CustomFieldResponse>>();
+        Assert.NotNull(result);
+        Assert.NotNull(result.Data.DisplayOrderSites);
+        Assert.NotNull(result.Data.DisplayOrderQuotes);
+    }
+
+    [Fact]
+    public async Task Update_RemoveQuotesContext_ClearsOrder()
+    {
+        var (token, _, _) = await SetupAdminAsync();
+        var field = await CreateTestFieldAsync(token, "Remove Quotes", appliesToQuotes: true, appliesToSites: true);
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Put,
+            $"/api/custom-fields/{field.Id}", token,
+            new UpdateCustomFieldRequest { AppliesToQuotes = false }));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var result = await response.Content.ReadFromJsonAsync<ApiResponse<CustomFieldResponse>>();
+        Assert.NotNull(result);
+        Assert.Null(result.Data.DisplayOrderQuotes);
+        Assert.NotNull(result.Data.DisplayOrderSites);
+    }
+
+    [Fact]
     public async Task Update_ChangeFieldType_Returns400()
     {
         var (token, _, _) = await SetupAdminAsync();
@@ -201,29 +282,95 @@ public class CustomFieldsControllerTests : IClassFixture<CustomWebApplicationFac
     // --- PUT /api/custom-fields/reorder ---
 
     [Fact]
-    public async Task Reorder_UpdatesDisplayOrder()
+    public async Task Reorder_QuotesContext_UpdatesQuotesOrder()
     {
         var (token, _, _) = await SetupAdminAsync();
-        var field1 = await CreateTestFieldAsync(token, "Reorder A");
-        var field2 = await CreateTestFieldAsync(token, "Reorder B");
+        var field1 = await CreateTestFieldAsync(token, "Reorder Q-A", appliesToQuotes: true, appliesToSites: false);
+        var field2 = await CreateTestFieldAsync(token, "Reorder Q-B", appliesToQuotes: true, appliesToSites: false);
 
-        // Get all current fields to build complete reorder list
-        var allResponse = await _client.SendAsync(CreateRequest(HttpMethod.Get, "/api/custom-fields", token));
+        // Get all quote fields
+        var allResponse = await _client.SendAsync(CreateRequest(HttpMethod.Get,
+            "/api/custom-fields?appliesToQuotes=true", token));
         var allResult = await allResponse.Content.ReadFromJsonAsync<ApiResponse<List<CustomFieldResponse>>>();
-        var allIds = allResult!.Data.Select(f => f.Id).ToList();
+        var quoteIds = allResult!.Data.Select(f => f.Id).ToList();
 
-        // Swap field1 and field2 positions, keep others in place
-        var idx1 = allIds.IndexOf(field1.Id);
-        var idx2 = allIds.IndexOf(field2.Id);
-        (allIds[idx1], allIds[idx2]) = (allIds[idx2], allIds[idx1]);
+        // Swap field1 and field2
+        var idx1 = quoteIds.IndexOf(field1.Id);
+        var idx2 = quoteIds.IndexOf(field2.Id);
+        (quoteIds[idx1], quoteIds[idx2]) = (quoteIds[idx2], quoteIds[idx1]);
 
         var response = await _client.SendAsync(CreateRequest(HttpMethod.Put,
             "/api/custom-fields/reorder", token,
-            new ReorderCustomFieldsRequest { FieldIds = allIds }));
+            new ReorderCustomFieldsRequest { Context = "quotes", FieldIds = quoteIds }));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var result = await response.Content.ReadFromJsonAsync<ApiResponse<List<CustomFieldResponse>>>();
-        Assert.NotNull(result);
+    }
+
+    [Fact]
+    public async Task Reorder_SitesContext_UpdatesSitesOrder()
+    {
+        var (token, _, _) = await SetupAdminAsync();
+        var field1 = await CreateTestFieldAsync(token, "Reorder S-A", appliesToQuotes: false, appliesToSites: true);
+        var field2 = await CreateTestFieldAsync(token, "Reorder S-B", appliesToQuotes: false, appliesToSites: true);
+
+        var allResponse = await _client.SendAsync(CreateRequest(HttpMethod.Get,
+            "/api/custom-fields?appliesToSites=true", token));
+        var allResult = await allResponse.Content.ReadFromJsonAsync<ApiResponse<List<CustomFieldResponse>>>();
+        var siteIds = allResult!.Data.Select(f => f.Id).ToList();
+
+        var idx1 = siteIds.IndexOf(field1.Id);
+        var idx2 = siteIds.IndexOf(field2.Id);
+        (siteIds[idx1], siteIds[idx2]) = (siteIds[idx2], siteIds[idx1]);
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Put,
+            "/api/custom-fields/reorder", token,
+            new ReorderCustomFieldsRequest { Context = "sites", FieldIds = siteIds }));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Reorder_IndependentContexts_DoNotInterfere()
+    {
+        var (token, _, _) = await SetupAdminAsync();
+        // Create a field that applies to both
+        var shared = await CreateTestFieldAsync(token, "Shared Field", appliesToQuotes: true, appliesToSites: true);
+        var quotesOnly = await CreateTestFieldAsync(token, "Quotes Exclusive", appliesToQuotes: true, appliesToSites: false);
+        var sitesOnly = await CreateTestFieldAsync(token, "Sites Exclusive", appliesToQuotes: false, appliesToSites: true);
+
+        // Reorder quotes: put quotesOnly first, shared second
+        var quotesResponse = await _client.SendAsync(CreateRequest(HttpMethod.Get,
+            "/api/custom-fields?appliesToQuotes=true", token));
+        var quotesResult = await quotesResponse.Content.ReadFromJsonAsync<ApiResponse<List<CustomFieldResponse>>>();
+        var quoteIds = quotesResult!.Data.Select(f => f.Id).ToList();
+        // Move quotesOnly to front
+        quoteIds.Remove(quotesOnly.Id);
+        quoteIds.Insert(0, quotesOnly.Id);
+
+        await _client.SendAsync(CreateRequest(HttpMethod.Put,
+            "/api/custom-fields/reorder", token,
+            new ReorderCustomFieldsRequest { Context = "quotes", FieldIds = quoteIds }));
+
+        // Verify sites order was NOT affected
+        var sitesResponse = await _client.SendAsync(CreateRequest(HttpMethod.Get,
+            "/api/custom-fields?appliesToSites=true", token));
+        var sitesResult = await sitesResponse.Content.ReadFromJsonAsync<ApiResponse<List<CustomFieldResponse>>>();
+        var sharedInSites = sitesResult!.Data.First(f => f.Id == shared.Id);
+
+        // The shared field's site order should remain unchanged
+        Assert.NotNull(sharedInSites.DisplayOrderSites);
+    }
+
+    [Fact]
+    public async Task Reorder_InvalidContext_Returns400()
+    {
+        var (token, _, _) = await SetupAdminAsync();
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Put,
+            "/api/custom-fields/reorder", token,
+            new ReorderCustomFieldsRequest { Context = "invalid", FieldIds = [1] }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
@@ -233,17 +380,18 @@ public class CustomFieldsControllerTests : IClassFixture<CustomWebApplicationFac
         var field1 = await CreateTestFieldAsync(token, "Dup A");
         var field2 = await CreateTestFieldAsync(token, "Dup B");
 
-        // Get all current fields
-        var allResponse = await _client.SendAsync(CreateRequest(HttpMethod.Get, "/api/custom-fields", token));
+        // Get all quote fields
+        var allResponse = await _client.SendAsync(CreateRequest(HttpMethod.Get,
+            "/api/custom-fields?appliesToQuotes=true", token));
         var allResult = await allResponse.Content.ReadFromJsonAsync<ApiResponse<List<CustomFieldResponse>>>();
         var allIds = allResult!.Data.Select(f => f.Id).ToList();
 
-        // Replace last ID with duplicate of first to keep same count
+        // Replace last ID with duplicate of first
         allIds[^1] = allIds[0];
 
         var response = await _client.SendAsync(CreateRequest(HttpMethod.Put,
             "/api/custom-fields/reorder", token,
-            new ReorderCustomFieldsRequest { FieldIds = allIds }));
+            new ReorderCustomFieldsRequest { Context = "quotes", FieldIds = allIds }));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -256,7 +404,7 @@ public class CustomFieldsControllerTests : IClassFixture<CustomWebApplicationFac
 
         var response = await _client.SendAsync(CreateRequest(HttpMethod.Put,
             "/api/custom-fields/reorder", token,
-            new ReorderCustomFieldsRequest { FieldIds = [99999] }));
+            new ReorderCustomFieldsRequest { Context = "quotes", FieldIds = [99999] }));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }

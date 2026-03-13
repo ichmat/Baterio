@@ -13,14 +13,14 @@ import { toast } from 'sonner'
 import { useDeleteCustomField, useReorderCustomFields } from './useCustomFields'
 import { EditCustomFieldDialog } from './EditCustomFieldDialog'
 import { FIELD_TYPE_LABELS, OBLIGATION_LABELS } from './custom-field-constants'
-import type { CustomFieldResponse } from './types'
+import type { CustomFieldResponse, ReorderContext } from './types'
 
 interface CustomFieldListProps {
   fields: CustomFieldResponse[]
-  allFields: CustomFieldResponse[]
+  context: ReorderContext
 }
 
-export function CustomFieldList({ fields, allFields }: CustomFieldListProps) {
+export function CustomFieldList({ fields, context }: CustomFieldListProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [fieldToDelete, setFieldToDelete] = useState<CustomFieldResponse | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
@@ -28,6 +28,9 @@ export function CustomFieldList({ fields, allFields }: CustomFieldListProps) {
 
   const deleteMutation = useDeleteCustomField()
   const reorderMutation = useReorderCustomFields()
+
+  const getDisplayOrder = (field: CustomFieldResponse) =>
+    context === 'quotes' ? field.displayOrderQuotes : field.displayOrderSites
 
   if (fields.length === 0) {
     return (
@@ -40,11 +43,9 @@ export function CustomFieldList({ fields, allFields }: CustomFieldListProps) {
   const handleMoveUp = async (index: number) => {
     if (index === 0) return
     try {
-      const reordered = [...allFields]
-      const fieldIndex = reordered.findIndex(f => f.id === fields[index].id)
-      const prevIndex = reordered.findIndex(f => f.id === fields[index - 1].id)
-      ;[reordered[fieldIndex], reordered[prevIndex]] = [reordered[prevIndex], reordered[fieldIndex]]
-      await reorderMutation.mutateAsync({ fieldIds: reordered.map(f => f.id) })
+      const reordered = [...fields]
+      ;[reordered[index], reordered[index - 1]] = [reordered[index - 1], reordered[index]]
+      await reorderMutation.mutateAsync({ context, fieldIds: reordered.map(f => f.id) })
     } catch {
       toast.error('Erreur lors du réordonnancement')
     }
@@ -53,11 +54,9 @@ export function CustomFieldList({ fields, allFields }: CustomFieldListProps) {
   const handleMoveDown = async (index: number) => {
     if (index === fields.length - 1) return
     try {
-      const reordered = [...allFields]
-      const fieldIndex = reordered.findIndex(f => f.id === fields[index].id)
-      const nextIndex = reordered.findIndex(f => f.id === fields[index + 1].id)
-      ;[reordered[fieldIndex], reordered[nextIndex]] = [reordered[nextIndex], reordered[fieldIndex]]
-      await reorderMutation.mutateAsync({ fieldIds: reordered.map(f => f.id) })
+      const reordered = [...fields]
+      ;[reordered[index], reordered[index + 1]] = [reordered[index + 1], reordered[index]]
+      await reorderMutation.mutateAsync({ context, fieldIds: reordered.map(f => f.id) })
     } catch {
       toast.error('Erreur lors du réordonnancement')
     }
@@ -82,7 +81,7 @@ export function CustomFieldList({ fields, allFields }: CustomFieldListProps) {
           <Card key={field.id} size="sm">
             <CardContent className="flex items-center justify-between py-3">
               <div className="flex items-center gap-3">
-                <span className="text-xs text-muted-foreground w-6 text-center">{field.displayOrder + 1}</span>
+                <span className="text-xs text-muted-foreground w-6 text-center">{(getDisplayOrder(field) ?? 0) + 1}</span>
                 <span className="font-medium">{field.label}</span>
                 <Badge variant="secondary">{FIELD_TYPE_LABELS[field.fieldType] ?? field.fieldType}</Badge>
                 <Badge variant="outline">{OBLIGATION_LABELS[field.obligationLevel] ?? field.obligationLevel}</Badge>
