@@ -29,16 +29,7 @@ namespace BackEnd.API.Migrations
             migrationBuilder.Sql(
                 "UPDATE custom_field_definitions SET display_order_sites = display_order WHERE applies_to_sites = 1");
 
-            // Drop old index and column
-            migrationBuilder.DropIndex(
-                name: "IX_custom_field_definitions_tenant_id_display_order",
-                table: "custom_field_definitions");
-
-            migrationBuilder.DropColumn(
-                name: "display_order",
-                table: "custom_field_definitions");
-
-            // Create new indexes
+            // Create new indexes BEFORE dropping old one (MySQL needs an index covering the FK on tenant_id)
             migrationBuilder.CreateIndex(
                 name: "IX_custom_field_definitions_tenant_id_display_order_quotes",
                 table: "custom_field_definitions",
@@ -48,6 +39,15 @@ namespace BackEnd.API.Migrations
                 name: "IX_custom_field_definitions_tenant_id_display_order_sites",
                 table: "custom_field_definitions",
                 columns: new[] { "tenant_id", "display_order_sites" });
+
+            // Now safe to drop old index and column
+            migrationBuilder.DropIndex(
+                name: "IX_custom_field_definitions_tenant_id_display_order",
+                table: "custom_field_definitions");
+
+            migrationBuilder.DropColumn(
+                name: "display_order",
+                table: "custom_field_definitions");
         }
 
         /// <inheritdoc />
