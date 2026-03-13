@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import { CustomFieldsConfig } from '@/features/admin/CustomFieldsConfig'
 import * as api from '@/features/admin/api'
 import type { CustomFieldResponse } from '@/features/admin/types'
+import { renderWithProviders } from '../../test-utils'
 
 vi.mock('@/features/admin/api')
 vi.mock('sonner', () => ({
@@ -57,7 +58,7 @@ beforeEach(() => {
 describe('CustomFieldsConfig', () => {
   it('renders two sections: Champs Devis and Champs Chantier', async () => {
     vi.mocked(api.getCustomFields).mockResolvedValue(mockFields)
-    render(<CustomFieldsConfig />)
+    renderWithProviders(<CustomFieldsConfig />)
 
     await waitFor(() => {
       expect(screen.getByText('Champs Devis')).toBeInTheDocument()
@@ -67,7 +68,7 @@ describe('CustomFieldsConfig', () => {
 
   it('shows field that applies to both in both sections', async () => {
     vi.mocked(api.getCustomFields).mockResolvedValue(mockFields)
-    render(<CustomFieldsConfig />)
+    renderWithProviders(<CustomFieldsConfig />)
 
     await waitFor(() => {
       // Surface m² applies to both, so should appear in both sections
@@ -78,7 +79,7 @@ describe('CustomFieldsConfig', () => {
 
   it('shows quotes-only field only in Devis section', async () => {
     vi.mocked(api.getCustomFields).mockResolvedValue(mockFields)
-    render(<CustomFieldsConfig />)
+    renderWithProviders(<CustomFieldsConfig />)
 
     await waitFor(() => {
       // "Date debut" applies only to quotes
@@ -88,7 +89,7 @@ describe('CustomFieldsConfig', () => {
 
   it('shows add buttons', async () => {
     vi.mocked(api.getCustomFields).mockResolvedValue(mockFields)
-    render(<CustomFieldsConfig />)
+    renderWithProviders(<CustomFieldsConfig />)
 
     await waitFor(() => {
       const addButtons = screen.getAllByText('Ajouter un champ')

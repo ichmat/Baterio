@@ -1,37 +1,19 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState } from 'react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { toast } from 'sonner'
-import { getCustomFields } from './api'
 import { CustomFieldList } from './CustomFieldList'
 import { CreateCustomFieldDialog, type CreateCustomFieldDefaultAppliesTo } from './CreateCustomFieldDialog'
-import type { CustomFieldResponse } from './types'
+import { useCustomFields } from './useCustomFields'
 
 export function CustomFieldsConfig() {
-  const [fields, setFields] = useState<CustomFieldResponse[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [createDialogOpen, setCreateDialogOpen] = useState<boolean>(false);
+  const { data: fields, isLoading } = useCustomFields()
+  const [createDialogOpen, setCreateDialogOpen] = useState<boolean>(false)
   const [defaultAppliesTo, setDefaultAppliesTo] = useState<CreateCustomFieldDefaultAppliesTo>('quotes')
 
-  const loadFields = useCallback(async () => {
-    try {
-      const data = await getCustomFields()
-      setFields(data)
-    } catch {
-      toast.error('Erreur lors du chargement des champs personnalisés')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const quoteFields = (fields ?? []).filter(f => f.appliesToQuotes)
+  const siteFields = (fields ?? []).filter(f => f.appliesToSites)
 
-  useEffect(() => {
-    loadFields()
-  }, [loadFields])
-
-  const quoteFields = fields.filter(f => f.appliesToQuotes)
-  const siteFields = fields.filter(f => f.appliesToSites)
-
-  if (loading) {
+  if (isLoading) {
     return <p className="text-sm text-muted-foreground">Chargement...</p>
   }
 
@@ -46,7 +28,7 @@ export function CustomFieldsConfig() {
           }}>Ajouter un champ</Button>
         </CardHeader>
         <CardContent>
-          <CustomFieldList fields={quoteFields} allFields={fields} onRefresh={loadFields} />
+          <CustomFieldList fields={quoteFields} allFields={fields ?? []} />
         </CardContent>
       </Card>
 
@@ -59,16 +41,15 @@ export function CustomFieldsConfig() {
           }}>Ajouter un champ</Button>
         </CardHeader>
         <CardContent>
-          <CustomFieldList fields={siteFields} allFields={fields} onRefresh={loadFields} />
+          <CustomFieldList fields={siteFields} allFields={fields ?? []} />
         </CardContent>
       </Card>
 
       <CreateCustomFieldDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
-        onSuccess={loadFields} 
-        defaultAppliesTo={defaultAppliesTo} 
-        />
+        defaultAppliesTo={defaultAppliesTo}
+      />
     </div>
   )
 }

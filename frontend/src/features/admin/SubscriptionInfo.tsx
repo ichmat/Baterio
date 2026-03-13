@@ -1,31 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { toast } from 'sonner'
-import { getSubscriptionInfo } from './api'
-import type { SubscriptionInfoResponse } from './types'
+import { useSubscriptionInfo } from './useCompany'
 
 export function SubscriptionInfo() {
-  const [loading, setLoading] = useState(true)
-  const [info, setInfo] = useState<SubscriptionInfoResponse | null>(null)
-  const [error, setError] = useState(false)
+  const { data: info, isLoading, isError } = useSubscriptionInfo()
 
-  const loadData = useCallback(async () => {
-    try {
-      const data = await getSubscriptionInfo()
-      setInfo(data)
-    } catch {
-      setError(true)
-      toast.error('Erreur lors du chargement des informations d\'abonnement')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    loadData()
-  }, [loadData])
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
         <p className="text-muted-foreground">Chargement...</p>
@@ -33,7 +12,7 @@ export function SubscriptionInfo() {
     )
   }
 
-  if (error) {
+  if (isError) {
     return (
       <Card>
         <CardHeader>

@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { UserManagement } from '@/features/admin/UserManagement'
 import { AuthContext, type AuthContextType } from '@/features/auth/AuthContext'
 import * as api from '@/features/admin/api'
 import type { UserResponse } from '@/features/admin/types'
+import { renderWithProviders } from '../../test-utils'
 
 vi.mock('@/features/admin/api')
 vi.mock('sonner', () => ({
@@ -30,7 +31,7 @@ const mockAuth: AuthContextType = {
 }
 
 function renderWithAuth(authValue: AuthContextType = mockAuth) {
-  return render(
+  return renderWithProviders(
     <AuthContext.Provider value={authValue}>
       <UserManagement />
     </AuthContext.Provider>,

@@ -47,7 +47,7 @@ public class UserService : IUserService
 
     public async Task<UserResponse> GetUserByIdAsync(int id)
     {
-        var user = await _db.Users.FindAsync(id);
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
         if (user == null)
             throw new ApiErrorException(ApiError.UserNotFound);
 
@@ -96,7 +96,7 @@ public class UserService : IUserService
         if (request.Role == UserRole.Admin)
             throw new ApiErrorException(ApiError.InvalidRole);
 
-        var user = await _db.Users.FindAsync(id);
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
         if (user == null)
             throw new ApiErrorException(ApiError.UserNotFound);
 
@@ -115,7 +115,7 @@ public class UserService : IUserService
 
     public async Task DeactivateUserAsync(int id)
     {
-        var user = await _db.Users.FindAsync(id);
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
         if (user == null)
             throw new ApiErrorException(ApiError.UserNotFound);
 
@@ -144,7 +144,7 @@ public class UserService : IUserService
 
     public async Task ReactivateUserAsync(int id)
     {
-        var user = await _db.Users.FindAsync(id);
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == id);
         if (user == null)
             throw new ApiErrorException(ApiError.UserNotFound);
 

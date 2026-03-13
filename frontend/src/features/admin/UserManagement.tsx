@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   Table,
   TableBody,
@@ -20,44 +20,31 @@ import { RoleBadge } from './RoleBadge'
 import { UserStatusToggle } from './UserStatusToggle'
 import { CreateUserDialog } from './CreateUserDialog'
 import { useAuth } from '@/features/auth/useAuth'
-import { getUsers, createUser, updateUserRole, deactivateUser, reactivateUser } from './api'
-import type { UserResponse, CreateUserRequest } from './types'
+import { useUsers, useCreateUser, useUpdateUserRole, useDeactivateUser, useReactivateUser } from './useUsers'
+import type { CreateUserRequest } from './types'
 import { toast } from 'sonner'
 
 const ROLES = ['Chef', 'Secretaire', 'Ouvrier'] as const
 
 export function UserManagement() {
   const { user: currentUser } = useAuth()
-  const [users, setUsers] = useState<UserResponse[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: users, isLoading } = useUsers()
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
-  const loadUsers = useCallback(async () => {
-    try {
-      const data = await getUsers()
-      setUsers(data)
-    } catch {
-      toast.error('Erreur lors du chargement des utilisateurs')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    loadUsers()
-  }, [loadUsers])
+  const createMutation = useCreateUser()
+  const updateRoleMutation = useUpdateUserRole()
+  const deactivateMutation = useDeactivateUser()
+  const reactivateMutation = useReactivateUser()
 
   const handleCreateUser = async (data: CreateUserRequest) => {
-    await createUser(data)
+    await createMutation.mutateAsync(data)
     toast.success('Utilisateur créé avec succès')
-    await loadUsers()
   }
 
   const handleUpdateRole = async (userId: number, newRole: string) => {
     try {
-      await updateUserRole(userId, { role: newRole as CreateUserRequest['role'] })
+      await updateRoleMutation.mutateAsync({ id: userId, data: { role: newRole as CreateUserRequest['role'] } })
       toast.success('Rôle mis à jour avec succès')
-      await loadUsers()
     } catch (err: unknown) {
       const apiError = err as { message?: string }
       toast.error(apiError?.message ?? 'Erreur lors de la mise à jour du rôle')
@@ -66,28 +53,27 @@ export function UserManagement() {
 
   const handleDeactivate = async (userId: number) => {
     try {
-      await deactivateUser(userId)
+      await deactivateMutation.mutateAsync(userId)
       toast.success('Utilisateur désactivé')
-      await loadUsers()
     } catch (err: unknown) {
       const apiError = err as { message?: string }
       toast.error(apiError?.message ?? 'Erreur lors de la désactivation')
+      // Re-throw pour que UserStatusToggle garde le dialog ouvert
       throw err
     }
   }
 
   const handleReactivate = async (userId: number) => {
     try {
-      await reactivateUser(userId)
+      await reactivateMutation.mutateAsync(userId)
       toast.success('Utilisateur réactivé')
-      await loadUsers()
     } catch (err: unknown) {
       const apiError = err as { message?: string }
       toast.error(apiError?.message ?? 'Erreur lors de la réactivation')
     }
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
         <p className="text-muted-foreground">Chargement...</p>
@@ -115,7 +101,7 @@ export function UserManagement() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {users.map((user) => (
+          {(users ?? []).map((user) => (
             <TableRow key={user.id}>
               <TableCell>{user.firstName} {user.lastName}</TableCell>
               <TableCell>{user.email}</TableCell>

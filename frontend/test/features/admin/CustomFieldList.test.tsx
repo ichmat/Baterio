@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CustomFieldList } from '@/features/admin/CustomFieldList'
 import * as api from '@/features/admin/api'
 import { toast } from 'sonner'
 import type { CustomFieldResponse } from '@/features/admin/types'
+import { renderWithProviders } from '../../test-utils'
 
 vi.mock('@/features/admin/api')
 vi.mock('sonner', () => ({
@@ -53,15 +54,13 @@ const mockFields: CustomFieldResponse[] = [
   },
 ]
 
-const mockOnRefresh = vi.fn()
-
 beforeEach(() => {
   vi.clearAllMocks()
 })
 
 describe('CustomFieldList', () => {
   it('renders list of fields with labels and badges', () => {
-    render(<CustomFieldList fields={mockFields} allFields={mockFields} onRefresh={mockOnRefresh} />)
+    renderWithProviders(<CustomFieldList fields={mockFields} allFields={mockFields} />)
 
     expect(screen.getByText('Surface m²')).toBeInTheDocument()
     expect(screen.getByText('Type de travaux')).toBeInTheDocument()
@@ -72,13 +71,13 @@ describe('CustomFieldList', () => {
   })
 
   it('renders empty state when no fields', () => {
-    render(<CustomFieldList fields={[]} allFields={[]} onRefresh={mockOnRefresh} />)
+    renderWithProviders(<CustomFieldList fields={[]} allFields={[]} />)
 
     expect(screen.getByText(/Aucun champ personnalisé/)).toBeInTheDocument()
   })
 
   it('renders move up/down buttons', () => {
-    render(<CustomFieldList fields={mockFields} allFields={mockFields} onRefresh={mockOnRefresh} />)
+    renderWithProviders(<CustomFieldList fields={mockFields} allFields={mockFields} />)
 
     const upButtons = screen.getAllByLabelText('Monter')
     const downButtons = screen.getAllByLabelText('Descendre')
@@ -88,7 +87,7 @@ describe('CustomFieldList', () => {
 
   it('shows delete confirmation dialog', async () => {
     const user = userEvent.setup()
-    render(<CustomFieldList fields={mockFields} allFields={mockFields} onRefresh={mockOnRefresh} />)
+    renderWithProviders(<CustomFieldList fields={mockFields} allFields={mockFields} />)
 
     const deleteButtons = screen.getAllByLabelText('Supprimer')
     await user.click(deleteButtons[0])
@@ -99,21 +98,20 @@ describe('CustomFieldList', () => {
   it('calls reorder API when move down is clicked', async () => {
     vi.mocked(api.reorderCustomFields).mockResolvedValue(mockFields)
     const user = userEvent.setup()
-    render(<CustomFieldList fields={mockFields} allFields={mockFields} onRefresh={mockOnRefresh} />)
+    renderWithProviders(<CustomFieldList fields={mockFields} allFields={mockFields} />)
 
     const downButtons = screen.getAllByLabelText('Descendre')
     await user.click(downButtons[0])
 
     await waitFor(() => {
       expect(api.reorderCustomFields).toHaveBeenCalled()
-      expect(mockOnRefresh).toHaveBeenCalled()
     })
   })
 
   it('deletes field and shows toast on confirmation', async () => {
     vi.mocked(api.deleteCustomField).mockResolvedValue(undefined)
     const user = userEvent.setup()
-    render(<CustomFieldList fields={mockFields} allFields={mockFields} onRefresh={mockOnRefresh} />)
+    renderWithProviders(<CustomFieldList fields={mockFields} allFields={mockFields} />)
 
     const deleteButtons = screen.getAllByLabelText('Supprimer')
     await user.click(deleteButtons[0])
@@ -123,7 +121,6 @@ describe('CustomFieldList', () => {
     await waitFor(() => {
       expect(api.deleteCustomField).toHaveBeenCalledWith(1)
       expect(toast.success).toHaveBeenCalledWith('Champ supprimé')
-      expect(mockOnRefresh).toHaveBeenCalled()
     })
   })
 })

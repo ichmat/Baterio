@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using BackEnd.Shared.Enums;
 using BackEnd.Shared.Models.Users;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace BackEnd.Tests;
@@ -134,7 +135,7 @@ public class UsersControllerTests : IClassFixture<CustomWebApplicationFactory>
         using (var scope = _factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<BackEnd.API.Data.AppDbContext>();
-            var tenant = await db.Tenants.FindAsync(tenantId);
+            var tenant = await db.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId);
             tenant!.Configuration = "{\"maxUsers\": 2}";
             await db.SaveChangesAsync();
         }
@@ -159,7 +160,7 @@ public class UsersControllerTests : IClassFixture<CustomWebApplicationFactory>
             // Restore original configuration to avoid polluting other tests
             using var restoreScope = _factory.Services.CreateScope();
             var restoreDb = restoreScope.ServiceProvider.GetRequiredService<BackEnd.API.Data.AppDbContext>();
-            var restoreTenant = await restoreDb.Tenants.FindAsync(tenantId);
+            var restoreTenant = await restoreDb.Tenants.FirstOrDefaultAsync(t => t.Id == tenantId);
             restoreTenant!.Configuration = "{\"maxUsers\": 10}";
             await restoreDb.SaveChangesAsync();
         }

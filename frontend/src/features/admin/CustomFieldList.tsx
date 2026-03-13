@@ -10,7 +10,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { deleteCustomField, reorderCustomFields } from './api'
+import { useDeleteCustomField, useReorderCustomFields } from './useCustomFields'
 import { EditCustomFieldDialog } from './EditCustomFieldDialog'
 import { FIELD_TYPE_LABELS, OBLIGATION_LABELS } from './custom-field-constants'
 import type { CustomFieldResponse } from './types'
@@ -18,16 +18,16 @@ import type { CustomFieldResponse } from './types'
 interface CustomFieldListProps {
   fields: CustomFieldResponse[]
   allFields: CustomFieldResponse[]
-  onRefresh: () => void
 }
 
-export function CustomFieldList({ fields, allFields, onRefresh }: CustomFieldListProps) {
+export function CustomFieldList({ fields, allFields }: CustomFieldListProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [fieldToDelete, setFieldToDelete] = useState<CustomFieldResponse | null>(null)
-  const [deleting, setDeleting] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [fieldToEdit, setFieldToEdit] = useState<CustomFieldResponse | null>(null)
-  const [reordering, setReordering] = useState(false)
+
+  const deleteMutation = useDeleteCustomField()
+  const reorderMutation = useReorderCustomFields()
 
   if (fields.length === 0) {
     return (
@@ -39,51 +39,39 @@ export function CustomFieldList({ fields, allFields, onRefresh }: CustomFieldLis
 
   const handleMoveUp = async (index: number) => {
     if (index === 0) return
-    setReordering(true)
     try {
       const reordered = [...allFields]
       const fieldIndex = reordered.findIndex(f => f.id === fields[index].id)
       const prevIndex = reordered.findIndex(f => f.id === fields[index - 1].id)
       ;[reordered[fieldIndex], reordered[prevIndex]] = [reordered[prevIndex], reordered[fieldIndex]]
-      await reorderCustomFields({ fieldIds: reordered.map(f => f.id) })
-      onRefresh()
+      await reorderMutation.mutateAsync({ fieldIds: reordered.map(f => f.id) })
     } catch {
       toast.error('Erreur lors du réordonnancement')
-    } finally {
-      setReordering(false)
     }
   }
 
   const handleMoveDown = async (index: number) => {
     if (index === fields.length - 1) return
-    setReordering(true)
     try {
       const reordered = [...allFields]
       const fieldIndex = reordered.findIndex(f => f.id === fields[index].id)
       const nextIndex = reordered.findIndex(f => f.id === fields[index + 1].id)
       ;[reordered[fieldIndex], reordered[nextIndex]] = [reordered[nextIndex], reordered[fieldIndex]]
-      await reorderCustomFields({ fieldIds: reordered.map(f => f.id) })
-      onRefresh()
+      await reorderMutation.mutateAsync({ fieldIds: reordered.map(f => f.id) })
     } catch {
       toast.error('Erreur lors du réordonnancement')
-    } finally {
-      setReordering(false)
     }
   }
 
   const handleDeleteConfirm = async () => {
     if (!fieldToDelete) return
-    setDeleting(true)
     try {
-      await deleteCustomField(fieldToDelete.id)
+      await deleteMutation.mutateAsync(fieldToDelete.id)
       toast.success('Champ supprimé')
       setDeleteDialogOpen(false)
       setFieldToDelete(null)
-      onRefresh()
     } catch {
       toast.error('Erreur lors de la suppression')
-    } finally {
-      setDeleting(false)
     }
   }
 
@@ -104,7 +92,7 @@ export function CustomFieldList({ fields, allFields, onRefresh }: CustomFieldLis
                   variant="ghost"
                   size="icon-xs"
                   onClick={() => handleMoveUp(index)}
-                  disabled={index === 0 || reordering}
+                  disabled={index === 0 || reorderMutation.isPending}
                   aria-label="Monter"
                 >
                   ↑
@@ -113,7 +101,7 @@ export function CustomFieldList({ fields, allFields, onRefresh }: CustomFieldLis
                   variant="ghost"
                   size="icon-xs"
                   onClick={() => handleMoveDown(index)}
-                  disabled={index === fields.length - 1 || reordering}
+                  disabled={index === fields.length - 1 || reorderMutation.isPending}
                   aria-label="Descendre"
                 >
                   ↓
@@ -149,11 +137,11 @@ export function CustomFieldList({ fields, allFields, onRefresh }: CustomFieldLis
             Cette action est irréversible. Les données existantes ne seront pas impactées.
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={deleteMutation.isPending}>
               Annuler
             </Button>
-            <Button variant="destructive" onClick={handleDeleteConfirm} disabled={deleting}>
-              {deleting ? 'Suppression...' : 'Supprimer'}
+            <Button variant="destructive" onClick={handleDeleteConfirm} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending ? 'Suppression...' : 'Supprimer'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -164,7 +152,6 @@ export function CustomFieldList({ fields, allFields, onRefresh }: CustomFieldLis
           open={editDialogOpen}
           onOpenChange={(open) => { setEditDialogOpen(open); if (!open) setFieldToEdit(null) }}
           field={fieldToEdit}
-          onSuccess={onRefresh}
         />
       )}
     </>

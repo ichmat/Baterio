@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import { useEffect } from 'react'
+import { useForm, useFieldArray, Controller } from 'react-hook-form'
 import {
   Dialog,
   DialogContent,
@@ -19,117 +20,99 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { toast } from 'sonner'
-import { updateCustomField } from './api'
+import { useUpdateCustomField } from './useCustomFields'
 import { FIELD_TYPE_LABELS, OBLIGATION_LEVELS } from './custom-field-constants'
 import type { CustomFieldResponse, ObligationLevel } from './types'
-
-interface OptionItem {
-  id: number
-  value: string
-}
 
 interface EditCustomFieldDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   field: CustomFieldResponse
-  onSuccess: () => void
 }
 
-export function EditCustomFieldDialog({ open, onOpenChange, field, onSuccess }: EditCustomFieldDialogProps) {
-  const [label, setLabel] = useState('')
-  const [obligationLevel, setObligationLevel] = useState<string>('')
-  const [appliesToQuotes, setAppliesToQuotes] = useState(false)
-  const [appliesToSites, setAppliesToSites] = useState(false)
-  const [options, setOptions] = useState<OptionItem[]>([])
-  const nextOptionId = useRef(1)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
+interface EditCustomFieldForm {
+  label: string
+  obligationLevel: string
+  appliesToQuotes: boolean
+  appliesToSites: boolean
+  options: { value: string }[]
+}
 
+export function EditCustomFieldDialog({ open, onOpenChange, field }: EditCustomFieldDialogProps) {
+  const updateMutation = useUpdateCustomField()
   const isChoiceType = field.fieldType === 'SingleChoice' || field.fieldType === 'MultipleChoice'
+
+  const { register, handleSubmit, control, watch, reset, formState: { errors, isSubmitting }, setError, clearErrors } = useForm<EditCustomFieldForm & { apiError?: string; appliesTo?: string }>({
+    defaultValues: {
+      label: '',
+      obligationLevel: '',
+      appliesToQuotes: false,
+      appliesToSites: false,
+      options: [],
+    },
+  })
+
+  const { fields: optionFields, append, remove, move } = useFieldArray({ control, name: 'options' })
+  const obligationLevel = watch('obligationLevel')
 
   useEffect(() => {
     if (!open) return
-    setLabel(field.label)
-    setObligationLevel(field.obligationLevel)
-    setAppliesToQuotes(field.appliesToQuotes)
-    setAppliesToSites(field.appliesToSites)
-    setError(null)
-    setValidationErrors({})
+    let parsedOptions: { value: string }[] = []
     if (isChoiceType && field.options) {
       try {
         const parsed = JSON.parse(field.options)
-        const choices = (parsed.choices ?? []) as string[]
-        const items = choices.map((c, i) => ({ id: i + 1, value: c }))
-        setOptions(items)
-        nextOptionId.current = items.length + 1
+        parsedOptions = ((parsed.choices ?? []) as string[]).map(c => ({ value: c }))
       } catch {
-        setOptions([])
+        parsedOptions = []
       }
-    } else {
-      setOptions([])
     }
-  }, [field, isChoiceType, open])
+    reset({
+      label: field.label,
+      obligationLevel: field.obligationLevel,
+      appliesToQuotes: field.appliesToQuotes,
+      appliesToSites: field.appliesToSites,
+      options: parsedOptions,
+    })
+  }, [field, isChoiceType, open, reset])
 
-  const validate = (): boolean => {
-    const errors: Record<string, string> = {}
-    if (!label.trim()) errors.label = 'Le label est requis'
-    if (!appliesToQuotes && !appliesToSites) errors.appliesTo = 'Le champ doit s\'appliquer aux devis et/ou aux chantiers'
+  const onSubmit = async (data: EditCustomFieldForm) => {
+    clearErrors('apiError')
+    clearErrors('appliesTo')
+
+    if (!data.appliesToQuotes && !data.appliesToSites) {
+      setError('appliesTo', { message: 'Le champ doit s\'appliquer aux devis et/ou aux chantiers' })
+      return
+    }
+
     if (isChoiceType) {
-      const validOptions = options.filter(o => o.value.trim())
-      if (validOptions.length === 0) errors.options = 'Au moins une option est requise'
+      const validOptions = data.options.filter(o => o.value.trim())
+      if (validOptions.length === 0) {
+        setError('root.optionsError', { message: 'Au moins une option est requise' })
+        return
+      }
     }
-    setValidationErrors(errors)
-    return Object.keys(errors).length === 0
-  }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!validate()) return
-
-    setLoading(true)
-    setError(null)
     try {
       const optionsJson = isChoiceType
-        ? JSON.stringify({ choices: options.filter(o => o.value.trim()).map(o => o.value.trim()) })
+        ? JSON.stringify({ choices: data.options.filter(o => o.value.trim()).map(o => o.value.trim()) })
         : undefined
 
-      await updateCustomField(field.id, {
-        label: label.trim(),
-        obligationLevel: obligationLevel as ObligationLevel,
-        appliesToQuotes,
-        appliesToSites,
-        options: optionsJson,
+      await updateMutation.mutateAsync({
+        id: field.id,
+        data: {
+          label: data.label.trim(),
+          obligationLevel: data.obligationLevel as ObligationLevel,
+          appliesToQuotes: data.appliesToQuotes,
+          appliesToSites: data.appliesToSites,
+          options: optionsJson,
+        },
       })
       toast.success('Champ mis à jour')
       onOpenChange(false)
-      onSuccess()
     } catch (err: unknown) {
       const apiError = err as { message?: string }
-      setError(apiError?.message ?? 'Une erreur est survenue')
-    } finally {
-      setLoading(false)
+      setError('apiError', { message: apiError?.message ?? 'Une erreur est survenue' })
     }
-  }
-
-  const addOption = () => {
-    setOptions([...options, { id: nextOptionId.current++, value: '' }])
-  }
-  const removeOption = (id: number) => setOptions(options.filter(o => o.id !== id))
-  const updateOptionValue = (id: number, value: string) => {
-    setOptions(options.map(o => o.id === id ? { ...o, value } : o))
-  }
-  const moveOptionUp = (index: number) => {
-    if (index === 0) return
-    const updated = [...options]
-    ;[updated[index - 1], updated[index]] = [updated[index], updated[index - 1]]
-    setOptions(updated)
-  }
-  const moveOptionDown = (index: number) => {
-    if (index === options.length - 1) return
-    const updated = [...options]
-    ;[updated[index], updated[index + 1]] = [updated[index + 1], updated[index]]
-    setOptions(updated)
   }
 
   return (
@@ -138,16 +121,15 @@ export function EditCustomFieldDialog({ open, onOpenChange, field, onSuccess }: 
         <DialogHeader>
           <DialogTitle>Modifier le champ</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="edit-cf-label">Label du champ</Label>
             <Input
               id="edit-cf-label"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
+              {...register('label', { required: 'Le label est requis', validate: v => v.trim() !== '' || 'Le label est requis' })}
             />
-            {validationErrors.label && (
-              <p className="text-sm text-destructive">{validationErrors.label}</p>
+            {errors.label && (
+              <p className="text-sm text-destructive">{errors.label.message}</p>
             )}
           </div>
 
@@ -155,22 +137,34 @@ export function EditCustomFieldDialog({ open, onOpenChange, field, onSuccess }: 
             <Label>S'applique à</Label>
             <div className="flex gap-4">
               <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={appliesToQuotes}
-                  onCheckedChange={(checked) => setAppliesToQuotes(checked === true)}
+                <Controller
+                  name="appliesToQuotes"
+                  control={control}
+                  render={({ field: f }) => (
+                    <Checkbox
+                      checked={f.value}
+                      onCheckedChange={(checked) => f.onChange(checked === true)}
+                    />
+                  )}
                 />
                 Devis
               </label>
               <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={appliesToSites}
-                  onCheckedChange={(checked) => setAppliesToSites(checked === true)}
+                <Controller
+                  name="appliesToSites"
+                  control={control}
+                  render={({ field: f }) => (
+                    <Checkbox
+                      checked={f.value}
+                      onCheckedChange={(checked) => f.onChange(checked === true)}
+                    />
+                  )}
                 />
                 Chantier
               </label>
             </div>
-            {validationErrors.appliesTo && (
-              <p className="text-sm text-destructive">{validationErrors.appliesTo}</p>
+            {errors.appliesTo && (
+              <p className="text-sm text-destructive">{errors.appliesTo.message}</p>
             )}
           </div>
 
@@ -182,16 +176,22 @@ export function EditCustomFieldDialog({ open, onOpenChange, field, onSuccess }: 
 
           <div className="space-y-2">
             <Label htmlFor="edit-cf-obligation">Obligation</Label>
-            <Select value={obligationLevel} onValueChange={setObligationLevel}>
-              <SelectTrigger id="edit-cf-obligation">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {OBLIGATION_LEVELS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Controller
+              name="obligationLevel"
+              control={control}
+              render={({ field: f }) => (
+                <Select onValueChange={f.onChange} value={f.value}>
+                  <SelectTrigger id="edit-cf-obligation">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {OBLIGATION_LEVELS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            />
           </div>
 
           {obligationLevel === 'RequiredAtCreation' && (
@@ -205,47 +205,46 @@ export function EditCustomFieldDialog({ open, onOpenChange, field, onSuccess }: 
           {isChoiceType && (
             <div className="space-y-2">
               <Label>Options</Label>
-              {options.map((option, index) => (
-                <div key={option.id} className="flex gap-2">
+              {optionFields.map((optField, index) => (
+                <div key={optField.id} className="flex gap-2">
                   <Input
-                    value={option.value}
-                    onChange={(e) => updateOptionValue(option.id, e.target.value)}
+                    {...register(`options.${index}.value`)}
                     placeholder={`Option ${index + 1}`}
                   />
-                  <Button type="button" variant="ghost" size="icon-xs" onClick={() => moveOptionUp(index)} disabled={index === 0} aria-label="Monter option">
+                  <Button type="button" variant="ghost" size="icon-xs" onClick={() => move(index, index - 1)} disabled={index === 0} aria-label="Monter option">
                     ↑
                   </Button>
-                  <Button type="button" variant="ghost" size="icon-xs" onClick={() => moveOptionDown(index)} disabled={index === options.length - 1} aria-label="Descendre option">
+                  <Button type="button" variant="ghost" size="icon-xs" onClick={() => move(index, index + 1)} disabled={index === optionFields.length - 1} aria-label="Descendre option">
                     ↓
                   </Button>
-                  {options.length > 1 && (
-                    <Button type="button" variant="ghost" size="icon-xs" onClick={() => removeOption(option.id)} aria-label="Supprimer option">
+                  {optionFields.length > 1 && (
+                    <Button type="button" variant="ghost" size="icon-xs" onClick={() => remove(index)} aria-label="Supprimer option">
                       ✕
                     </Button>
                   )}
                 </div>
               ))}
-              <Button type="button" variant="outline" size="sm" onClick={addOption}>
+              <Button type="button" variant="outline" size="sm" onClick={() => append({ value: '' })}>
                 Ajouter une option
               </Button>
-              {validationErrors.options && (
-                <p className="text-sm text-destructive">{validationErrors.options}</p>
+              {errors.root?.optionsError && (
+                <p className="text-sm text-destructive">{errors.root.optionsError.message}</p>
               )}
             </div>
           )}
 
-          {error && (
+          {errors.apiError && (
             <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-              {error}
+              {errors.apiError.message}
             </div>
           )}
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting || updateMutation.isPending}>
               Annuler
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? 'Enregistrement...' : 'Enregistrer'}
+            <Button type="submit" disabled={isSubmitting || updateMutation.isPending}>
+              {(isSubmitting || updateMutation.isPending) ? 'Enregistrement...' : 'Enregistrer'}
             </Button>
           </DialogFooter>
         </form>

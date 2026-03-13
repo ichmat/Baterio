@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { EditCustomFieldDialog } from '@/features/admin/EditCustomFieldDialog'
 import * as api from '@/features/admin/api'
 import { toast } from 'sonner'
 import type { CustomFieldResponse } from '@/features/admin/types'
+import { renderWithProviders } from '../../test-utils'
 
 vi.mock('@/features/admin/api')
 vi.mock('sonner', () => ({
@@ -40,7 +41,6 @@ const mockField: CustomFieldResponse = {
 }
 
 const mockOnOpenChange = vi.fn()
-const mockOnSuccess = vi.fn()
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -48,12 +48,11 @@ beforeEach(() => {
 
 describe('EditCustomFieldDialog', () => {
   it('pre-fills form with existing values', () => {
-    render(
+    renderWithProviders(
       <EditCustomFieldDialog
         open={true}
         onOpenChange={mockOnOpenChange}
         field={mockField}
-        onSuccess={mockOnSuccess}
       />,
     )
 
@@ -61,12 +60,11 @@ describe('EditCustomFieldDialog', () => {
   })
 
   it('shows field type as read-only', () => {
-    render(
+    renderWithProviders(
       <EditCustomFieldDialog
         open={true}
         onOpenChange={mockOnOpenChange}
         field={mockField}
-        onSuccess={mockOnSuccess}
       />,
     )
 
@@ -81,12 +79,11 @@ describe('EditCustomFieldDialog', () => {
     })
     const user = userEvent.setup()
 
-    render(
+    renderWithProviders(
       <EditCustomFieldDialog
         open={true}
         onOpenChange={mockOnOpenChange}
         field={mockField}
-        onSuccess={mockOnSuccess}
       />,
     )
 

@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CreateCustomFieldDialog, type CreateCustomFieldDefaultAppliesTo } from '@/features/admin/CreateCustomFieldDialog'
 import * as api from '@/features/admin/api'
 import { toast } from 'sonner'
+import { renderWithProviders } from '../../test-utils'
 
 vi.mock('@/features/admin/api')
 vi.mock('sonner', () => ({
@@ -44,18 +45,16 @@ vi.mock('@/components/ui/select', () => ({
 }))
 
 const mockOnOpenChange = vi.fn()
-const mockOnSuccess = vi.fn()
 
 beforeEach(() => {
   vi.clearAllMocks()
 })
 
 function renderDialog(open = true, defaultAppliesTo: CreateCustomFieldDefaultAppliesTo = 'quotes') {
-  return render(
+  return renderWithProviders(
     <CreateCustomFieldDialog
       open={open}
       onOpenChange={mockOnOpenChange}
-      onSuccess={mockOnSuccess}
       defaultAppliesTo={defaultAppliesTo}
     />,
   )
@@ -84,6 +83,11 @@ describe('CreateCustomFieldDialog', () => {
   it('shows validation error when no applies_to is checked', async () => {
     const user = userEvent.setup()
     renderDialog()
+
+    // Fill required fields so RHF rules pass before custom validation
+    await user.type(screen.getByLabelText('Label du champ'), 'Test')
+    await user.click(screen.getByTestId('select-item-Text'))
+    await user.click(screen.getByTestId('select-item-Never'))
 
     // Only Devis is checked by default (defaultAppliesTo='quotes'), uncheck it
     const checkboxes = screen.getAllByRole('checkbox')

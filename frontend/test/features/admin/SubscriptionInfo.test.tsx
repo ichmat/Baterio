@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import { SubscriptionInfo } from '@/features/admin/SubscriptionInfo'
 import * as api from '@/features/admin/api'
 import type { SubscriptionInfoResponse } from '@/features/admin/types'
+import { renderWithProviders } from '../../test-utils'
 
 vi.mock('@/features/admin/api')
 vi.mock('sonner', () => ({
@@ -35,7 +36,7 @@ beforeEach(() => {
 describe('SubscriptionInfo', () => {
   it('renders subscription info', async () => {
     vi.mocked(api.getSubscriptionInfo).mockResolvedValue(mockSubscription)
-    render(<SubscriptionInfo />)
+    renderWithProviders(<SubscriptionInfo />)
 
     await waitFor(() => {
       expect(screen.getByText('Baterio Dev')).toBeInTheDocument()
@@ -47,7 +48,7 @@ describe('SubscriptionInfo', () => {
 
   it('shows "Illimité" when maxUsers is null', async () => {
     vi.mocked(api.getSubscriptionInfo).mockResolvedValue(mockSubscriptionUnlimited)
-    render(<SubscriptionInfo />)
+    renderWithProviders(<SubscriptionInfo />)
 
     await waitFor(() => {
       expect(screen.getByText('5 / Illimité')).toBeInTheDocument()
@@ -56,7 +57,7 @@ describe('SubscriptionInfo', () => {
 
   it('shows loading state initially', () => {
     vi.mocked(api.getSubscriptionInfo).mockImplementation(() => new Promise(() => {}))
-    render(<SubscriptionInfo />)
+    renderWithProviders(<SubscriptionInfo />)
     expect(screen.getByText('Chargement...')).toBeInTheDocument()
   })
 })

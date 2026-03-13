@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AdminPage } from '@/pages/AdminPage'
 import { AuthContext, type AuthContextType } from '@/features/auth/AuthContext'
 import * as api from '@/features/admin/api'
+import { renderWithProviders } from '../../test-utils'
 
 vi.mock('@/features/admin/api')
 vi.mock('sonner', () => ({
@@ -54,7 +55,7 @@ beforeEach(() => {
 })
 
 function renderPage() {
-  return render(
+  return renderWithProviders(
     <AuthContext.Provider value={mockAuth}>
       <AdminPage />
     </AuthContext.Provider>,

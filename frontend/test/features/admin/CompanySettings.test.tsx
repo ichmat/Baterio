@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CompanySettings } from '@/features/admin/CompanySettings'
 import * as api from '@/features/admin/api'
 import { toast } from 'sonner'
 import type { CompanyInfoResponse } from '@/features/admin/types'
+import { renderWithProviders } from '../../test-utils'
 
 vi.mock('@/features/admin/api')
 vi.mock('sonner', () => ({
@@ -51,7 +52,7 @@ beforeEach(() => {
 describe('CompanySettings', () => {
   it('renders the form with section cards', async () => {
     vi.mocked(api.getCompanyInfo).mockResolvedValue(emptyCompanyInfo)
-    render(<CompanySettings />)
+    renderWithProviders(<CompanySettings />)
 
     await waitFor(() => {
       expect(screen.getByText('Informations générales')).toBeInTheDocument()
@@ -65,7 +66,7 @@ describe('CompanySettings', () => {
 
   it('loads existing company data into form fields', async () => {
     vi.mocked(api.getCompanyInfo).mockResolvedValue(mockCompanyInfo)
-    render(<CompanySettings />)
+    renderWithProviders(<CompanySettings />)
 
     await waitFor(() => {
       expect(screen.getByDisplayValue('Baterio SARL')).toBeInTheDocument()
@@ -81,7 +82,7 @@ describe('CompanySettings', () => {
     vi.mocked(api.updateCompanyInfo).mockResolvedValue(mockCompanyInfo)
     const user = userEvent.setup()
 
-    render(<CompanySettings />)
+    renderWithProviders(<CompanySettings />)
 
     await waitFor(() => {
       expect(screen.getByText('Enregistrer')).toBeInTheDocument()
@@ -100,7 +101,7 @@ describe('CompanySettings', () => {
 
   it('shows error toast on load failure', async () => {
     vi.mocked(api.getCompanyInfo).mockRejectedValue(new Error('Network error'))
-    render(<CompanySettings />)
+    renderWithProviders(<CompanySettings />)
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith('Erreur lors du chargement des informations entreprise')
@@ -112,7 +113,7 @@ describe('CompanySettings', () => {
     vi.mocked(api.updateCompanyInfo).mockRejectedValue(new Error('Server error'))
     const user = userEvent.setup()
 
-    render(<CompanySettings />)
+    renderWithProviders(<CompanySettings />)
 
     await waitFor(() => {
       expect(screen.getByText('Enregistrer')).toBeInTheDocument()
@@ -127,7 +128,7 @@ describe('CompanySettings', () => {
 
   it('shows loading state initially', () => {
     vi.mocked(api.getCompanyInfo).mockImplementation(() => new Promise(() => {}))
-    render(<CompanySettings />)
+    renderWithProviders(<CompanySettings />)
     expect(screen.getByText('Chargement...')).toBeInTheDocument()
   })
 })
