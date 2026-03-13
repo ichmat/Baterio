@@ -5,7 +5,7 @@ import type { CreateCustomFieldRequest, UpdateCustomFieldRequest, ReorderCustomF
 export function useCustomFields() {
   return useQuery({
     queryKey: ['custom-fields'],
-    queryFn: getCustomFields,
+    queryFn: () => getCustomFields(),
   })
 }
 
