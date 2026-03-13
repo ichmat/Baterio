@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<CompanyInfo> CompanyInfos => Set<CompanyInfo>();
+    public DbSet<CustomFieldDefinition> CustomFieldDefinitions => Set<CustomFieldDefinition>();
 
     // Safe accessor for the query filter — returns 0 when no tenant context
     private int CurrentTenantId => _tenantContext?.TenantId ?? 0;
@@ -32,5 +33,6 @@ public class AppDbContext : DbContext
         // Filter is always applied; when CurrentTenantId == 0, no rows match (safe default)
         modelBuilder.Entity<User>().HasQueryFilter(u => u.TenantId == CurrentTenantId);
         modelBuilder.Entity<CompanyInfo>().HasQueryFilter(c => c.TenantId == CurrentTenantId);
+        modelBuilder.Entity<CustomFieldDefinition>().HasQueryFilter(c => c.TenantId == CurrentTenantId);
     }
 }

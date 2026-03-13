@@ -2,6 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { UserManagement } from '@/features/admin/UserManagement'
 import { CompanySettings } from '@/features/admin/CompanySettings'
 import { SubscriptionInfo } from '@/features/admin/SubscriptionInfo'
+import { CustomFieldsConfig } from '@/features/admin/CustomFieldsConfig'
 
 export function AdminPage() {
   return (
@@ -10,6 +11,7 @@ export function AdminPage() {
         <TabsList>
           <TabsTrigger value="users">Utilisateurs</TabsTrigger>
           <TabsTrigger value="company">Entreprise</TabsTrigger>
+          <TabsTrigger value="custom-fields">Champs personnalisés</TabsTrigger>
         </TabsList>
         <TabsContent value="users">
           <UserManagement />
@@ -17,6 +19,9 @@ export function AdminPage() {
         <TabsContent value="company" className="space-y-6">
           <SubscriptionInfo />
           <CompanySettings />
+        </TabsContent>
+        <TabsContent value="custom-fields">
+          <CustomFieldsConfig />
         </TabsContent>
       </Tabs>
     </div>

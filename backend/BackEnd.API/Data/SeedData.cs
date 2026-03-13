@@ -1,3 +1,4 @@
+using System.Text.Json;
 using BackEnd.Shared.Entities;
 using BackEnd.Shared.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -65,6 +66,48 @@ public static class SeedData
             CreatedAt = DateTime.UtcNow
         };
         db.CompanyInfos.Add(companyInfo);
+        await db.SaveChangesAsync();
+
+        // Custom Field Definitions
+        var customFields = new[]
+        {
+            new CustomFieldDefinition
+            {
+                TenantId = tenant.Id,
+                Label = "Surface m²",
+                FieldType = FieldType.Number,
+                ObligationLevel = ObligationLevel.Never,
+                AppliesToQuotes = true,
+                AppliesToSites = true,
+                DisplayOrder = 0,
+                CreatedAt = DateTime.UtcNow
+            },
+            new CustomFieldDefinition
+            {
+                TenantId = tenant.Id,
+                Label = "Type de travaux",
+                FieldType = FieldType.SingleChoice,
+                Options = JsonSerializer.Serialize(new { choices = new[] { "Neuf", "Renovation", "Extension", "Amenagement" } }),
+                ObligationLevel = ObligationLevel.RequiredAtCreation,
+                AppliesToQuotes = true,
+                AppliesToSites = true,
+                DisplayOrder = 1,
+                CreatedAt = DateTime.UtcNow
+            },
+            new CustomFieldDefinition
+            {
+                TenantId = tenant.Id,
+                Label = "Date de debut souhaitee",
+                FieldType = FieldType.Date,
+                ObligationLevel = ObligationLevel.RequiredForSiteConversion,
+                AppliesToQuotes = true,
+                AppliesToSites = false,
+                DisplayOrder = 2,
+                CreatedAt = DateTime.UtcNow
+            }
+        };
+
+        db.CustomFieldDefinitions.AddRange(customFields);
         await db.SaveChangesAsync();
     }
 }

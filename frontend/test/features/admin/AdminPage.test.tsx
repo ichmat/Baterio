@@ -22,6 +22,21 @@ const mockAuth: AuthContextType = {
   refreshSession: vi.fn(),
 }
 
+// Mock Select for CustomFieldsConfig
+let selectOnValueChange: ((v: string) => void) | null = null
+vi.mock('@/components/ui/select', () => ({
+  Select: ({ onValueChange, children }: { value: string; onValueChange: (v: string) => void; children: React.ReactNode }) => {
+    selectOnValueChange = onValueChange
+    return <div>{children}</div>
+  },
+  SelectTrigger: ({ id, children }: { id?: string; children: React.ReactNode }) => <button type="button" id={id}>{children}</button>,
+  SelectValue: ({ placeholder }: { placeholder?: string }) => <span>{placeholder}</span>,
+  SelectContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SelectItem: ({ value, children }: { value: string; children: React.ReactNode }) => (
+    <button type="button" data-testid={`select-item-${value}`} onClick={() => selectOnValueChange?.(value)}>{children}</button>
+  ),
+}))
+
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(api.getUsers).mockResolvedValue([])
@@ -35,6 +50,7 @@ beforeEach(() => {
     plan: 'MVP Gratuit', activeUsers: 1, maxUsers: 10,
     tenantName: 'Test', createdAt: '',
   })
+  vi.mocked(api.getCustomFields).mockResolvedValue([])
 })
 
 function renderPage() {
@@ -46,12 +62,13 @@ function renderPage() {
 }
 
 describe('AdminPage', () => {
-  it('renders tabs for Utilisateurs and Entreprise', async () => {
+  it('renders tabs for Utilisateurs, Entreprise, and Champs personnalisés', async () => {
     renderPage()
 
     await waitFor(() => {
       expect(screen.getByRole('tab', { name: 'Utilisateurs' })).toBeInTheDocument()
       expect(screen.getByRole('tab', { name: 'Entreprise' })).toBeInTheDocument()
+      expect(screen.getByRole('tab', { name: 'Champs personnalisés' })).toBeInTheDocument()
     })
   })
 
@@ -76,6 +93,22 @@ describe('AdminPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Informations générales')).toBeInTheDocument()
       expect(screen.getByText('Abonnement')).toBeInTheDocument()
+    })
+  })
+
+  it('switches to Champs personnalisés tab', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: 'Champs personnalisés' })).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('tab', { name: 'Champs personnalisés' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Champs Devis')).toBeInTheDocument()
+      expect(screen.getByText('Champs Chantier')).toBeInTheDocument()
     })
   })
 })

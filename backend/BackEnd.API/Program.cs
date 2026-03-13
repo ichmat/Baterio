@@ -54,6 +54,7 @@ builder.Services.AddScoped<ITenantContext, TenantContext>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
+builder.Services.AddScoped<ICustomFieldService, CustomFieldService>();
 builder.Services.AddScoped<JwtService>();
 
 // CORS

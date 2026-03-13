@@ -54,3 +54,42 @@ export interface SubscriptionInfoResponse {
   tenantName: string
   createdAt: string
 }
+
+// Custom Fields
+
+export type FieldType = 'Text' | 'Number' | 'SingleChoice' | 'MultipleChoice' | 'Date'
+export type ObligationLevel = 'Never' | 'RequiredAtCreation' | 'RequiredForSiteConversion'
+
+export interface CreateCustomFieldRequest {
+  label: string
+  fieldType: FieldType
+  options?: string
+  obligationLevel: ObligationLevel
+  appliesToQuotes: boolean
+  appliesToSites: boolean
+}
+
+export interface UpdateCustomFieldRequest {
+  label?: string
+  options?: string
+  obligationLevel?: ObligationLevel
+  appliesToQuotes?: boolean
+  appliesToSites?: boolean
+}
+
+export interface CustomFieldResponse {
+  id: number
+  label: string
+  fieldType: FieldType
+  options?: string
+  obligationLevel: ObligationLevel
+  appliesToQuotes: boolean
+  appliesToSites: boolean
+  displayOrder: number
+  createdAt: string
+  updatedAt?: string
+}
+
+export interface ReorderCustomFieldsRequest {
+  fieldIds: number[]
+}

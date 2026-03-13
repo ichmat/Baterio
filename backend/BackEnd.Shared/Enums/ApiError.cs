@@ -36,5 +36,26 @@ public enum ApiError
     InvalidRole,
 
     [ApiErrorInfo(400, "Vous ne pouvez pas modifier votre propre rôle")]
-    CannotChangeOwnRole
+    CannotChangeOwnRole,
+
+    [ApiErrorInfo(404, "Champ personnalisé non trouvé")]
+    CustomFieldNotFound,
+
+    [ApiErrorInfo(400, "Label invalide")]
+    InvalidLabel,
+
+    [ApiErrorInfo(400, "Type de champ invalide")]
+    InvalidFieldType,
+
+    [ApiErrorInfo(400, "Niveau d'obligation invalide")]
+    InvalidObligationLevel,
+
+    [ApiErrorInfo(400, "Le champ doit s'appliquer aux devis et/ou aux chantiers")]
+    AppliesToRequired,
+
+    [ApiErrorInfo(400, "Le type de champ ne peut pas être modifié après création")]
+    FieldTypeNotModifiable,
+
+    [ApiErrorInfo(400, "La liste de réordonnancement est invalide")]
+    InvalidReorderList
 }
