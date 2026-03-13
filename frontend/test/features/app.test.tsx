@@ -1,15 +1,36 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import App from '@/App'
 
+// Mock api-client to avoid real network calls
+vi.mock('@/lib/api-client', () => ({
+  apiClient: vi.fn(),
+  setAccessToken: vi.fn(),
+  getAccessToken: vi.fn(() => null),
+  setRefreshToken: vi.fn(),
+  getRefreshToken: vi.fn(() => null),
+}))
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+  Toaster: () => null,
+}))
+
+beforeEach(() => {
+  localStorage.clear()
+})
+
 describe('App', () => {
-  it('renders the homepage with Batério title', () => {
+  it('renders the login page when not authenticated', () => {
     render(<App />)
-    expect(screen.getByText('Batério')).toBeInTheDocument()
+    expect(screen.getByText('Se connecter')).toBeInTheDocument()
   })
 
-  it('renders the Commencer button', () => {
+  it('shows Batério title on login page', () => {
     render(<App />)
-    expect(screen.getByText('Commencer')).toBeInTheDocument()
+    expect(screen.getByText('Batério')).toBeInTheDocument()
   })
 })

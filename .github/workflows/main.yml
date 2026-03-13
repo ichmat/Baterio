@@ -1,18 +1,18 @@
-name: CI Build & Test
+name: CI Build & Test & Deploy
 
 on:
   push:
     branches: [ main, dev ]
-    
+
 jobs:
   backend:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
     - uses: actions/checkout@v4
-    - name: ⚒️ Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '10.0.x'
+    # - name: ⚒️ Setup .NET
+    #   uses: actions/setup-dotnet@v4
+    #   with:
+    #     dotnet-version: '10.0.x'
     - name: 🏗️ Build Backend
       working-directory: ./backend
       run: dotnet build --configuration Release
@@ -21,7 +21,8 @@ jobs:
       run: dotnet test --configuration Release --no-build --verbosity normal
 
   frontend:
-    runs-on: ubuntu-latest
+    needs: [backend]
+    runs-on: self-hosted
     steps:
     - uses: actions/checkout@v4
     - name: ⚒️ Setup Node
@@ -39,3 +40,18 @@ jobs:
     - name: ✅ Test Frontend
       working-directory: ./frontend
       run: npm run test --if-present
+
+  deploy-dev: 
+    needs: [backend, frontend]  # Attend succès des deux jobs tests
+    if: github.ref == 'refs/heads/dev'  # Seulement branche dev
+    runs-on: self-hosted
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: dev
+
+    - name: 🏗️ Build Docker images
+      run: docker compose -f docker-compose.dev.yml build --no-cache
+
+    - name: 🚀 Deploy & clean
+      run: docker compose -f docker-compose.dev.yml up -d --remove-orphans --force-recreate
