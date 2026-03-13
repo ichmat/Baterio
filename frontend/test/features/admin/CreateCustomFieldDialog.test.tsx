@@ -85,10 +85,9 @@ describe('CreateCustomFieldDialog', () => {
     const user = userEvent.setup()
     renderDialog()
 
-    // Uncheck both checkboxes (they're checked by default)
+    // Only Devis is checked by default (defaultAppliesTo='quotes'), uncheck it
     const checkboxes = screen.getAllByRole('checkbox')
     await user.click(checkboxes[0]) // uncheck Devis
-    await user.click(checkboxes[1]) // uncheck Chantier
 
     await user.click(screen.getByText('Créer'))
 

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -51,17 +51,19 @@ export function CreateCustomFieldDialog({ open, onOpenChange, onSuccess, default
 
   const isChoiceType = fieldType === 'SingleChoice' || fieldType === 'MultipleChoice'
 
-  const resetForm = () => {
-    setLabel('')
-    setFieldType('')
-    setObligationLevel('')
-    setAppliesToQuotes(defaultAppliesTo === 'quotes')
-    setAppliesToSites(defaultAppliesTo === 'sites')
-    setOptions([{ id: 1, value: '' }])
-    nextOptionId.current = 2
-    setError(null)
-    setValidationErrors({})
-  }
+  useEffect(() => {
+    if (open) {
+      setLabel('')
+      setFieldType('')
+      setObligationLevel('')
+      setAppliesToQuotes(defaultAppliesTo === 'quotes')
+      setAppliesToSites(defaultAppliesTo === 'sites')
+      setOptions([{ id: 1, value: '' }])
+      nextOptionId.current = 2
+      setError(null)
+      setValidationErrors({})
+    }
+  }, [open, defaultAppliesTo])
 
   const validate = (): boolean => {
     const errors: Record<string, string> = {}
@@ -97,7 +99,6 @@ export function CreateCustomFieldDialog({ open, onOpenChange, onSuccess, default
         options: optionsJson,
       })
       toast.success('Champ créé')
-      resetForm()
       onOpenChange(false)
       onSuccess()
     } catch (err: unknown) {
@@ -109,7 +110,6 @@ export function CreateCustomFieldDialog({ open, onOpenChange, onSuccess, default
   }
 
   const handleOpenChange = (value: boolean) => {
-    if (value) resetForm()
     onOpenChange(value)
   }
 
