@@ -55,6 +55,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
 builder.Services.AddScoped<ICustomFieldService, CustomFieldService>();
+builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<JwtService>();
 
 // CORS
@@ -91,6 +92,7 @@ app.UseCors();
 app.UseAuthentication();
 app.UseMiddleware<TenantMiddleware>();
 app.UseAuthorization();
+app.UseMiddleware<TransactionMiddleware>();
 app.MapControllers();
 
 // Apply pending EF Core migrations at startup (skip in Testing — SQLite uses EnsureCreated)

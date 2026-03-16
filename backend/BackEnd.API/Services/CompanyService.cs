@@ -1,6 +1,7 @@
 using System.Text.Json;
 using BackEnd.API.Data;
 using BackEnd.Shared.Entities;
+using BackEnd.Shared.Enums;
 using BackEnd.Shared.Interfaces;
 using BackEnd.Shared.Models.Company;
 using Microsoft.EntityFrameworkCore;
@@ -12,12 +13,14 @@ public class CompanyService : ICompanyService
     private readonly AppDbContext _db;
     private readonly ITenantContext _tenantContext;
     private readonly ILogger<CompanyService> _logger;
+    private readonly IAuditService _auditService;
 
-    public CompanyService(AppDbContext db, ITenantContext tenantContext, ILogger<CompanyService> logger)
+    public CompanyService(AppDbContext db, ITenantContext tenantContext, ILogger<CompanyService> logger, IAuditService auditService)
     {
         _db = db;
         _tenantContext = tenantContext;
         _logger = logger;
+        _auditService = auditService;
     }
 
     public async Task<CompanyInfoResponse> GetCompanyInfoAsync()
@@ -35,6 +38,12 @@ public class CompanyService : ICompanyService
     public async Task<CompanyInfoResponse> UpdateCompanyInfoAsync(UpdateCompanyInfoRequest request)
     {
         var companyInfo = await _db.CompanyInfos.FirstOrDefaultAsync();
+        var isCreate = companyInfo == null;
+
+        // Capture old values for diff (update only)
+        string? oldCompanyName = null, oldAddress = null, oldSiret = null, oldVatNumber = null;
+        string? oldLegalForm = null, oldInsurancePolicyNumber = null, oldInsuranceProvider = null;
+        string? oldInsuranceCoverage = null, oldDefaultPaymentTerms = null;
 
         if (companyInfo == null)
         {
@@ -44,6 +53,18 @@ public class CompanyService : ICompanyService
                 CreatedAt = DateTime.UtcNow
             };
             _db.CompanyInfos.Add(companyInfo);
+        }
+        else
+        {
+            oldCompanyName = companyInfo.CompanyName;
+            oldAddress = companyInfo.Address;
+            oldSiret = companyInfo.Siret;
+            oldVatNumber = companyInfo.VatNumber;
+            oldLegalForm = companyInfo.LegalForm;
+            oldInsurancePolicyNumber = companyInfo.InsurancePolicyNumber;
+            oldInsuranceProvider = companyInfo.InsuranceProvider;
+            oldInsuranceCoverage = companyInfo.InsuranceCoverage;
+            oldDefaultPaymentTerms = companyInfo.DefaultPaymentTerms;
         }
 
         companyInfo.CompanyName = NullIfEmpty(request.CompanyName);
@@ -62,6 +83,35 @@ public class CompanyService : ICompanyService
         }
 
         await _db.SaveChangesAsync();
+
+        if (isCreate)
+        {
+            await _auditService.LogEventAsync("CompanyInfo", companyInfo.Id, AuditAction.Created,
+                new
+                {
+                    request.CompanyName, request.Address, request.Siret, request.VatNumber,
+                    request.LegalForm, request.InsurancePolicyNumber, request.InsuranceProvider,
+                    request.InsuranceCoverage, request.DefaultPaymentTerms
+                });
+        }
+        else
+        {
+            var changes = new Dictionary<string, object?>();
+            if (companyInfo.CompanyName != oldCompanyName) changes["CompanyName"] = new { Old = oldCompanyName, New = companyInfo.CompanyName };
+            if (companyInfo.Address != oldAddress) changes["Address"] = new { Old = oldAddress, New = companyInfo.Address };
+            if (companyInfo.Siret != oldSiret) changes["Siret"] = new { Old = oldSiret, New = companyInfo.Siret };
+            if (companyInfo.VatNumber != oldVatNumber) changes["VatNumber"] = new { Old = oldVatNumber, New = companyInfo.VatNumber };
+            if (companyInfo.LegalForm != oldLegalForm) changes["LegalForm"] = new { Old = oldLegalForm, New = companyInfo.LegalForm };
+            if (companyInfo.InsurancePolicyNumber != oldInsurancePolicyNumber) changes["InsurancePolicyNumber"] = new { Old = oldInsurancePolicyNumber, New = companyInfo.InsurancePolicyNumber };
+            if (companyInfo.InsuranceProvider != oldInsuranceProvider) changes["InsuranceProvider"] = new { Old = oldInsuranceProvider, New = companyInfo.InsuranceProvider };
+            if (companyInfo.InsuranceCoverage != oldInsuranceCoverage) changes["InsuranceCoverage"] = new { Old = oldInsuranceCoverage, New = companyInfo.InsuranceCoverage };
+            if (companyInfo.DefaultPaymentTerms != oldDefaultPaymentTerms) changes["DefaultPaymentTerms"] = new { Old = oldDefaultPaymentTerms, New = companyInfo.DefaultPaymentTerms };
+
+            if (changes.Count > 0)
+            {
+                await _auditService.LogEventAsync("CompanyInfo", companyInfo.Id, AuditAction.Updated, changes);
+            }
+        }
 
         _logger.LogInformation("CompanyInfo updated for tenant {TenantId}", _tenantContext.TenantId);
 

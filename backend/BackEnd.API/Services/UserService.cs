@@ -15,13 +15,15 @@ public class UserService : IUserService
     private readonly ITenantContext _tenantContext;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<UserService> _logger;
+    private readonly IAuditService _auditService;
 
-    public UserService(AppDbContext db, ITenantContext tenantContext, IHttpContextAccessor httpContextAccessor, ILogger<UserService> logger)
+    public UserService(AppDbContext db, ITenantContext tenantContext, IHttpContextAccessor httpContextAccessor, ILogger<UserService> logger, IAuditService auditService)
     {
         _db = db;
         _tenantContext = tenantContext;
         _httpContextAccessor = httpContextAccessor;
         _logger = logger;
+        _auditService = auditService;
     }
 
     public async Task<List<UserResponse>> GetAllUsersAsync()
@@ -85,6 +87,9 @@ public class UserService : IUserService
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
 
+        await _auditService.LogEventAsync("User", user.Id, AuditAction.Created,
+            new { user.Email, user.FirstName, user.LastName, Role = user.Role.ToString() });
+
         _logger.LogInformation("User {Email} created in tenant {TenantId}", user.Email, user.TenantId);
 
         return MapToResponse(user);
@@ -104,9 +109,13 @@ public class UserService : IUserService
         if (user.Id == GetCurrentUserId())
             throw new ApiErrorException(ApiError.CannotChangeOwnRole);
 
+        var oldRole = user.Role;
         user.Role = request.Role;
         user.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
+
+        await _auditService.LogEventAsync("User", user.Id, AuditAction.Updated,
+            new { Field = "Role", OldValue = oldRole.ToString(), NewValue = request.Role.ToString() });
 
         _logger.LogInformation("User {UserId} role updated to {Role}", id, request.Role);
 
@@ -139,6 +148,9 @@ public class UserService : IUserService
 
         await _db.SaveChangesAsync();
 
+        await _auditService.LogEventAsync("User", user.Id, AuditAction.Updated,
+            new { Field = "IsActive", OldValue = true, NewValue = false });
+
         _logger.LogInformation("User {UserId} deactivated", id);
     }
 
@@ -151,6 +163,9 @@ public class UserService : IUserService
         user.IsActive = true;
         user.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
+
+        await _auditService.LogEventAsync("User", user.Id, AuditAction.Updated,
+            new { Field = "IsActive", OldValue = false, NewValue = true });
 
         _logger.LogInformation("User {UserId} reactivated", id);
     }

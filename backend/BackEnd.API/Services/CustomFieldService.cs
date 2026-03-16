@@ -14,12 +14,14 @@ public class CustomFieldService : ICustomFieldService
     private readonly AppDbContext _db;
     private readonly ITenantContext _tenantContext;
     private readonly ILogger<CustomFieldService> _logger;
+    private readonly IAuditService _auditService;
 
-    public CustomFieldService(AppDbContext db, ITenantContext tenantContext, ILogger<CustomFieldService> logger)
+    public CustomFieldService(AppDbContext db, ITenantContext tenantContext, ILogger<CustomFieldService> logger, IAuditService auditService)
     {
         _db = db;
         _tenantContext = tenantContext;
         _logger = logger;
+        _auditService = auditService;
     }
 
     public async Task<List<CustomFieldResponse>> GetAllAsync(bool? appliesToQuotes = null, bool? appliesToSites = null)
@@ -107,6 +109,9 @@ public class CustomFieldService : ICustomFieldService
         _db.CustomFieldDefinitions.Add(field);
         await _db.SaveChangesAsync();
 
+        await _auditService.LogEventAsync("CustomFieldDefinition", field.Id, AuditAction.Created,
+            new { field.Label, FieldType = field.FieldType.ToString(), field.Options, ObligationLevel = field.ObligationLevel.ToString(), field.AppliesToQuotes, field.AppliesToSites });
+
         _logger.LogInformation("CustomField created: {FieldId} for tenant {TenantId}", field.Id, _tenantContext.TenantId);
 
         return MapToResponse(field);
@@ -120,6 +125,10 @@ public class CustomFieldService : ICustomFieldService
 
         if (request.FieldType != null)
             throw new ApiErrorException(ApiError.FieldTypeNotModifiable);
+
+        var oldLabel = field.Label;
+        var oldOptions = field.Options;
+        var oldObligationLevel = field.ObligationLevel;
 
         if (request.Label != null)
         {
@@ -183,6 +192,15 @@ public class CustomFieldService : ICustomFieldService
         field.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
+        var changes = new Dictionary<string, object?>();
+        if (request.Label != null && request.Label.Trim() != oldLabel) changes["Label"] = new { Old = oldLabel, New = field.Label };
+        if (request.Options != null && request.Options != oldOptions) changes["Options"] = new { Old = oldOptions, New = field.Options };
+        if (request.ObligationLevel != null && field.ObligationLevel != oldObligationLevel) changes["ObligationLevel"] = new { Old = oldObligationLevel.ToString(), New = field.ObligationLevel.ToString() };
+        if (request.AppliesToQuotes.HasValue && request.AppliesToQuotes.Value != oldAppliesToQuotes) changes["AppliesToQuotes"] = new { Old = oldAppliesToQuotes, New = field.AppliesToQuotes };
+        if (request.AppliesToSites.HasValue && request.AppliesToSites.Value != oldAppliesToSites) changes["AppliesToSites"] = new { Old = oldAppliesToSites, New = field.AppliesToSites };
+
+        await _auditService.LogEventAsync("CustomFieldDefinition", field.Id, AuditAction.Updated, changes);
+
         _logger.LogInformation("CustomField updated: {FieldId} for tenant {TenantId}", field.Id, _tenantContext.TenantId);
 
         return MapToResponse(field);
@@ -194,8 +212,12 @@ public class CustomFieldService : ICustomFieldService
         if (field == null)
             throw new ApiErrorException(ApiError.CustomFieldNotFound);
 
+        var deletedLabel = field.Label;
         _db.CustomFieldDefinitions.Remove(field);
         await _db.SaveChangesAsync();
+
+        await _auditService.LogEventAsync("CustomFieldDefinition", id, AuditAction.Deleted,
+            new { Label = deletedLabel });
 
         _logger.LogInformation("CustomField deleted: {FieldId} for tenant {TenantId}", id, _tenantContext.TenantId);
     }
@@ -205,8 +227,6 @@ public class CustomFieldService : ICustomFieldService
         var context = request.Context?.ToLowerInvariant();
         if (context != "quotes" && context != "sites")
             throw new ApiErrorException(ApiError.InvalidReorderContext);
-
-        await using var transaction = await _db.Database.BeginTransactionAsync();
 
         var contextFields = context == "quotes"
             ? await _db.CustomFieldDefinitions.Where(f => f.AppliesToQuotes).ToListAsync()
@@ -231,7 +251,9 @@ public class CustomFieldService : ICustomFieldService
         }
 
         await _db.SaveChangesAsync();
-        await transaction.CommitAsync();
+
+        await _auditService.LogEventAsync("CustomFieldDefinition", 0, AuditAction.Updated,
+            new { Action = "Reorder", Context = context, FieldIds = request.FieldIds });
 
         _logger.LogInformation("CustomFields reordered ({Context}) for tenant {TenantId}", context, _tenantContext.TenantId);
 

@@ -60,5 +60,12 @@ public enum ApiError
     InvalidReorderList,
 
     [ApiErrorInfo(400, "Le contexte de réordonnancement doit être 'quotes' ou 'sites'")]
-    InvalidReorderContext
+    InvalidReorderContext,
+
+    // Audit
+    [ApiErrorInfo(400, "Le type d'entité est requis")]
+    AuditEntityTypeRequired,
+
+    [ApiErrorInfo(400, "L'identifiant d'entité est requis")]
+    AuditEntityIdRequired
 }

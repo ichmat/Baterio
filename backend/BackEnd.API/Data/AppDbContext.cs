@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<CompanyInfo> CompanyInfos => Set<CompanyInfo>();
     public DbSet<CustomFieldDefinition> CustomFieldDefinitions => Set<CustomFieldDefinition>();
+    public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
 
     // Safe accessor for the query filter — returns 0 when no tenant context
     private int CurrentTenantId => _tenantContext?.TenantId ?? 0;
@@ -34,5 +35,6 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<User>().HasQueryFilter(u => u.TenantId == CurrentTenantId);
         modelBuilder.Entity<CompanyInfo>().HasQueryFilter(c => c.TenantId == CurrentTenantId);
         modelBuilder.Entity<CustomFieldDefinition>().HasQueryFilter(c => c.TenantId == CurrentTenantId);
+        modelBuilder.Entity<AuditEvent>().HasQueryFilter(e => e.TenantId == CurrentTenantId);
     }
 }
