@@ -21,15 +21,20 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
     public const string TestJwtAudience = "baterio-frontend";
 
     private DbConnection? _connection;
+    private string? _uploadTempDir;
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        _uploadTempDir = Path.Combine(Path.GetTempPath(), $"baterio-test-uploads-{Guid.NewGuid()}");
+        Directory.CreateDirectory(_uploadTempDir);
+
         builder.UseEnvironment("Testing");
 
         builder.UseSetting("Jwt:Secret", TestJwtSecret);
         builder.UseSetting("Jwt:Issuer", TestJwtIssuer);
         builder.UseSetting("Jwt:Audience", TestJwtAudience);
         builder.UseSetting("Jwt:ExpirationInMinutes", "30");
+        builder.UseSetting("FileStorage:BasePath", _uploadTempDir);
 
         builder.ConfigureServices(services =>
         {
@@ -138,6 +143,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         if (disposing)
         {
             _connection?.Dispose();
+            if (_uploadTempDir != null && Directory.Exists(_uploadTempDir))
+                Directory.Delete(_uploadTempDir, true);
         }
     }
 }
