@@ -24,3 +24,13 @@ export interface UpdateCustomerRequest {
   email?: string
   address?: string
 }
+
+export interface CustomerSearchResult {
+  id: number
+  lastName: string
+  firstName: string
+  telephone: string | null
+  email: string | null
+  quoteCount: number
+  siteCount: number
+}

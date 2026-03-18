@@ -278,6 +278,122 @@ public class CustomerServiceTests : IDisposable
         Assert.Equal("Dupont", result[0].LastName);
     }
 
+    // --- SearchAsync ---
+
+    [Fact]
+    public async Task SearchAsync_ValidQuery_ReturnsMatchingCustomers()
+    {
+        _db.Customers.Add(new Customer { TenantId = _tenantId, LastName = "Lefebvre", FirstName = "Marie", CreatedAt = DateTime.UtcNow });
+        _db.Customers.Add(new Customer { TenantId = _tenantId, LastName = "Dupont", FirstName = "Jean", CreatedAt = DateTime.UtcNow });
+        _db.Customers.Add(new Customer { TenantId = _tenantId, LastName = "Lefranc", FirstName = "Pierre", CreatedAt = DateTime.UtcNow });
+        await _db.SaveChangesAsync();
+
+        var result = await _service.SearchAsync("Lef");
+
+        Assert.Equal(2, result.Count);
+        Assert.All(result, r => Assert.Contains("Lef", r.LastName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task SearchAsync_SearchesInAllFields()
+    {
+        _db.Customers.Add(new Customer { TenantId = _tenantId, LastName = "Martin", FirstName = "Lefebvre", CreatedAt = DateTime.UtcNow });
+        _db.Customers.Add(new Customer { TenantId = _tenantId, LastName = "Dupont", FirstName = "Jean", Telephone = "0601020304", CreatedAt = DateTime.UtcNow });
+        _db.Customers.Add(new Customer { TenantId = _tenantId, LastName = "Albert", FirstName = "Paul", Email = "lef@test.fr", CreatedAt = DateTime.UtcNow });
+        await _db.SaveChangesAsync();
+
+        // Search by FirstName
+        var byFirstName = await _service.SearchAsync("Lefebvre");
+        Assert.Single(byFirstName);
+        Assert.Equal("Martin", byFirstName[0].LastName);
+
+        // Search by Telephone
+        var byPhone = await _service.SearchAsync("060102");
+        Assert.Single(byPhone);
+        Assert.Equal("Dupont", byPhone[0].LastName);
+
+        // Search by Email
+        var byEmail = await _service.SearchAsync("lef@test");
+        Assert.Single(byEmail);
+        Assert.Equal("Albert", byEmail[0].LastName);
+    }
+
+    [Fact]
+    public async Task SearchAsync_QueryLessThan2Chars_ReturnsEmptyList()
+    {
+        _db.Customers.Add(new Customer { TenantId = _tenantId, LastName = "Dupont", FirstName = "Jean", CreatedAt = DateTime.UtcNow });
+        await _db.SaveChangesAsync();
+
+        var result = await _service.SearchAsync("D");
+
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task SearchAsync_EmptyQuery_ReturnsEmptyList()
+    {
+        _db.Customers.Add(new Customer { TenantId = _tenantId, LastName = "Dupont", FirstName = "Jean", CreatedAt = DateTime.UtcNow });
+        await _db.SaveChangesAsync();
+
+        var resultEmpty = await _service.SearchAsync("");
+        var resultNull = await _service.SearchAsync(null!);
+        var resultWhitespace = await _service.SearchAsync("   ");
+
+        Assert.Empty(resultEmpty);
+        Assert.Empty(resultNull);
+        Assert.Empty(resultWhitespace);
+    }
+
+    [Fact]
+    public async Task SearchAsync_RespectsLimit()
+    {
+        for (int i = 0; i < 5; i++)
+            _db.Customers.Add(new Customer { TenantId = _tenantId, LastName = $"Dupont{i}", FirstName = "Jean", CreatedAt = DateTime.UtcNow });
+        await _db.SaveChangesAsync();
+
+        var result = await _service.SearchAsync("Dupont", 2);
+
+        Assert.Equal(2, result.Count);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ReturnsSortedByLastNameThenFirstName()
+    {
+        _db.Customers.Add(new Customer { TenantId = _tenantId, LastName = "Zorro", FirstName = "Anne", CreatedAt = DateTime.UtcNow });
+        _db.Customers.Add(new Customer { TenantId = _tenantId, LastName = "Albert", FirstName = "Marie", CreatedAt = DateTime.UtcNow });
+        _db.Customers.Add(new Customer { TenantId = _tenantId, LastName = "Albert", FirstName = "Anne", CreatedAt = DateTime.UtcNow });
+        await _db.SaveChangesAsync();
+
+        var result = await _service.SearchAsync("Al");
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal("Albert", result[0].LastName);
+        Assert.Equal("Anne", result[0].FirstName);
+        Assert.Equal("Albert", result[1].LastName);
+        Assert.Equal("Marie", result[1].FirstName);
+    }
+
+    [Fact]
+    public async Task SearchAsync_TenantIsolation_DoesNotReturnOtherTenantCustomers()
+    {
+        _db.Customers.Add(new Customer { TenantId = _tenantId, LastName = "Dupont", FirstName = "Jean", CreatedAt = DateTime.UtcNow });
+        await _db.SaveChangesAsync();
+
+        // Add another tenant with a customer (bypass query filter via raw SQL)
+        var otherTenant = new Tenant { Name = "Other Tenant", CreatedAt = DateTime.UtcNow };
+        _db.Tenants.Add(otherTenant);
+        await _db.SaveChangesAsync();
+
+        _db.Database.ExecuteSqlRaw(
+            "INSERT INTO customers (tenant_id, last_name, first_name, created_at) VALUES ({0}, 'Dupuis', 'Marc', datetime('now'))",
+            otherTenant.Id);
+
+        var result = await _service.SearchAsync("Dup");
+
+        Assert.Single(result);
+        Assert.Equal("Dupont", result[0].LastName);
+    }
+
     private class TestTenantContext : ITenantContext
     {
         public int TenantId { get; set; }

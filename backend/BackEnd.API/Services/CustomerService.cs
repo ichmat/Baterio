@@ -131,6 +131,38 @@ public class CustomerService : ICustomerService
         return MapToResponse(customer);
     }
 
+    public async Task<List<CustomerSearchResult>> SearchAsync(string query, int limit = 10)
+    {
+        if (string.IsNullOrWhiteSpace(query) || query.Trim().Length < 2)
+            return [];
+
+        var normalizedQuery = query.Trim();
+        limit = Math.Clamp(limit, 1, 50);
+
+        // Contains() → LIKE '%term%' en SQL. La collation MySQL utf8mb4_general_ci
+        // gere le case-insensitive nativement — pas de .ToLower() pour permettre l'utilisation d'index.
+        return await _db.Customers
+            .Where(c =>
+                c.LastName.Contains(normalizedQuery) ||
+                c.FirstName.Contains(normalizedQuery) ||
+                (c.Telephone != null && c.Telephone.Contains(normalizedQuery)) ||
+                (c.Email != null && c.Email.Contains(normalizedQuery)))
+            .OrderBy(c => c.LastName)
+            .ThenBy(c => c.FirstName)
+            .Take(limit)
+            .Select(c => new CustomerSearchResult
+            {
+                Id = c.Id,
+                LastName = c.LastName,
+                FirstName = c.FirstName,
+                Telephone = c.Telephone,
+                Email = c.Email,
+                QuoteCount = 0, // TODO: LEFT JOIN quotes quand la table existe
+                SiteCount = 0,  // TODO: LEFT JOIN sites quand la table existe
+            })
+            .ToListAsync();
+    }
+
     private static bool IsValidEmail(string email)
     {
         return Regex.IsMatch(email, @"^[^@\s]+@[^@\s]+\.[^@\s]+$");

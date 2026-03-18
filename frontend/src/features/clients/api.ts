@@ -1,5 +1,5 @@
 import { apiClient } from '@/lib/api-client'
-import type { CustomerResponse, CreateCustomerRequest, UpdateCustomerRequest } from './types'
+import type { CustomerResponse, CreateCustomerRequest, UpdateCustomerRequest, CustomerSearchResult } from './types'
 
 interface ApiResponse<T> {
   data: T
@@ -28,5 +28,12 @@ export async function updateCustomer(id: number, data: UpdateCustomerRequest): P
     method: 'PUT',
     body: JSON.stringify(data),
   })
+  return response.data
+}
+
+export async function searchCustomers(query: string, limit?: number): Promise<CustomerSearchResult[]> {
+  const response = await apiClient<ApiResponse<CustomerSearchResult[]>>(
+    `/customers/search?q=${encodeURIComponent(query)}&limit=${limit ?? 10}`
+  )
   return response.data
 }

@@ -29,6 +29,14 @@ public class CustomersController : ControllerBase
         return Ok(new ApiResponse<List<CustomerResponse>> { Data = customers });
     }
 
+    [HttpGet("search")]
+    public async Task<IActionResult> Search([FromQuery] string q = "", [FromQuery] int limit = 10)
+    {
+        limit = Math.Clamp(limit, 1, 50);
+        var results = await _customerService.SearchAsync(q, limit);
+        return Ok(new ApiResponse<List<CustomerSearchResult>> { Data = results });
+    }
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {

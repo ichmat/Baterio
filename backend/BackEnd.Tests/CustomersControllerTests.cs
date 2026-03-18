@@ -162,6 +162,79 @@ public class CustomersControllerTests : IClassFixture<CustomWebApplicationFactor
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    // --- GET /api/customers/search ---
+
+    [Fact]
+    public async Task Search_ValidQuery_ReturnsMatchingCustomers()
+    {
+        var (token, _, _) = await SetupAsync();
+
+        // Create customers
+        await _client.SendAsync(CreateRequest(HttpMethod.Post, "/api/customers", token,
+            new CreateCustomerRequest { LastName = "Lefebvre", FirstName = "Marie" }));
+        await _client.SendAsync(CreateRequest(HttpMethod.Post, "/api/customers", token,
+            new CreateCustomerRequest { LastName = "Dupont", FirstName = "Jean" }));
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Get, "/api/customers/search?q=Lef", token));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<List<CustomerSearchResult>>>(JsonOpts);
+        Assert.NotNull(body);
+        Assert.True(body.Data.Count >= 1);
+        Assert.All(body.Data, r => Assert.Contains("Lef", r.LastName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Search_EmptyQuery_ReturnsEmptyList()
+    {
+        var (token, _, _) = await SetupAsync();
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Get, "/api/customers/search?q=", token));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<List<CustomerSearchResult>>>(JsonOpts);
+        Assert.NotNull(body);
+        Assert.Empty(body.Data);
+    }
+
+    [Fact]
+    public async Task Search_WithLimit_ReturnsMaxLimitResults()
+    {
+        var (token, _, _) = await SetupAsync();
+
+        // Create 3 customers with same prefix
+        for (int i = 0; i < 3; i++)
+            await _client.SendAsync(CreateRequest(HttpMethod.Post, "/api/customers", token,
+                new CreateCustomerRequest { LastName = $"SearchLimit{i}", FirstName = "Test" }));
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Get, "/api/customers/search?q=SearchLimit&limit=2", token));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<List<CustomerSearchResult>>>(JsonOpts);
+        Assert.NotNull(body);
+        Assert.Equal(2, body.Data.Count);
+    }
+
+    [Fact]
+    public async Task Search_Ouvrier_Returns403()
+    {
+        var (token, _, _) = await SetupAsync(UserRole.Ouvrier);
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Get, "/api/customers/search?q=Test", token));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Search_Unauthenticated_Returns401()
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, "/api/customers/search?q=Test");
+
+        var response = await _client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
     [Fact]
     public async Task Create_EmptyLastName_Returns400()
     {
