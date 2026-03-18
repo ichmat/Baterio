@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/table'
 import { Input } from '@/components/ui/input'
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface DataTableProps<T> {
   columns: ColumnDef<T, unknown>[]
@@ -26,6 +27,7 @@ interface DataTableProps<T> {
   searchColumn?: string
   emptyMessage?: string
   onRowClick?: (row: T) => void
+  selectedRowId?: number | string
 }
 
 export function DataTable<T>({
@@ -35,6 +37,7 @@ export function DataTable<T>({
   searchColumn,
   emptyMessage = 'Aucun résultat.',
   onRowClick,
+  selectedRowId,
 }: DataTableProps<T>) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = useState('')
@@ -106,7 +109,12 @@ export function DataTable<T>({
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  className={onRowClick ? 'cursor-pointer' : ''}
+                  className={cn(
+                    onRowClick && 'cursor-pointer',
+                    selectedRowId !== undefined &&
+                      (row.original as Record<string, unknown>)?.id === selectedRowId &&
+                      'bg-accent',
+                  )}
                   onClick={() => onRowClick?.(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => (

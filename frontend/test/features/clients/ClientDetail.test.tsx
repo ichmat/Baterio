@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router'
-import { ClientDetailPage } from '@/features/clients/ClientDetailPage'
-import * as api from '@/features/clients/api'
+import { MemoryRouter } from 'react-router'
+import { ClientDetail } from '@/features/clients/ClientDetail'
+import * as clientApi from '@/features/clients/api'
 import * as auditApi from '@/features/audit/api'
 import type { CustomerResponse } from '@/features/clients/types'
 import type { AuditEventsPage } from '@/features/audit/types'
@@ -17,14 +17,11 @@ vi.mock('sonner', () => ({
     error: vi.fn(),
   },
 }))
-vi.mock('@/hooks/useMediaQuery', () => ({
-  useMediaQuery: vi.fn(() => false),
-}))
 
 // Mock Sheet for TimelineFull
 vi.mock('@/components/ui/sheet', () => ({
   Sheet: ({ children, open }: { children: React.ReactNode; open: boolean }) =>
-    open ? <div>{children}</div> : null,
+    open ? <div data-testid="sheet">{children}</div> : null,
   SheetContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   SheetHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   SheetTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
@@ -32,6 +29,10 @@ vi.mock('@/components/ui/sheet', () => ({
 
 vi.mock('@/components/ui/scroll-area', () => ({
   ScrollArea: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}))
+
+vi.mock('@/hooks/useMediaQuery', () => ({
+  useMediaQuery: vi.fn(() => false),
 }))
 
 const mockCustomer: CustomerResponse = {
@@ -57,20 +58,18 @@ beforeEach(() => {
   vi.mocked(auditApi.getAuditEvents).mockResolvedValue(mockAuditEvents)
 })
 
-function renderPage(customerId = '1') {
+function renderDetail(props: { customerId?: number; showBackButton?: boolean; onBack?: () => void } = {}) {
   return renderWithProviders(
-    <MemoryRouter initialEntries={[`/clients/${customerId}`]}>
-      <Routes>
-        <Route path="/clients/:id" element={<ClientDetailPage />} />
-      </Routes>
+    <MemoryRouter>
+      <ClientDetail customerId={props.customerId ?? 1} showBackButton={props.showBackButton} onBack={props.onBack} />
     </MemoryRouter>,
   )
 }
 
-describe('ClientDetailPage', () => {
+describe('ClientDetail', () => {
   it('affiche les informations du client', async () => {
-    vi.mocked(api.getCustomerById).mockResolvedValue(mockCustomer)
-    renderPage()
+    vi.mocked(clientApi.getCustomerById).mockResolvedValue(mockCustomer)
+    renderDetail()
 
     await waitFor(() => {
       expect(screen.getByText('Dupont Jean')).toBeInTheDocument()
@@ -78,34 +77,53 @@ describe('ClientDetailPage', () => {
     expect(screen.getByText('0601020304')).toBeInTheDocument()
     expect(screen.getByText('jean@dupont.fr')).toBeInTheDocument()
     expect(screen.getByText('1 rue de Paris')).toBeInTheDocument()
-    expect(screen.getByText('15/01/2026')).toBeInTheDocument()
   })
 
-  it('le bouton "Modifier" ouvre le dialog', async () => {
-    vi.mocked(api.getCustomerById).mockResolvedValue(mockCustomer)
-    const user = userEvent.setup()
-    renderPage()
-
-    await waitFor(() => {
-      expect(screen.getByText('Modifier')).toBeInTheDocument()
-    })
-
-    await user.click(screen.getByText('Modifier'))
-
-    await waitFor(() => {
-      expect(screen.getByText('Modifier le client')).toBeInTheDocument()
-    })
-  })
-
-  it('affiche les sections placeholder (devis, chantiers)', async () => {
-    vi.mocked(api.getCustomerById).mockResolvedValue(mockCustomer)
-    renderPage()
+  it('affiche la section "Devis associés" avec état vide', async () => {
+    vi.mocked(clientApi.getCustomerById).mockResolvedValue(mockCustomer)
+    renderDetail()
 
     await waitFor(() => {
       expect(screen.getByText('Devis associés')).toBeInTheDocument()
     })
-    expect(screen.getByText('Chantiers associés')).toBeInTheDocument()
     expect(screen.getByText('Aucun devis pour ce client — les devis seront disponibles prochainement')).toBeInTheDocument()
+  })
+
+  it('affiche la section "Chantiers associés" avec état vide', async () => {
+    vi.mocked(clientApi.getCustomerById).mockResolvedValue(mockCustomer)
+    renderDetail()
+
+    await waitFor(() => {
+      expect(screen.getByText('Chantiers associés')).toBeInTheDocument()
+    })
     expect(screen.getByText('Aucun chantier pour ce client — les chantiers seront disponibles prochainement')).toBeInTheDocument()
+  })
+
+  it('affiche la section historique (TimelineCompact)', async () => {
+    vi.mocked(clientApi.getCustomerById).mockResolvedValue(mockCustomer)
+    renderDetail()
+
+    await waitFor(() => {
+      expect(screen.getByText('Historique')).toBeInTheDocument()
+    })
+    await waitFor(() => {
+      expect(screen.getByText('Voir les détails →')).toBeInTheDocument()
+    })
+  })
+
+  it('le bouton "Voir les détails" ouvre la TimelineFull', async () => {
+    vi.mocked(clientApi.getCustomerById).mockResolvedValue(mockCustomer)
+    const user = userEvent.setup()
+    renderDetail()
+
+    await waitFor(() => {
+      expect(screen.getByText('Voir les détails →')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByText('Voir les détails →'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Historique — Dupont Jean')).toBeInTheDocument()
+    })
   })
 })

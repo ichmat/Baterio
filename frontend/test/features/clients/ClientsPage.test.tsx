@@ -4,20 +4,27 @@ import userEvent from '@testing-library/user-event'
 import { BrowserRouter } from 'react-router'
 import { ClientsPage } from '@/features/clients/ClientsPage'
 import * as api from '@/features/clients/api'
+import * as auditApi from '@/features/audit/api'
 import type { CustomerResponse } from '@/features/clients/types'
+import type { AuditEventsPage } from '@/features/audit/types'
 import { renderWithProviders } from '../../test-utils'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 
 vi.mock('@/features/clients/api')
+vi.mock('@/features/audit/api')
 vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
     error: vi.fn(),
   },
 }))
+vi.mock('@/hooks/useMediaQuery', () => ({
+  useMediaQuery: vi.fn(() => false),
+}))
 
 // Mock DataTable to avoid @tanstack/react-table resolution issues in happy-dom
 vi.mock('@/components/ui/data-table', () => ({
-  DataTable: ({ data, onRowClick }: { data: CustomerResponse[]; columns: unknown[]; onRowClick?: (row: CustomerResponse) => void; searchPlaceholder?: string; searchColumn?: string }) => (
+  DataTable: ({ data, onRowClick, selectedRowId }: { data: CustomerResponse[]; columns: unknown[]; onRowClick?: (row: CustomerResponse) => void; searchPlaceholder?: string; selectedRowId?: number }) => (
     <table data-testid="data-table">
       <thead>
         <tr>
@@ -29,7 +36,11 @@ vi.mock('@/components/ui/data-table', () => ({
       </thead>
       <tbody>
         {data.map((row: CustomerResponse) => (
-          <tr key={row.id} onClick={() => onRowClick?.(row)}>
+          <tr
+            key={row.id}
+            onClick={() => onRowClick?.(row)}
+            data-selected={row.id === selectedRowId ? 'true' : undefined}
+          >
             <td>{row.lastName}</td>
             <td>{row.firstName}</td>
             <td>{row.telephone || '—'}</td>
@@ -41,13 +52,40 @@ vi.mock('@/components/ui/data-table', () => ({
   ),
 }))
 
+// Mock ResizablePanel components
+vi.mock('@/components/ui/resizable', () => ({
+  ResizablePanelGroup: ({ children }: { children: React.ReactNode }) => <div data-testid="resizable-group">{children}</div>,
+  ResizablePanel: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  ResizableHandle: () => <div data-testid="resizable-handle" />,
+}))
+
+vi.mock('@/components/ui/scroll-area', () => ({
+  ScrollArea: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}))
+
+// Mock Sheet for TimelineFull
+vi.mock('@/components/ui/sheet', () => ({
+  Sheet: ({ children, open }: { children: React.ReactNode; open: boolean }) =>
+    open ? <div>{children}</div> : null,
+  SheetContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SheetHeader: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  SheetTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
+}))
+
 const mockCustomers: CustomerResponse[] = [
   { id: 1, lastName: 'Dupont', firstName: 'Jean', telephone: '0601020304', email: 'jean@dupont.fr', address: null, createdAt: '2026-01-01T00:00:00Z', updatedAt: null },
   { id: 2, lastName: 'Martin', firstName: 'Marie', telephone: null, email: null, address: null, createdAt: '2026-01-02T00:00:00Z', updatedAt: null },
 ]
 
+const mockAuditEvents: AuditEventsPage = {
+  data: [],
+  pagination: { page: 1, pageSize: 5, totalItems: 0, totalPages: 0 },
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.mocked(useMediaQuery).mockReturnValue(false) // default: mobile
+  vi.mocked(auditApi.getAuditEvents).mockResolvedValue(mockAuditEvents)
 })
 
 function renderPage() {
@@ -104,6 +142,98 @@ describe('ClientsPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Nouveau client', { selector: '[data-slot="dialog-title"]' })).toBeInTheDocument()
+    })
+  })
+
+  describe('Desktop — Split View', () => {
+    beforeEach(() => {
+      vi.mocked(useMediaQuery).mockReturnValue(true) // desktop
+    })
+
+    it('cliquer sur un client affiche le détail dans le panneau droit', async () => {
+      vi.mocked(api.getCustomers).mockResolvedValue(mockCustomers)
+      vi.mocked(api.getCustomerById).mockResolvedValue(mockCustomers[0])
+      const user = userEvent.setup()
+      renderPage()
+
+      await waitFor(() => {
+        expect(screen.getByText('Dupont')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByText('Dupont'))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('resizable-group')).toBeInTheDocument()
+      })
+      await waitFor(() => {
+        expect(screen.getByText('Dupont Jean')).toBeInTheDocument()
+      })
+    })
+
+    it('changer de client met à jour le panneau droit', async () => {
+      vi.mocked(api.getCustomers).mockResolvedValue(mockCustomers)
+      vi.mocked(api.getCustomerById).mockResolvedValue(mockCustomers[0])
+      const user = userEvent.setup()
+      renderPage()
+
+      await waitFor(() => {
+        expect(screen.getByText('Dupont')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByText('Dupont'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Dupont Jean')).toBeInTheDocument()
+      })
+
+      vi.mocked(api.getCustomerById).mockResolvedValue(mockCustomers[1])
+
+      await user.click(screen.getByText('Martin'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Martin Marie')).toBeInTheDocument()
+      })
+    })
+
+    it('Escape ferme le panneau Split View', async () => {
+      vi.mocked(api.getCustomers).mockResolvedValue(mockCustomers)
+      vi.mocked(api.getCustomerById).mockResolvedValue(mockCustomers[0])
+      const user = userEvent.setup()
+      renderPage()
+
+      await waitFor(() => {
+        expect(screen.getByText('Dupont')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByText('Dupont'))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('resizable-group')).toBeInTheDocument()
+      })
+
+      await user.keyboard('{Escape}')
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('resizable-group')).not.toBeInTheDocument()
+      })
+    })
+  })
+
+  describe('Mobile', () => {
+    it('cliquer sur un client navigue vers /clients/:id', async () => {
+      vi.mocked(useMediaQuery).mockReturnValue(false) // mobile
+      vi.mocked(api.getCustomers).mockResolvedValue(mockCustomers)
+      const user = userEvent.setup()
+      renderPage()
+
+      await waitFor(() => {
+        expect(screen.getByText('Dupont')).toBeInTheDocument()
+      })
+
+      await user.click(screen.getByText('Dupont'))
+
+      // In mobile mode, navigate is called — verify no split view
+      expect(screen.queryByTestId('resizable-group')).not.toBeInTheDocument()
     })
   })
 })
