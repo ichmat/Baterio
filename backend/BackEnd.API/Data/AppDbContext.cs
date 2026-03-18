@@ -15,6 +15,7 @@ public class AppDbContext : DbContext
     public DbSet<CustomFieldDefinition> CustomFieldDefinitions => Set<CustomFieldDefinition>();
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
     public DbSet<Attachment> Attachments => Set<Attachment>();
+    public DbSet<Customer> Customers => Set<Customer>();
 
     // Safe accessor for the query filter — returns 0 when no tenant context
     private int CurrentTenantId => _tenantContext?.TenantId ?? 0;
@@ -38,5 +39,6 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<CustomFieldDefinition>().HasQueryFilter(c => c.TenantId == CurrentTenantId);
         modelBuilder.Entity<AuditEvent>().HasQueryFilter(e => e.TenantId == CurrentTenantId);
         modelBuilder.Entity<Attachment>().HasQueryFilter(e => e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<Customer>().HasQueryFilter(e => e.TenantId == CurrentTenantId);
     }
 }

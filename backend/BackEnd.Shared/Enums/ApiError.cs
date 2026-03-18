@@ -92,5 +92,18 @@ public enum ApiError
     FileEntityTypeTooLong,
 
     [ApiErrorInfo(400, "Le nom du fichier dépasse 255 caractères")]
-    FileNameTooLong
+    FileNameTooLong,
+
+    // Customers
+    [ApiErrorInfo(404, "Client introuvable")]
+    CustomerNotFound,
+
+    [ApiErrorInfo(400, "Le nom est obligatoire")]
+    CustomerLastNameRequired,
+
+    [ApiErrorInfo(400, "Le prénom est obligatoire")]
+    CustomerFirstNameRequired,
+
+    [ApiErrorInfo(400, "Format d'email invalide")]
+    CustomerInvalidEmail
 }
