@@ -1,6 +1,6 @@
 import type { LoginResponse } from '@/features/auth/types'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5180/api'
 
 // Access token stored in memory (not localStorage) for security
 let accessToken: string | null = null

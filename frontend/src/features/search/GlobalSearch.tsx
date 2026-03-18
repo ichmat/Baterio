@@ -51,6 +51,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
       onOpenChange={onOpenChange}
       title="Recherche globale"
       description="Rechercher des clients, devis, chantiers..."
+      shouldFilter={false}
     >
       <CommandInput
         placeholder="Rechercher..."
