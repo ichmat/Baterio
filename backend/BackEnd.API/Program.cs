@@ -55,6 +55,18 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
 builder.Services.AddScoped<ICustomFieldService, CustomFieldService>();
+builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 10_485_760; // 10 Mo
+});
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 11_534_336; // 11 Mo — marge pour laisser passer jusqu'au controller, FileService rejette a 10 Mo avec message localise
+});
+builder.Services.AddScoped<IFileStorage, LocalFileStorage>();
+builder.Services.AddScoped<IFileService, FileService>();
+builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<JwtService>();
 
 // CORS
@@ -91,6 +103,7 @@ app.UseCors();
 app.UseAuthentication();
 app.UseMiddleware<TenantMiddleware>();
 app.UseAuthorization();
+app.UseMiddleware<TransactionMiddleware>();
 app.MapControllers();
 
 // Apply pending EF Core migrations at startup (skip in Testing — SQLite uses EnsureCreated)

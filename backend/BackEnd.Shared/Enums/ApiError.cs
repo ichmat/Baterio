@@ -60,5 +60,50 @@ public enum ApiError
     InvalidReorderList,
 
     [ApiErrorInfo(400, "Le contexte de réordonnancement doit être 'quotes' ou 'sites'")]
-    InvalidReorderContext
+    InvalidReorderContext,
+
+    // Audit
+    [ApiErrorInfo(400, "Le type d'entité est requis")]
+    AuditEntityTypeRequired,
+
+    [ApiErrorInfo(400, "L'identifiant d'entité est requis")]
+    AuditEntityIdRequired,
+
+    // Files
+    [ApiErrorInfo(404, "Fichier introuvable")]
+    FileNotFound,
+
+    [ApiErrorInfo(400, "Le fichier dépasse la taille maximale de 10 Mo")]
+    FileTooLarge,
+
+    [ApiErrorInfo(400, "Type de fichier non autorisé. Formats acceptés : JPEG, PNG, WebP, PDF, Word, Excel")]
+    FileTypeNotAllowed,
+
+    [ApiErrorInfo(400, "Aucun fichier fourni")]
+    FileRequired,
+
+    [ApiErrorInfo(400, "Le type d'entité est requis")]
+    FileEntityTypeRequired,
+
+    [ApiErrorInfo(400, "L'identifiant d'entité est requis")]
+    FileEntityIdRequired,
+
+    [ApiErrorInfo(400, "Le type d'entité dépasse 100 caractères")]
+    FileEntityTypeTooLong,
+
+    [ApiErrorInfo(400, "Le nom du fichier dépasse 255 caractères")]
+    FileNameTooLong,
+
+    // Customers
+    [ApiErrorInfo(404, "Client introuvable")]
+    CustomerNotFound,
+
+    [ApiErrorInfo(400, "Le nom est obligatoire")]
+    CustomerLastNameRequired,
+
+    [ApiErrorInfo(400, "Le prénom est obligatoire")]
+    CustomerFirstNameRequired,
+
+    [ApiErrorInfo(400, "Format d'email invalide")]
+    CustomerInvalidEmail
 }

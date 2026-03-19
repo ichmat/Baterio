@@ -5,6 +5,8 @@ import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
 import { RoleRoute } from '@/features/admin/RoleRoute'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { AdminPage } from '@/pages/AdminPage'
+import { ClientsPage } from '@/features/clients/ClientsPage'
+import { ClientDetailPage } from '@/features/clients/ClientDetailPage'
 import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/sonner'
 
@@ -43,6 +45,30 @@ export default function App() {
                 <RoleRoute roles={['Admin']}>
                   <AppLayout>
                     <AdminPage />
+                  </AppLayout>
+                </RoleRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/clients"
+            element={
+              <ProtectedRoute>
+                <RoleRoute roles={['Admin', 'Chef', 'Secretaire']}>
+                  <AppLayout>
+                    <ClientsPage />
+                  </AppLayout>
+                </RoleRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/clients/:id"
+            element={
+              <ProtectedRoute>
+                <RoleRoute roles={['Admin', 'Chef', 'Secretaire']}>
+                  <AppLayout>
+                    <ClientDetailPage />
                   </AppLayout>
                 </RoleRoute>
               </ProtectedRoute>
