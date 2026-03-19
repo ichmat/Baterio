@@ -28,26 +28,43 @@ public class LocalFileStorage : IFileStorage
         return relativePath.Replace('\\', '/');
     }
 
-    public Task<Stream?> GetAsync(string path)
+    public async Task<Stream?> GetAsync(string path)
     {
         var absolutePath = GetAbsolutePath(path);
 
-        if (!File.Exists(absolutePath))
-            return Task.FromResult<Stream?>(null);
-
-        Stream stream = new FileStream(absolutePath, FileMode.Open, FileAccess.Read);
-        return Task.FromResult<Stream?>(stream);
+        try
+        {
+            var stream = new FileStream(absolutePath, FileMode.Open, FileAccess.Read, FileShare.Read,
+                bufferSize: 4096, useAsync: true);
+            return stream;
+        }
+        catch (FileNotFoundException)
+        {
+            return null;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return null;
+        }
     }
 
-    public Task<bool> DeleteAsync(string path)
+    public async Task<bool> DeleteAsync(string path)
     {
         var absolutePath = GetAbsolutePath(path);
 
-        if (!File.Exists(absolutePath))
-            return Task.FromResult(false);
-
-        File.Delete(absolutePath);
-        return Task.FromResult(true);
+        try
+        {
+            File.Delete(absolutePath);
+            return true;
+        }
+        catch (FileNotFoundException)
+        {
+            return false;
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return false;
+        }
     }
 
     private string GetAbsolutePath(string relativePath)

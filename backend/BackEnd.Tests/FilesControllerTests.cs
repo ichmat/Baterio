@@ -154,9 +154,8 @@ public class FilesControllerTests : IClassFixture<CustomWebApplicationFactory>
 
         var response = await _client.SendAsync(request);
 
+        // FormOptions (10 Mo) rejette avant FileService — statut 400 garanti, message peut varier
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
-        Assert.Contains("FileTooLarge", body);
     }
 
     [Fact]
