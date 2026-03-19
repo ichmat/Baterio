@@ -28,30 +28,6 @@ export function formatAuditAction(action: string): { label: string; icon: Lucide
   }
 }
 
-const fieldLabels: Record<string, string> = {
-  lastName: 'nom',
-  firstName: 'prénom',
-  telephone: 'téléphone',
-  email: 'email',
-  address: 'adresse',
-}
-
-export function formatAuditPayload(payload: string | null): string {
-  if (!payload) return ''
-
-  try {
-    const parsed = JSON.parse(payload)
-    if (parsed.changes && typeof parsed.changes === 'object') {
-      const keys = Object.keys(parsed.changes)
-      const labels = keys.map((k) => fieldLabels[k] || k)
-      return `Modifié : ${labels.join(', ')}`
-    }
-    return payload.slice(0, 100)
-  } catch {
-    return payload.slice(0, 100)
-  }
-}
-
 export function formatAuditDate(dateString: string): string {
   const now = Date.now()
   const date = new Date(dateString)

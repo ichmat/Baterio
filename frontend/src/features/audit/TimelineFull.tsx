@@ -4,7 +4,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useInfiniteAuditEvents } from './useInfiniteAuditEvents'
-import { formatAuditAction, formatAuditDate, formatAuditPayload } from './format-audit'
+import { formatAuditAction, formatAuditDate } from './format-audit'
+import { AuditPayloadDisplay } from './AuditPayloadDisplay'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 
 interface TimelineFullProps {
@@ -29,15 +30,15 @@ export function TimelineFull({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-xl lg:max-w-2xl">
+      <SheetContent side="right" className="w-full! sm:max-w-xl! lg:max-w-3xl!">
         <SheetHeader>
           <SheetTitle>Historique — {entityLabel}</SheetTitle>
         </SheetHeader>
-        <ScrollArea className="h-[calc(100vh-5rem)] pr-4">
+        <ScrollArea className="h-[calc(100vh-5rem)] px-2">
           {isLoading ? (
-            <div className="space-y-4 py-4">
+            <div className="space-y-4 p-2">
               {Array.from({ length: 5 }).map((_, i) => (
-                <Skeleton key={i} className="h-20 w-full" />
+                <Skeleton key={i} className="h-20 w-full"/>
               ))}
             </div>
           ) : events.length === 0 ? (
@@ -50,7 +51,6 @@ export function TimelineFull({
                   <div className="absolute left-1/2 top-0 bottom-0 w-px -translate-x-1/2 bg-border" />
                   {events.map((event, index) => {
                     const { label, icon: Icon } = formatAuditAction(event.action)
-                    const payloadText = formatAuditPayload(event.payload)
                     const isLeft = index % 2 === 0
                     return (
                       <div
@@ -68,9 +68,11 @@ export function TimelineFull({
                             <p className="mt-1 text-xs text-muted-foreground">
                               {event.userFullName} — {formatAuditDate(event.createdAt)}
                             </p>
-                            {payloadText && (
-                              <p className="mt-1 text-xs text-muted-foreground">{payloadText}</p>
-                            )}
+                            <AuditPayloadDisplay
+                              payload={event.payload}
+                              action={event.action}
+                              entityType={entityType}
+                            />
                           </CardContent>
                         </Card>
                       </div>
@@ -83,14 +85,13 @@ export function TimelineFull({
                   <div className="absolute left-2 top-0 bottom-0 w-px bg-border" />
                   {events.map((event) => {
                     const { label, icon: Icon } = formatAuditAction(event.action)
-                    const payloadText = formatAuditPayload(event.payload)
                     return (
                       <div
                         key={event.id}
                         aria-label={`${label} par ${event.userFullName}`}
-                        className="relative mb-4"
+                        className="mb-4 relative"
                       >
-                        <div className="absolute -left-[16px] top-3 h-3 w-3 rounded-full border-2 border-primary bg-background" />
+                        <div className="absolute -left-5 top-3 h-3 w-3 rounded-full border-2 border-primary bg-background" />
                         <Card>
                           <CardContent className="p-3">
                             <div className="flex items-center gap-2 text-sm font-medium">
@@ -100,9 +101,11 @@ export function TimelineFull({
                             <p className="mt-1 text-xs text-muted-foreground">
                               {event.userFullName} — {formatAuditDate(event.createdAt)}
                             </p>
-                            {payloadText && (
-                              <p className="mt-1 text-xs text-muted-foreground">{payloadText}</p>
-                            )}
+                            <AuditPayloadDisplay
+                              payload={event.payload}
+                              action={event.action}
+                              entityType={entityType}
+                            />
                           </CardContent>
                         </Card>
                       </div>

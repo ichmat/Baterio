@@ -2,7 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { useAuditEvents } from './useAuditEvents'
-import { formatAuditAction, formatAuditDate, formatAuditPayload } from './format-audit'
+import { formatAuditAction, formatAuditDate } from './format-audit'
+import { AuditPayloadDisplay } from './AuditPayloadDisplay'
 
 interface TimelineCompactProps {
   entityType: string
@@ -32,13 +33,17 @@ export function TimelineCompact({ entityType, entityId, onViewDetails }: Timelin
           <div className="space-y-3">
             {events.map((event) => {
               const { label, icon: Icon } = formatAuditAction(event.action)
-              const payloadText = formatAuditPayload(event.payload)
               return (
                 <div key={event.id} className="flex items-start gap-2 text-sm">
                   <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   <span>
                     {label} par {event.userFullName}
-                    {payloadText && ` · ${payloadText}`}
+                    <AuditPayloadDisplay
+                      payload={event.payload}
+                      action={event.action}
+                      entityType={entityType}
+                      compact
+                    />
                     {' — '}{formatAuditDate(event.createdAt)}
                   </span>
                 </div>
