@@ -105,5 +105,27 @@ public enum ApiError
     CustomerFirstNameRequired,
 
     [ApiErrorInfo(400, "Format d'email invalide")]
-    CustomerInvalidEmail
+    CustomerInvalidEmail,
+
+    // Quotes
+    [ApiErrorInfo(404, "Devis introuvable")]
+    QuoteNotFound,
+
+    [ApiErrorInfo(400, "Le client est obligatoire")]
+    QuoteCustomerRequired,
+
+    [ApiErrorInfo(400, "L'objet du devis est obligatoire")]
+    QuoteSubjectRequired,
+
+    [ApiErrorInfo(400, "Client introuvable pour ce devis")]
+    QuoteCustomerNotFound,
+
+    [ApiErrorInfo(400, "Transition de statut non autorisée")]
+    QuoteInvalidTransition,
+
+    [ApiErrorInfo(400, "Statut invalide")]
+    QuoteInvalidStatus,
+
+    [ApiErrorInfo(400, "Priorité invalide")]
+    QuoteInvalidPriority
 }

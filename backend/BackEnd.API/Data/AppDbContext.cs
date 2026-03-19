@@ -16,6 +16,8 @@ public class AppDbContext : DbContext
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
     public DbSet<Attachment> Attachments => Set<Attachment>();
     public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<Quote> Quotes => Set<Quote>();
+    public DbSet<QuoteLine> QuoteLines => Set<QuoteLine>();
 
     // Safe accessor for the query filter — returns 0 when no tenant context
     private int CurrentTenantId => _tenantContext?.TenantId ?? 0;
@@ -40,5 +42,6 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<AuditEvent>().HasQueryFilter(e => e.TenantId == CurrentTenantId);
         modelBuilder.Entity<Attachment>().HasQueryFilter(e => e.TenantId == CurrentTenantId);
         modelBuilder.Entity<Customer>().HasQueryFilter(e => e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<Quote>().HasQueryFilter(e => e.TenantId == CurrentTenantId);
     }
 }

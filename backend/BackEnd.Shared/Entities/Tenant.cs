@@ -6,6 +6,8 @@ public class Tenant
     public string Name { get; set; } = string.Empty;
     public string? Subscription { get; set; }
     public string? Configuration { get; set; }
+    public int QuoteRefYear { get; set; }
+    public int QuoteRefSequence { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 
