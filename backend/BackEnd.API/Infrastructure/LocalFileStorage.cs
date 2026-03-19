@@ -22,49 +22,41 @@ public class LocalFileStorage : IFileStorage
         var directory = Path.GetDirectoryName(absolutePath)!;
         Directory.CreateDirectory(directory);
 
-        await using var fileStream = new FileStream(absolutePath, FileMode.Create, FileAccess.Write);
+        await using var fileStream = new FileStream(absolutePath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 4096, useAsync: true);
         await content.CopyToAsync(fileStream);
 
         return relativePath.Replace('\\', '/');
     }
 
-    public async Task<Stream?> GetAsync(string path)
+    public Task<Stream?> GetAsync(string path)
     {
         var absolutePath = GetAbsolutePath(path);
 
         try
         {
-            var stream = new FileStream(absolutePath, FileMode.Open, FileAccess.Read, FileShare.Read,
+            Stream stream = new FileStream(absolutePath, FileMode.Open, FileAccess.Read, FileShare.Read,
                 bufferSize: 4096, useAsync: true);
-            return stream;
+            return Task.FromResult<Stream?>(stream);
         }
         catch (FileNotFoundException)
         {
-            return null;
+            return Task.FromResult<Stream?>(null);
         }
         catch (DirectoryNotFoundException)
         {
-            return null;
+            return Task.FromResult<Stream?>(null);
         }
     }
 
-    public async Task<bool> DeleteAsync(string path)
+    public Task<bool> DeleteAsync(string path)
     {
         var absolutePath = GetAbsolutePath(path);
 
-        try
-        {
-            File.Delete(absolutePath);
-            return true;
-        }
-        catch (FileNotFoundException)
-        {
-            return false;
-        }
-        catch (DirectoryNotFoundException)
-        {
-            return false;
-        }
+        if (!File.Exists(absolutePath))
+            return Task.FromResult(false);
+
+        File.Delete(absolutePath);
+        return Task.FromResult(true);
     }
 
     private string GetAbsolutePath(string relativePath)
