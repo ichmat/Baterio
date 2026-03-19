@@ -113,8 +113,24 @@ describe('EditDevisForm', () => {
   it('client est en lecture seule en mode édition', () => {
     renderEdit()
 
-    // Customer field should be read-only (not an autocomplete)
     expect(screen.queryByTestId('customer-autocomplete')).not.toBeInTheDocument()
     expect(screen.getByText('Dupont Jean')).toBeInTheDocument()
+  })
+
+  it('pas de FormModeSelector en édition', () => {
+    renderEdit()
+
+    expect(screen.queryByText('Rapide')).not.toBeInTheDocument()
+    expect(screen.queryByText('Libre')).not.toBeInTheDocument()
+    expect(screen.queryByText('Complet')).not.toBeInTheDocument()
+  })
+
+  it('champs internes visibles en édition (mode complet forcé)', () => {
+    renderEdit()
+
+    expect(screen.getByLabelText(/priorité/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/date de relance/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/notes/i)).toBeInTheDocument()
+    expect(screen.getByText('Lignes de prestations')).toBeInTheDocument()
   })
 })

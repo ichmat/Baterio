@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
 import { Plus } from 'lucide-react'
 import { formatMontant } from '@/lib/format-montant'
 import { CustomerAutocomplete } from '@/features/clients/CustomerAutocomplete'
@@ -61,6 +62,7 @@ interface DevisFormFieldsProps {
   selectedCustomer: CustomerSearchResult | null
   onCustomerSelect: (customer: CustomerSearchResult) => void
   isEdit?: boolean
+  hideFormModeSelector?: boolean
 }
 
 export function DevisFormFields({
@@ -69,6 +71,7 @@ export function DevisFormFields({
   selectedCustomer,
   onCustomerSelect,
   isEdit = false,
+  hideFormModeSelector = false,
 }: DevisFormFieldsProps) {
   const { register, control, watch, setValue, formState: { errors } } = useFormContext()
   const { fields, append, remove } = useFieldArray({ control, name: 'lines' })
@@ -76,25 +79,25 @@ export function DevisFormFields({
 
   const { data: customFieldDefs } = useCustomFieldDefinitions()
 
-  const showExtendedFields = mode !== 'rapide'
+  // Nouvelle logique de visibilite
+  const showDatesAndLines = mode !== 'rapide'       // Dates, TVA, duree, lignes
+  const showInternalFields = mode === 'complet'      // Priorite, relance, notes
 
   const handleCustomerSelect = async (customer: CustomerSearchResult) => {
     onCustomerSelect(customer)
     setValue('customerId', customer.id)
-    // CustomerSearchResult n'a pas d'adresse — on charge le client complet pour pre-remplir
     try {
       const full = await getCustomerById(customer.id)
       if (full.address && !watch('siteAddress')) {
         setValue('siteAddress', full.address)
       }
     } catch {
-      // Non bloquant — le champ reste vide
+      // Non bloquant
     }
   }
 
   const handleCustomerCreated = (customer: CustomerResponse) => {
     setShowCreateClient(false)
-    // Auto-selectionner le nouveau client dans le formulaire
     const searchResult: CustomerSearchResult = {
       id: customer.id,
       lastName: customer.lastName,
@@ -113,9 +116,10 @@ export function DevisFormFields({
 
   return (
     <div className="space-y-6">
-      <FormModeSelector mode={mode} onModeChange={onModeChange} />
+      {/* FormModeSelector — masque en edition */}
+      {!hideFormModeSelector && <FormModeSelector mode={mode} onModeChange={onModeChange} />}
 
-      {/* Section Client */}
+      {/* 1. Client */}
       <div className="space-y-2">
         <Label>
           Client <span className="text-destructive">*</span>
@@ -136,7 +140,7 @@ export function DevisFormFields({
         )}
       </div>
 
-      {/* Section Objet */}
+      {/* 2. Objet */}
       <div className="space-y-2">
         <Label htmlFor="subject">
           Objet <span className="text-destructive">*</span>
@@ -154,8 +158,106 @@ export function DevisFormFields({
         )}
       </div>
 
-      {/* Section Lignes de prestations */}
-      {showExtendedFields && (
+      {/* 3. Adresse du chantier — OBLIGATOIRE */}
+      <div className="space-y-2">
+        <Label htmlFor="siteAddress">
+          Adresse du chantier <span className="text-destructive">*</span>
+        </Label>
+        <Textarea
+          id="siteAddress"
+          placeholder="Adresse du chantier"
+          {...register('siteAddress', {
+            required: "L'adresse du chantier est obligatoire",
+            validate: (v) => v.trim() !== '' || "L'adresse du chantier est obligatoire",
+          })}
+          rows={2}
+        />
+        {errors.siteAddress && (
+          <p className="text-sm text-destructive">{(errors.siteAddress as any).message}</p>
+        )}
+      </div>
+
+      {/* 4. Champs personnalises */}
+      {customFieldDefs && customFieldDefs.length > 0 && (
+        <DynamicCustomFields definitions={customFieldDefs} control={control} mode={mode} />
+      )}
+
+      {/* Bouton "Renseigner plus" en mode Rapide — apres les champs custom */}
+      {mode === 'rapide' && (
+        <Button type="button" variant="outline" onClick={() => onModeChange('libre')} className="w-full">
+          Renseigner plus d'informations
+        </Button>
+      )}
+
+      {/* ─── Separateur ─── */}
+      {showDatesAndLines && <Separator />}
+
+      {/* 5. Date de validite, Duree estimee, Taux TVA */}
+      {showDatesAndLines && (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="validityDate">Date de validité <span className="text-xs text-muted-foreground">(optionnel)</span></Label>
+            <Input id="validityDate" type="date" {...register('validityDate')} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="estimatedDuration">Durée estimée <span className="text-xs text-muted-foreground">(optionnel)</span></Label>
+            <Input id="estimatedDuration" placeholder="Ex: 2 semaines" {...register('estimatedDuration')} />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="taxRate">Taux TVA (%) <span className="text-xs text-muted-foreground">(optionnel)</span></Label>
+            <Input
+              id="taxRate"
+              type="number"
+              min={0}
+              step="0.1"
+              {...register('taxRate', { valueAsNumber: true })}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ─── Separateur ─── */}
+      {showInternalFields && <Separator />}
+
+      {/* 6. Priorite, Date de relance, Notes — mode Complet uniquement */}
+      {showInternalFields && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="priority">Priorité <span className="text-xs text-muted-foreground">(optionnel)</span></Label>
+            <Select
+              value={watch('priority') ?? 'Normal'}
+              onValueChange={(v) => setValue('priority', v)}
+            >
+              <SelectTrigger id="priority">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Low">Basse</SelectItem>
+                <SelectItem value="Normal">Normale</SelectItem>
+                <SelectItem value="High">Haute</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="reminderDate">Date de relance <span className="text-xs text-muted-foreground">(optionnel)</span></Label>
+            <Input id="reminderDate" type="date" {...register('reminderDate')} />
+          </div>
+
+          <div className="col-span-full space-y-2">
+            <Label htmlFor="notes">Notes <span className="text-xs text-muted-foreground">(optionnel)</span></Label>
+            <Textarea id="notes" placeholder="Notes internes" {...register('notes')} rows={3} />
+          </div>
+        </div>
+      )}
+
+      {/* ─── Separateur ─── */}
+      {showDatesAndLines && <Separator />}
+
+      {/* 7. Lignes de prestations + totaux */}
+      {showDatesAndLines && (
         <div className="space-y-3">
           <h3 className="text-sm font-medium">Lignes de prestations</h3>
           {fields.map((field, index) => (
@@ -177,80 +279,8 @@ export function DevisFormFields({
             <Plus className="mr-2 h-4 w-4" />
             Ajouter une prestation
           </Button>
+          <QuoteTotals />
         </div>
-      )}
-
-      {/* Section Détails */}
-      {showExtendedFields && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="validityDate">Date de validité <span className="text-xs text-muted-foreground">(optionnel)</span></Label>
-            <Input id="validityDate" type="date" {...register('validityDate')} />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="estimatedDuration">Durée estimée <span className="text-xs text-muted-foreground">(optionnel)</span></Label>
-            <Input id="estimatedDuration" placeholder="Ex: 2 semaines" {...register('estimatedDuration')} />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="siteAddress">Adresse du chantier <span className="text-xs text-muted-foreground">(optionnel)</span></Label>
-            <Textarea id="siteAddress" placeholder="Adresse du chantier" {...register('siteAddress')} rows={2} />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="priority">Priorité <span className="text-xs text-muted-foreground">(optionnel)</span></Label>
-            <Select
-              value={watch('priority') ?? 'Normal'}
-              onValueChange={(v) => setValue('priority', v)}
-            >
-              <SelectTrigger id="priority">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Low">Basse</SelectItem>
-                <SelectItem value="Normal">Normale</SelectItem>
-                <SelectItem value="High">Haute</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="taxRate">Taux TVA (%) <span className="text-xs text-muted-foreground">(optionnel)</span></Label>
-            <Input
-              id="taxRate"
-              type="number"
-              min={0}
-              step="0.1"
-              {...register('taxRate', { valueAsNumber: true })}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="reminderDate">Date de relance <span className="text-xs text-muted-foreground">(optionnel)</span></Label>
-            <Input id="reminderDate" type="date" {...register('reminderDate')} />
-          </div>
-
-          <div className="col-span-full space-y-2">
-            <Label htmlFor="notes">Notes <span className="text-xs text-muted-foreground">(optionnel)</span></Label>
-            <Textarea id="notes" placeholder="Notes internes" {...register('notes')} rows={3} />
-          </div>
-        </div>
-      )}
-
-      {/* Champs personnalisés */}
-      {customFieldDefs && customFieldDefs.length > 0 && (
-        <DynamicCustomFields definitions={customFieldDefs} control={control} mode={mode} />
-      )}
-
-      {/* Section Totaux — composant isole pour eviter les re-renders du parent */}
-      {showExtendedFields && <QuoteTotals />}
-
-      {/* Bouton "Renseigner plus" en mode Rapide */}
-      {mode === 'rapide' && (
-        <Button type="button" variant="outline" onClick={() => onModeChange('libre')} className="w-full">
-          Renseigner plus d'informations
-        </Button>
       )}
 
       <CreateClientDialog

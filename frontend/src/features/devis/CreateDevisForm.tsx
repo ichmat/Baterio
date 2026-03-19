@@ -19,6 +19,7 @@ export function CreateDevisForm() {
     defaultValues: {
       customerId: 0,
       subject: '',
+      siteAddress: '',
       priority: 'Normal',
       taxRate: 20,
       lines: [{ description: '', quantity: 1, unitPriceExclTax: 0, displayOrder: 0 }],
@@ -40,7 +41,7 @@ export function CreateDevisForm() {
       priority: data.priority || undefined,
       validityDate: data.validityDate || undefined,
       estimatedDuration: data.estimatedDuration?.trim() || undefined,
-      siteAddress: data.siteAddress?.trim() || undefined,
+      siteAddress: data.siteAddress.trim(),
       taxRate: data.taxRate ?? undefined,
       reminderDate: data.reminderDate || undefined,
       notes: data.notes?.trim() || undefined,

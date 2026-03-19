@@ -79,11 +79,13 @@ describe('CreateDevisForm', () => {
 
     expect(screen.getByLabelText(/objet/i)).toBeInTheDocument()
     expect(screen.getByTestId('customer-autocomplete')).toBeInTheDocument()
+    expect(screen.getByLabelText(/adresse du chantier/i)).toBeInTheDocument()
     expect(screen.queryByText('Lignes de prestations')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/priorité/i)).not.toBeInTheDocument()
     expect(screen.getByText("Renseigner plus d'informations")).toBeInTheDocument()
   })
 
-  it('mode Libre — champs supplémentaires et lignes de devis visibles', () => {
+  it('mode Libre — champs dates et lignes visibles, pas champs internes', () => {
     renderForm()
 
     // Default mode is 'libre'
@@ -91,6 +93,10 @@ describe('CreateDevisForm', () => {
     expect(screen.getByLabelText(/objet/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/date de validité/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/taux tva/i)).toBeInTheDocument()
+    // Champs internes (Complet uniquement) — pas visibles en Libre
+    expect(screen.queryByLabelText(/priorité/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/date de relance/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/notes/i)).not.toBeInTheDocument()
   })
 
   it('ajout et suppression de lignes', async () => {
@@ -189,6 +195,9 @@ describe('CreateDevisForm', () => {
     // Fill subject
     await user.type(screen.getByLabelText(/objet/i), 'Test devis')
 
+    // Fill siteAddress (now required)
+    await user.type(screen.getByLabelText(/adresse du chantier/i), '1 rue de Paris')
+
     // Submit
     await user.click(screen.getByText('Créer le devis'))
 
@@ -205,6 +214,7 @@ describe('CreateDevisForm', () => {
     // Switch to rapide mode to avoid line validation
     await user.click(screen.getByText('Rapide'))
     await user.type(screen.getByLabelText(/objet/i), 'Test')
+    await user.type(screen.getByLabelText(/adresse du chantier/i), '1 rue')
     await user.click(screen.getByText('Créer le devis'))
 
     await waitFor(() => {

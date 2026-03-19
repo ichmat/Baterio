@@ -5,7 +5,6 @@ import { toast } from 'sonner'
 import type { CustomerSearchResult } from '@/features/clients/types'
 import type { QuoteResponse, UpdateQuoteRequest } from './types'
 import { useUpdateQuote } from './useDevis'
-import { useFormMode } from './useFormMode'
 import { DevisFormFields } from './DevisFormFields'
 
 interface EditDevisFormProps {
@@ -23,9 +22,6 @@ function parseCustomFields(raw: string | null): Record<string, any> {
 }
 
 export function EditDevisForm({ quote, onSuccess }: EditDevisFormProps) {
-  const { mode: storedMode, updateMode } = useFormMode()
-  // En edition, forcer 'libre' minimum pour ne pas masquer les champs existants
-  const mode = storedMode === 'rapide' ? 'libre' : storedMode
   const updateQuote = useUpdateQuote()
 
   const [selectedCustomer] = useState<CustomerSearchResult>({
@@ -64,7 +60,7 @@ export function EditDevisForm({ quote, onSuccess }: EditDevisFormProps) {
       priority: data.priority || 'Normal',
       validityDate: data.validityDate || null as any,
       estimatedDuration: data.estimatedDuration?.trim() || null as any,
-      siteAddress: data.siteAddress?.trim() || null as any,
+      siteAddress: data.siteAddress.trim(),
       taxRate: data.taxRate ?? null as any,
       reminderDate: data.reminderDate || null as any,
       notes: data.notes?.trim() || null as any,
@@ -99,11 +95,12 @@ export function EditDevisForm({ quote, onSuccess }: EditDevisFormProps) {
       <FormProvider {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <DevisFormFields
-            mode={mode}
-            onModeChange={updateMode}
+            mode="complet"
+            onModeChange={() => {}}
             selectedCustomer={selectedCustomer}
             onCustomerSelect={() => {}}
             isEdit
+            hideFormModeSelector
           />
 
           <div className="flex justify-end gap-3">

@@ -33,13 +33,20 @@ function parseChoices(options?: string): string[] {
   }
 }
 
-export function DynamicCustomFields({ definitions, control, mode }: DynamicCustomFieldsProps) {
-  if (mode === 'rapide') return null
+const OBLIGATION_ORDER: Record<string, number> = {
+  RequiredAtCreation: 0,
+  RequiredForSiteConversion: 1,
+  Never: 2,
+}
 
-  const visibleFields =
-    mode === 'libre'
-      ? definitions.filter((f) => f.obligationLevel === 'RequiredAtCreation')
-      : definitions
+export function DynamicCustomFields({ definitions, control, mode }: DynamicCustomFieldsProps) {
+  // Rapide → RequiredAtCreation seuls ; Libre/Complet → tout
+  const visibleFields = definitions
+    .filter((f) => {
+      if (mode === 'rapide') return f.obligationLevel === 'RequiredAtCreation'
+      return true
+    })
+    .sort((a, b) => (OBLIGATION_ORDER[a.obligationLevel] ?? 9) - (OBLIGATION_ORDER[b.obligationLevel] ?? 9))
 
   if (visibleFields.length === 0) return null
 

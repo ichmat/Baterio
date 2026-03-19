@@ -75,16 +75,21 @@ function Wrapper({ mode, definitions }: { mode: 'rapide' | 'libre' | 'complet'; 
 }
 
 describe('DynamicCustomFields', () => {
-  it('mode rapide — aucun champ custom affiché', () => {
+  it('mode rapide — affiche RequiredAtCreation uniquement', () => {
     renderWithProviders(<Wrapper mode="rapide" definitions={mockFields} />)
-    expect(screen.queryByText('Champs personnalisés')).not.toBeInTheDocument()
-  })
-
-  it('mode libre — seuls RequiredAtCreation affichés', () => {
-    renderWithProviders(<Wrapper mode="libre" definitions={mockFields} />)
     expect(screen.getByText('Champ texte')).toBeInTheDocument()
     expect(screen.queryByText('Champ nombre')).not.toBeInTheDocument()
     expect(screen.queryByText('Choix unique')).not.toBeInTheDocument()
+    expect(screen.queryByText('Choix multiple')).not.toBeInTheDocument()
+  })
+
+  it('mode libre — tous les champs affichés', () => {
+    renderWithProviders(<Wrapper mode="libre" definitions={mockFields} />)
+    expect(screen.getByText('Champ texte')).toBeInTheDocument()
+    expect(screen.getByText('Champ nombre')).toBeInTheDocument()
+    expect(screen.getByText('Choix unique')).toBeInTheDocument()
+    expect(screen.getByText('Choix multiple')).toBeInTheDocument()
+    expect(screen.getByText('Champ date')).toBeInTheDocument()
   })
 
   it('mode complet — tous les champs affichés', () => {
