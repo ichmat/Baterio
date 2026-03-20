@@ -56,8 +56,8 @@ export function DevisPage() {
                         <StatusIcon className="h-3 w-3" />
                         {statusCfg.label}
                       </span>
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs ${priorityCfg}`}>
-                        {quote.priority}
+                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs ${priorityCfg.color}`}>
+                        {priorityCfg.label}
                       </span>
                     </div>
                     <p className="text-sm text-muted-foreground">

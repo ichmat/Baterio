@@ -27,7 +27,7 @@ export interface UpdateQuoteRequest {
   estimatedDuration?: string
   siteAddress?: string
   taxRate?: number
-  reminderDate?: string
+  reminderDate?: string | null
   customFields?: string
   lines?: QuoteLineRequest[]
 }

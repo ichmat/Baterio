@@ -77,7 +77,7 @@ describe('DevisDetailPage', () => {
       expect(screen.getByText('DEV-2026-0001')).toBeInTheDocument()
     })
     expect(screen.getByText('Rénovation cuisine')).toBeInTheDocument()
-    expect(screen.getByText('Brouillon')).toBeInTheDocument()
+    expect(screen.getAllByText('Brouillon').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('Dupont Jean')).toBeInTheDocument()
   })
 
@@ -162,6 +162,77 @@ describe('DevisDetailPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Modifier le devis DEV-2026-0001/)).toBeInTheDocument()
+    })
+  })
+
+  it('StatusPipeline affiché avec le statut courant', async () => {
+    vi.mocked(devisApi.getQuoteById).mockResolvedValue(mockQuote)
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByRole('progressbar')).toBeInTheDocument()
+    })
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuetext', 'Brouillon')
+  })
+
+  it('StatusActions — bouton "Envoyer" visible pour Draft', async () => {
+    vi.mocked(devisApi.getQuoteById).mockResolvedValue(mockQuote)
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Envoyer')).toBeInTheDocument()
+    })
+  })
+
+  it('bouton "Créer le chantier" visible et désactivé si Accepted', async () => {
+    vi.mocked(devisApi.getQuoteById).mockResolvedValue({
+      ...mockQuote,
+      status: 'Accepted',
+    })
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Créer le chantier')).toBeInTheDocument()
+    })
+    expect(screen.getByText('Créer le chantier').closest('button')).toBeDisabled()
+  })
+
+  it('bouton "Créer le chantier" non visible pour Draft', async () => {
+    vi.mocked(devisApi.getQuoteById).mockResolvedValue(mockQuote)
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('DEV-2026-0001')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('Créer le chantier')).not.toBeInTheDocument()
+  })
+
+  it('bouton "Créer le chantier" non visible pour Sent', async () => {
+    vi.mocked(devisApi.getQuoteById).mockResolvedValue({ ...mockQuote, status: 'Sent' })
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('DEV-2026-0001')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('Créer le chantier')).not.toBeInTheDocument()
+  })
+
+  it('bouton "Créer le chantier" non visible pour Refused', async () => {
+    vi.mocked(devisApi.getQuoteById).mockResolvedValue({ ...mockQuote, status: 'Refused' })
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('DEV-2026-0001')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('Créer le chantier')).not.toBeInTheDocument()
+  })
+
+  it('QuickEditReminderDate — "Ajouter une relance" visible', async () => {
+    vi.mocked(devisApi.getQuoteById).mockResolvedValue(mockQuote)
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Ajouter une relance')).toBeInTheDocument()
     })
   })
 })

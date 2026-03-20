@@ -14,8 +14,13 @@ export const STATUS_CONFIG: Record<string, StatusConfig> = {
   Refused: { label: 'Refusé', color: 'bg-red-100 text-red-700', icon: X },
 }
 
-export const PRIORITY_CONFIG: Record<string, string> = {
-  Low: 'bg-gray-100 text-gray-600',
-  Normal: 'bg-blue-100 text-blue-600',
-  High: 'bg-orange-100 text-orange-600',
+export interface PriorityConfig {
+  label: string
+  color: string
+}
+
+export const PRIORITY_CONFIG: Record<string, PriorityConfig> = {
+  High: { label: 'Haute', color: 'bg-orange-100 text-orange-600' },
+  Normal: { label: 'Normale', color: 'bg-gray-100 text-gray-600' },
+  Low: { label: 'Basse', color: 'bg-blue-100 text-blue-600' },
 }

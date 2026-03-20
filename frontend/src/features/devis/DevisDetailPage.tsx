@@ -8,14 +8,18 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { EntityLinksBar } from '@/components/EntityLinksBar'
 import { formatMontant } from '@/lib/format-montant'
 import { useQuote } from './useDevis'
-import { STATUS_CONFIG, PRIORITY_CONFIG } from './status-config'
+import { STATUS_CONFIG } from './status-config'
 import { EditDevisForm } from './EditDevisForm'
+import { StatusPipeline } from './StatusPipeline'
+import { StatusActions } from './StatusActions'
+import { QuickEditPriority } from './QuickEditPriority'
+import { QuickEditReminderDate } from './QuickEditReminderDate'
 
 export function DevisDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const quoteId = Number(id)
-  const { data: quote, isLoading, isError } = useQuote(quoteId)
+  const { data: quote, isLoading, isError, refetch } = useQuote(quoteId)
   const [isEditing, setIsEditing] = useState(false)
 
   if (isLoading) {
@@ -50,7 +54,6 @@ export function DevisDetailPage() {
 
   const statusCfg = STATUS_CONFIG[quote.status] ?? STATUS_CONFIG.Draft
   const StatusIcon = statusCfg.icon
-  const priorityCfg = PRIORITY_CONFIG[quote.priority] ?? PRIORITY_CONFIG.Normal
 
   const totalHT = quote.amountExclTax ?? 0
   const totalTTC = quote.amountInclTax ?? 0
@@ -75,14 +78,30 @@ export function DevisDetailPage() {
             <StatusIcon className="h-3.5 w-3.5" />
             {statusCfg.label}
           </span>
-          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${priorityCfg}`}>
-            {quote.priority}
-          </span>
+          <QuickEditPriority quote={quote} onUpdate={() => refetch()} />
           <Button variant="outline" onClick={() => setIsEditing(true)}>
             <Edit2 className="mr-2 h-4 w-4" />
             Modifier
           </Button>
         </div>
+      </div>
+
+      {/* StatusPipeline + StatusActions */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <StatusPipeline currentStatus={quote.status} />
+        <div className="flex items-center gap-2">
+          <StatusActions quoteId={quote.id} currentStatus={quote.status} onStatusChange={() => refetch()} />
+          {quote.status === 'Accepted' && (
+            <Button disabled title="Disponible prochainement">
+              Créer le chantier
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Quick-edit date de relance */}
+      <div className="flex items-center gap-4">
+        <QuickEditReminderDate quote={quote} onUpdate={() => refetch()} />
       </div>
 
       {/* EntityLinksBar */}
