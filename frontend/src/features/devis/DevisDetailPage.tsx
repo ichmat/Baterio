@@ -18,6 +18,8 @@ import { CommentSection } from './CommentSection'
 import { FileUploadZone } from './FileUploadZone'
 import { MediaGallery } from './MediaGallery'
 import { useAttachments } from '@/features/files/useFiles'
+import { TimelineCompact } from '@/features/audit/TimelineCompact'
+import { TimelineFull } from '@/features/audit/TimelineFull'
 
 export function DevisDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -26,6 +28,7 @@ export function DevisDetailPage() {
   const { data: quote, isLoading, isError, refetch } = useQuote(quoteId)
   const [isEditing, setIsEditing] = useState(false)
   const [galleryOpen, setGalleryOpen] = useState(false)
+  const [timelineOpen, setTimelineOpen] = useState(false)
   const { data: attachments } = useAttachments('Quote', quoteId)
 
   if (isLoading) {
@@ -225,6 +228,21 @@ export function DevisDetailPage() {
 
       {/* Galerie médias */}
       <MediaGallery quoteId={quote.id} open={galleryOpen} onOpenChange={setGalleryOpen} />
+
+      {/* Historique */}
+      <TimelineCompact
+        entityType="Quote"
+        entityId={quote.id}
+        onViewDetails={() => setTimelineOpen(true)}
+      />
+
+      <TimelineFull
+        entityType="Quote"
+        entityId={quote.id}
+        entityLabel={`${quote.reference} — ${quote.subject}`}
+        open={timelineOpen}
+        onOpenChange={setTimelineOpen}
+      />
 
       {/* Mentions légales */}
       <Card>

@@ -42,7 +42,7 @@ public class AuditEventsControllerTests : IClassFixture<CustomWebApplicationFact
         return request;
     }
 
-    private async Task SeedAuditEventsAsync(int tenantId, int userId, string entityType = "User", int entityId = 42, int count = 3)
+    private async Task SeedAuditEventsAsync(int tenantId, int userId, string entityType = "User", int entityId = 42, int count = 3, AuditAction action = AuditAction.Created)
     {
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<BackEnd.API.Data.AppDbContext>();
@@ -55,7 +55,7 @@ public class AuditEventsControllerTests : IClassFixture<CustomWebApplicationFact
                 EntityId = entityId,
                 TenantId = tenantId,
                 UserId = userId,
-                Action = AuditAction.Created,
+                Action = action,
                 Payload = $"{{\"index\":{i}}}",
                 CreatedAt = DateTime.UtcNow.AddMinutes(-i)
             });
@@ -150,6 +150,68 @@ public class AuditEventsControllerTests : IClassFixture<CustomWebApplicationFact
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
         Assert.Contains("AuditEntityIdRequired", body);
+    }
+
+    [Fact]
+    public async Task GetEvents_WithActionFilter_ReturnsOnlyMatchingEvents()
+    {
+        var (token, tenantId, userId) = await SetupAsync();
+        await SeedAuditEventsAsync(tenantId, userId, action: AuditAction.StatusChanged, count: 2);
+        await SeedAuditEventsAsync(tenantId, userId, action: AuditAction.CommentAdded, count: 3);
+
+        var response = await _client.SendAsync(
+            CreateRequest(HttpMethod.Get, "/api/audit-events?entityType=User&entityId=42&action=StatusChanged", token));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("StatusChanged", body);
+        Assert.DoesNotContain("CommentAdded", body);
+    }
+
+    [Fact]
+    public async Task GetEvents_WithoutActionFilter_ReturnsAllEvents()
+    {
+        var (token, tenantId, userId) = await SetupAsync();
+        await SeedAuditEventsAsync(tenantId, userId, action: AuditAction.StatusChanged, count: 1);
+        await SeedAuditEventsAsync(tenantId, userId, action: AuditAction.CommentAdded, count: 1);
+
+        var response = await _client.SendAsync(
+            CreateRequest(HttpMethod.Get, "/api/audit-events?entityType=User&entityId=42", token));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("StatusChanged", body);
+        Assert.Contains("CommentAdded", body);
+    }
+
+    [Fact]
+    public async Task GetEvents_WithInvalidAction_ReturnsEmptyList()
+    {
+        var (token, tenantId, userId) = await SetupAsync();
+        await SeedAuditEventsAsync(tenantId, userId, count: 3);
+
+        var response = await _client.SendAsync(
+            CreateRequest(HttpMethod.Get, "/api/audit-events?entityType=User&entityId=42&action=InvalidAction", token));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("\"totalItems\":0", body);
+    }
+
+    [Fact]
+    public async Task GetEvents_WithActionFilterAndPagination_WorksTogether()
+    {
+        var (token, tenantId, userId) = await SetupAsync();
+        await SeedAuditEventsAsync(tenantId, userId, action: AuditAction.CommentAdded, count: 5);
+        await SeedAuditEventsAsync(tenantId, userId, action: AuditAction.Created, count: 2);
+
+        var response = await _client.SendAsync(
+            CreateRequest(HttpMethod.Get, "/api/audit-events?entityType=User&entityId=42&action=CommentAdded&page=1&pageSize=2", token));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("CommentAdded", body);
+        Assert.DoesNotContain("Created", body);
     }
 
     private async Task<int> GetUserByEmailAsync(string email)

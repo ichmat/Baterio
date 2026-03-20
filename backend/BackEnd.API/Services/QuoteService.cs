@@ -364,10 +364,10 @@ public class QuoteService : IQuoteService
             return;
         }
 
-        quote.AmountExclTax = quote.Lines.Sum(l => l.Quantity * l.UnitPriceExclTax);
+        quote.AmountExclTax = Math.Round(quote.Lines.Sum(l => l.Quantity * l.UnitPriceExclTax), 2);
 
         if (quote.TaxRate.HasValue)
-            quote.AmountInclTax = quote.AmountExclTax * (1 + quote.TaxRate.Value / 100);
+            quote.AmountInclTax = Math.Round(quote.AmountExclTax.Value * (1 + quote.TaxRate.Value / 100), 2);
         else
             quote.AmountInclTax = quote.AmountExclTax;
     }

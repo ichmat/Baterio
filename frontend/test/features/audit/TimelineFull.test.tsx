@@ -104,4 +104,63 @@ describe('TimelineFull', () => {
 
     expect(screen.queryByTestId('sheet')).not.toBeInTheDocument()
   })
+
+  it('affiche les pills de filtre', async () => {
+    vi.mocked(auditApi.getAuditEvents).mockResolvedValue(mockEventsPage)
+    renderWithProviders(
+      <TimelineFull entityType="Customer" entityId={1} entityLabel="Dupont Jean" open={true} onOpenChange={() => {}} />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Tout')).toBeInTheDocument()
+    })
+    expect(screen.getByText('Modifications')).toBeInTheDocument()
+    expect(screen.getByText('Statuts')).toBeInTheDocument()
+    expect(screen.getByText('Commentaires')).toBeInTheDocument()
+    expect(screen.getByText('Fichiers')).toBeInTheDocument()
+  })
+
+  it('clic sur un filtre appelle l\'API avec le paramètre action', async () => {
+    vi.mocked(auditApi.getAuditEvents).mockResolvedValue(mockEventsPage)
+    const user = userEvent.setup()
+    renderWithProviders(
+      <TimelineFull entityType="Customer" entityId={1} entityLabel="Dupont Jean" open={true} onOpenChange={() => {}} />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Statuts')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByText('Statuts'))
+
+    await waitFor(() => {
+      expect(auditApi.getAuditEvents).toHaveBeenCalledWith(
+        'Customer', 1, 1, 20, 'StatusChanged',
+      )
+    })
+  })
+
+  it('clic sur "Tout" réinitialise le filtre', async () => {
+    vi.mocked(auditApi.getAuditEvents).mockResolvedValue(mockEventsPage)
+    const user = userEvent.setup()
+    renderWithProviders(
+      <TimelineFull entityType="Customer" entityId={1} entityLabel="Dupont Jean" open={true} onOpenChange={() => {}} />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Statuts')).toBeInTheDocument()
+    })
+
+    // Select a filter first
+    await user.click(screen.getByText('Statuts'))
+    // Then reset
+    await user.click(screen.getByText('Tout'))
+
+    await waitFor(() => {
+      // Should call without action filter (undefined)
+      expect(auditApi.getAuditEvents).toHaveBeenCalledWith(
+        'Customer', 1, 1, 20, undefined,
+      )
+    })
+  })
 })

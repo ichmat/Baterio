@@ -6,10 +6,11 @@ export function useAuditEvents(
   entityId: number,
   page?: number,
   pageSize?: number,
+  action?: string,
 ) {
   return useQuery({
-    queryKey: ['audit-events', entityType, entityId, page, pageSize],
-    queryFn: () => getAuditEvents(entityType, entityId, page, pageSize),
+    queryKey: ['audit-events', entityType, entityId, page, pageSize, action],
+    queryFn: () => getAuditEvents(entityType, entityId, page, pageSize, action),
     enabled: !!entityType && !!entityId,
   })
 }

@@ -49,13 +49,25 @@ public class AuditService : IAuditService
             action, entityType, entityId, userId);
     }
 
-    public async Task<PaginatedResponse<AuditEventResponse>> GetEventsAsync(string entityType, int entityId, int page = 1, int pageSize = 20)
+    public async Task<PaginatedResponse<AuditEventResponse>> GetEventsAsync(string entityType, int entityId, int page = 1, int pageSize = 20, string? action = null)
     {
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
 
         var baseQuery = _db.AuditEvents
             .Where(e => e.EntityType == entityType && e.EntityId == entityId);
+
+        if (!string.IsNullOrWhiteSpace(action))
+        {
+            if (Enum.TryParse<AuditAction>(action, true, out var parsedAction))
+                baseQuery = baseQuery.Where(e => e.Action == parsedAction);
+            else
+                return new PaginatedResponse<AuditEventResponse>
+                {
+                    Data = new List<AuditEventResponse>(),
+                    Pagination = new PaginationInfo { Page = page, PageSize = pageSize, TotalItems = 0, TotalPages = 0 }
+                };
+        }
 
         var totalItems = await baseQuery.CountAsync();
 

@@ -21,6 +21,14 @@ vi.mock('@/features/files/api', () => ({
   deleteAttachment: vi.fn(),
   downloadFileBlob: vi.fn(),
 }))
+vi.mock('@/features/audit/api', () => ({
+  getAuditEvents: vi.fn().mockResolvedValue({
+    data: [
+      { id: 1, entityType: 'Quote', entityId: 1, userId: 1, userFullName: 'Sophie Martin', action: 'Created', payload: null, createdAt: '2026-03-19T10:00:00Z' },
+    ],
+    pagination: { page: 1, pageSize: 5, totalItems: 1, totalPages: 1 },
+  }),
+}))
 vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
@@ -265,6 +273,31 @@ describe('DevisDetailPage', () => {
       expect(screen.getByText('DEV-2026-0001')).toBeInTheDocument()
     })
     expect(screen.queryByText('Galerie médias')).not.toBeInTheDocument()
+  })
+
+  it('TimelineCompact présent dans la fiche devis', async () => {
+    vi.mocked(devisApi.getQuoteById).mockResolvedValue(mockQuote)
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Historique')).toBeInTheDocument()
+    })
+  })
+
+  it('bouton "Voir les détails" ouvre TimelineFull', async () => {
+    vi.mocked(devisApi.getQuoteById).mockResolvedValue(mockQuote)
+    const user = userEvent.setup()
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Voir les détails →')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByText('Voir les détails →'))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Historique —/)).toBeInTheDocument()
+    })
   })
 
   it('bouton Galerie médias visible si PJ existent', async () => {

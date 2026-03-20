@@ -58,7 +58,7 @@ describe('TimelineCompact', () => {
       expect(screen.getByText(/User 0/)).toBeInTheDocument()
     })
     // Verify API was called with pageSize=5
-    expect(auditApi.getAuditEvents).toHaveBeenCalledWith('Customer', 1, 1, 5)
+    expect(auditApi.getAuditEvents).toHaveBeenCalledWith('Customer', 1, 1, 5, undefined)
     // Verify exactly 5 event items rendered in DOM
     for (let i = 0; i < 5; i++) {
       expect(screen.getByText(new RegExp(`User ${i}`))).toBeInTheDocument()

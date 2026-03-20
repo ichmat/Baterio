@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Paperclip } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { InlineImagePreview } from './InlineImagePreview'
 
 export type PayloadRenderer = (
   payload: Record<string, unknown>,
@@ -32,6 +33,32 @@ const fieldLabelsRegistry: Record<string, Record<string, string>> = {
     AppliesToQuotes: 'appliqué aux devis',
     AppliesToSites: 'appliqué aux chantiers',
   },
+  Quote: {
+    Subject: 'objet',
+    subject: 'objet',
+    Priority: 'priorité',
+    priority: 'priorité',
+    Status: 'statut',
+    status: 'statut',
+    ReminderDate: 'date de relance',
+    reminderDate: 'date de relance',
+    ValidityDate: 'date de validité',
+    validityDate: 'date de validité',
+    EstimatedDuration: 'durée estimée',
+    estimatedDuration: 'durée estimée',
+    SiteAddress: 'adresse chantier',
+    siteAddress: 'adresse chantier',
+    TaxRate: 'taux TVA',
+    taxRate: 'taux TVA',
+    Notes: 'notes',
+    notes: 'notes',
+    AmountExclTax: 'montant HT',
+    amountExclTax: 'montant HT',
+    AmountInclTax: 'montant TTC',
+    amountInclTax: 'montant TTC',
+    LegalMentions: 'mentions légales',
+    legalMentions: 'mentions légales',
+  },
   CompanyInfo: {
     CompanyName: 'raison sociale',
     Address: 'adresse',
@@ -47,12 +74,6 @@ const fieldLabelsRegistry: Record<string, Record<string, string>> = {
 
 export function getFieldLabel(entityType: string, fieldKey: string): string {
   return fieldLabelsRegistry[entityType]?.[fieldKey] ?? fieldKey
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 function isDiffValue(val: unknown): val is { Old: unknown; New: unknown } {
@@ -210,13 +231,12 @@ function renderFileAttachedFull(
   payload: { attachmentId: number; filename: string; contentType: string; size: number },
 ): ReactNode {
   return (
-    <div className="mt-2 flex items-center gap-1 text-xs">
-      <Badge variant="outline">
-        <Paperclip className="mr-1 h-3 w-3" />
-        {payload.filename}
-      </Badge>
-      <span className="text-muted-foreground">{formatFileSize(payload.size)}</span>
-    </div>
+    <InlineImagePreview
+      attachmentId={payload.attachmentId}
+      filename={payload.filename}
+      contentType={payload.contentType}
+      size={payload.size}
+    />
   )
 }
 
@@ -276,3 +296,65 @@ export function renderPayloadFull(
 
 // Entity-specific renderer registry — extensible for Epic 3/4
 export const entityRenderers: Record<string, PayloadRenderer> = {}
+
+const STATUS_LABELS: Record<string, string> = {
+  Draft: 'Brouillon',
+  Sent: 'Envoyé',
+  Accepted: 'Validé',
+  Refused: 'Refusé',
+}
+
+const PRIORITY_LABELS: Record<string, string> = {
+  Low: 'Basse',
+  Normal: 'Normale',
+  High: 'Haute',
+}
+
+entityRenderers['Quote'] = (payload, action) => {
+  if (action === 'StatusChanged') {
+    const old = STATUS_LABELS[String(payload.Old)] ?? String(payload.Old)
+    const nw = STATUS_LABELS[String(payload.New)] ?? String(payload.New)
+    return (
+      <div className="mt-2 flex items-center gap-1 text-xs">
+        <span className="text-muted-foreground">statut :</span>
+        <Badge variant="outline" className="line-through text-muted-foreground">
+          {old}
+        </Badge>
+        <span className="text-muted-foreground">→</span>
+        <Badge variant="secondary">{nw}</Badge>
+      </div>
+    )
+  }
+  // Updated with Priority diff — translate values
+  if (action === 'Updated' && isDiffValue(payload.Priority)) {
+    const priorityDiff = payload.Priority as { Old: unknown; New: unknown }
+    const entries = Object.entries(payload).filter(([, v]) => isDiffValue(v))
+    return (
+      <div className="mt-2 flex flex-wrap items-center gap-1 text-xs">
+        {entries.map(([key, val]) => {
+          const diff = val as { Old: unknown; New: unknown }
+          const isPriority = key === 'Priority' || key === 'priority'
+          const oldVal = isPriority
+            ? (PRIORITY_LABELS[String(diff.Old)] ?? String(diff.Old))
+            : String(diff.Old)
+          const newVal = isPriority
+            ? (PRIORITY_LABELS[String(diff.New)] ?? String(diff.New))
+            : String(diff.New)
+          return (
+            <span key={key} className="inline-flex items-center gap-1">
+              <span className="text-muted-foreground text-nowrap">
+                {getFieldLabel('Quote', key)} :
+              </span>
+              <Badge variant="outline" className="line-through text-muted-foreground">
+                {oldVal}
+              </Badge>
+              <span className="text-muted-foreground">→</span>
+              <Badge variant="secondary">{newVal}</Badge>
+            </span>
+          )
+        })}
+      </div>
+    )
+  }
+  return null
+}

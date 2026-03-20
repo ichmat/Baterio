@@ -28,7 +28,22 @@ describe('getFieldLabel', () => {
   })
 
   it('fallback sur le fieldKey brut pour un entityType inconnu', () => {
-    expect(getFieldLabel('Quote', 'title')).toBe('title')
+    expect(getFieldLabel('UnknownEntity', 'title')).toBe('title')
+  })
+
+  it('retourne le label traduit pour Quote', () => {
+    expect(getFieldLabel('Quote', 'Subject')).toBe('objet')
+    expect(getFieldLabel('Quote', 'subject')).toBe('objet')
+    expect(getFieldLabel('Quote', 'Priority')).toBe('priorité')
+    expect(getFieldLabel('Quote', 'Status')).toBe('statut')
+    expect(getFieldLabel('Quote', 'ReminderDate')).toBe('date de relance')
+    expect(getFieldLabel('Quote', 'ValidityDate')).toBe('date de validité')
+    expect(getFieldLabel('Quote', 'EstimatedDuration')).toBe('durée estimée')
+    expect(getFieldLabel('Quote', 'SiteAddress')).toBe('adresse chantier')
+    expect(getFieldLabel('Quote', 'TaxRate')).toBe('taux TVA')
+    expect(getFieldLabel('Quote', 'Notes')).toBe('notes')
+    expect(getFieldLabel('Quote', 'AmountExclTax')).toBe('montant HT')
+    expect(getFieldLabel('Quote', 'AmountInclTax')).toBe('montant TTC')
   })
 })
 

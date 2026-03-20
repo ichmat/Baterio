@@ -10,9 +10,10 @@ export async function getAuditEvents(
   entityId: number,
   page = 1,
   pageSize = 20,
+  action?: string,
 ): Promise<AuditEventsPage> {
-  const response = await apiClient<ApiResponse<AuditEventsPage>>(
-    `/audit-events?entityType=${encodeURIComponent(entityType)}&entityId=${entityId}&page=${page}&pageSize=${pageSize}`,
-  )
+  let url = `/audit-events?entityType=${encodeURIComponent(entityType)}&entityId=${entityId}&page=${page}&pageSize=${pageSize}`
+  if (action) url += `&action=${encodeURIComponent(action)}`
+  const response = await apiClient<ApiResponse<AuditEventsPage>>(url)
   return response.data
 }
