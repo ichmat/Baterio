@@ -97,7 +97,7 @@ public class CommentService : ICommentService
             page = Math.Max(1, page);
 
         var comments = await baseQuery
-            .OrderBy(c => c.CreatedAt)
+            .OrderByDescending(c => c.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(c => new CommentResponse
