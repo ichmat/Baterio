@@ -34,7 +34,7 @@ export function EditDevisForm({ quote, onSuccess }: EditDevisFormProps) {
     siteCount: 0,
   })
 
-  const form = useForm<UpdateQuoteRequest & { customFields?: Record<string, any> }>({
+  const form = useForm<Omit<UpdateQuoteRequest, 'customFields'> & { customFields?: Record<string, any> }>({
     defaultValues: {
       subject: quote.subject,
       priority: quote.priority,
@@ -54,13 +54,13 @@ export function EditDevisForm({ quote, onSuccess }: EditDevisFormProps) {
     },
   })
 
-  const onSubmit = async (data: UpdateQuoteRequest & { customFields?: Record<string, any> }) => {
+  const onSubmit = async (data: Omit<UpdateQuoteRequest, 'customFields'> & { customFields?: Record<string, any> }) => {
     const payload: UpdateQuoteRequest = {
       subject: data.subject.trim(),
       priority: data.priority || 'Normal',
       validityDate: data.validityDate || null as any,
       estimatedDuration: data.estimatedDuration?.trim() || null as any,
-      siteAddress: data.siteAddress.trim(),
+      siteAddress: data.siteAddress!.trim(),
       taxRate: data.taxRate ?? null as any,
       reminderDate: data.reminderDate || null as any,
       notes: data.notes?.trim() || null as any,

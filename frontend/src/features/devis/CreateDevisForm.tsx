@@ -41,7 +41,7 @@ export function CreateDevisForm() {
       priority: data.priority || undefined,
       validityDate: data.validityDate || undefined,
       estimatedDuration: data.estimatedDuration?.trim() || undefined,
-      siteAddress: data.siteAddress.trim(),
+      siteAddress: data.siteAddress!.trim(),
       taxRate: data.taxRate ?? undefined,
       reminderDate: data.reminderDate || undefined,
       notes: data.notes?.trim() || undefined,
