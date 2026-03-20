@@ -117,6 +117,9 @@ export function renderPayloadCompact(
   action: string,
   entityType: string,
 ): string {
+  if (action === 'CommentAdded' && typeof payload.content === 'string') {
+    return payload.content as string
+  }
   if (action === 'FileAttached' && isFileAttached(payload)) {
     return payload.filename
   }
@@ -242,6 +245,13 @@ export function renderPayloadFull(
   action: string,
   entityType: string,
 ): ReactNode {
+  if (action === 'CommentAdded' && typeof payload.content === 'string') {
+    return (
+      <div className="mt-2 text-sm text-foreground whitespace-pre-wrap">
+        {payload.content as string}
+      </div>
+    )
+  }
   if (action === 'FileAttached' && isFileAttached(payload)) {
     return renderFileAttachedFull(payload)
   }

@@ -127,5 +127,24 @@ public enum ApiError
     QuoteInvalidStatus,
 
     [ApiErrorInfo(400, "Priorité invalide")]
-    QuoteInvalidPriority
+    QuoteInvalidPriority,
+
+    // Comments
+    [ApiErrorInfo(400, "Le contenu du commentaire est obligatoire")]
+    CommentContentRequired,
+
+    [ApiErrorInfo(400, "Le commentaire ne peut pas dépasser 2000 caractères")]
+    CommentContentTooLong,
+
+    [ApiErrorInfo(400, "Le type d'entité du commentaire est requis")]
+    CommentEntityTypeRequired,
+
+    [ApiErrorInfo(400, "L'identifiant d'entité du commentaire est requis")]
+    CommentEntityIdRequired,
+
+    [ApiErrorInfo(404, "Commentaire introuvable")]
+    CommentNotFound,
+
+    [ApiErrorInfo(400, "Type d'entité non supporté pour les commentaires")]
+    CommentEntityTypeNotSupported
 }

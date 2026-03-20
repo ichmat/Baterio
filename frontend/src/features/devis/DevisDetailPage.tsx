@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router'
-import { ArrowLeft, Edit2, Users } from 'lucide-react'
+import { ArrowLeft, Edit2, Users, ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -14,6 +14,10 @@ import { StatusPipeline } from './StatusPipeline'
 import { StatusActions } from './StatusActions'
 import { QuickEditPriority } from './QuickEditPriority'
 import { QuickEditReminderDate } from './QuickEditReminderDate'
+import { CommentSection } from './CommentSection'
+import { FileUploadZone } from './FileUploadZone'
+import { MediaGallery } from './MediaGallery'
+import { useAttachments } from '@/features/files/useFiles'
 
 export function DevisDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -21,6 +25,8 @@ export function DevisDetailPage() {
   const quoteId = Number(id)
   const { data: quote, isLoading, isError, refetch } = useQuote(quoteId)
   const [isEditing, setIsEditing] = useState(false)
+  const [galleryOpen, setGalleryOpen] = useState(false)
+  const { data: attachments } = useAttachments('Quote', quoteId)
 
   if (isLoading) {
     return (
@@ -79,6 +85,12 @@ export function DevisDetailPage() {
             {statusCfg.label}
           </span>
           <QuickEditPriority quote={quote} onUpdate={() => refetch()} />
+          {(attachments?.length ?? 0) > 0 && (
+            <Button variant="outline" size="sm" onClick={() => setGalleryOpen(true)}>
+              <ImageIcon className="mr-2 h-4 w-4" />
+              Galerie médias
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setIsEditing(true)}>
             <Edit2 className="mr-2 h-4 w-4" />
             Modifier
@@ -204,6 +216,15 @@ export function DevisDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Commentaires */}
+      <CommentSection quoteId={quote.id} />
+
+      {/* Pièces jointes */}
+      <FileUploadZone quoteId={quote.id} />
+
+      {/* Galerie médias */}
+      <MediaGallery quoteId={quote.id} open={galleryOpen} onOpenChange={setGalleryOpen} />
 
       {/* Mentions légales */}
       <Card>

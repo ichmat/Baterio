@@ -10,6 +10,17 @@ import { renderWithProviders } from '../../test-utils'
 
 vi.mock('@/features/devis/api')
 vi.mock('@/features/admin/api')
+vi.mock('@/features/comments/api', () => ({
+  getComments: vi.fn().mockResolvedValue({ data: [], pagination: { page: 1, pageSize: 50, totalItems: 0, totalPages: 0 } }),
+  addComment: vi.fn(),
+  deleteComment: vi.fn(),
+}))
+vi.mock('@/features/files/api', () => ({
+  getAttachments: vi.fn().mockResolvedValue([]),
+  uploadFile: vi.fn(),
+  deleteAttachment: vi.fn(),
+  downloadFileBlob: vi.fn(),
+}))
 vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
@@ -233,6 +244,43 @@ describe('DevisDetailPage', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Ajouter une relance')).toBeInTheDocument()
+    })
+  })
+
+  it('CommentSection et FileUploadZone présents', async () => {
+    vi.mocked(devisApi.getQuoteById).mockResolvedValue(mockQuote)
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Commentaires')).toBeInTheDocument()
+    })
+    expect(screen.getByText('Pièces jointes')).toBeInTheDocument()
+  })
+
+  it('bouton Galerie médias masqué si aucune PJ', async () => {
+    vi.mocked(devisApi.getQuoteById).mockResolvedValue(mockQuote)
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('DEV-2026-0001')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('Galerie médias')).not.toBeInTheDocument()
+  })
+
+  it('bouton Galerie médias visible si PJ existent', async () => {
+    vi.mocked(devisApi.getQuoteById).mockResolvedValue(mockQuote)
+    const filesApi = await import('@/features/files/api')
+    vi.mocked(filesApi.getAttachments).mockResolvedValue([
+      {
+        id: 1, entityType: 'Quote', entityId: 1,
+        filename: 'photo.jpg', contentType: 'image/jpeg',
+        size: 100, uploadedBy: 1, uploadedByName: 'Test', createdAt: new Date().toISOString(),
+      },
+    ])
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Galerie médias')).toBeInTheDocument()
     })
   })
 })

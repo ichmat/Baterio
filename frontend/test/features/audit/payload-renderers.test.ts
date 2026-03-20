@@ -74,4 +74,10 @@ describe('renderPayloadCompact', () => {
     const result = renderPayloadCompact(payload, 'Updated', 'CustomField')
     expect(result).toBe('Réorganisation des champs devis')
   })
+
+  it('rend le contenu pour CommentAdded compact', () => {
+    const payload = { content: 'Ceci est un commentaire de test' }
+    const result = renderPayloadCompact(payload, 'CommentAdded', 'Quote')
+    expect(result).toBe('Ceci est un commentaire de test')
+  })
 })
