@@ -23,6 +23,23 @@ describe('getFieldLabel', () => {
     expect(getFieldLabel('CompanyInfo', 'Siret')).toBe('SIRET')
   })
 
+  it('retourne "champs personnalisés" pour la cle legacy "CustomFields"', () => {
+    expect(getFieldLabel('Quote', 'CustomFields')).toBe('champs personnalisés')
+  })
+
+  it('extrait le label apres le second ":" pour le format CustomFields:{id}:{label}', () => {
+    expect(getFieldLabel('Quote', 'CustomFields:42:Type de travaux')).toBe('Type de travaux')
+  })
+
+  it('gere le format CustomFields:{id} sans label (fallback)', () => {
+    expect(getFieldLabel('Quote', 'CustomFields:99')).toBe('99')
+  })
+
+  it('gere un label contenant ":" dans CustomFields namespace', () => {
+    // This shouldn't happen with validation, but test parser robustness
+    expect(getFieldLabel('Quote', 'CustomFields:1:A:B')).toBe('A:B')
+  })
+
   it('fallback sur le fieldKey brut pour un champ inconnu', () => {
     expect(getFieldLabel('Customer', 'unknownField')).toBe('unknownField')
   })
@@ -88,6 +105,12 @@ describe('renderPayloadCompact', () => {
     const payload = { Action: 'Reorder', Context: 'quotes', FieldIds: [1, 2, 3] }
     const result = renderPayloadCompact(payload, 'Updated', 'CustomField')
     expect(result).toBe('Réorganisation des champs devis')
+  })
+
+  it('rend le filename pour FileRemoved', () => {
+    const payload = { attachmentId: 5, filename: 'facture.pdf' }
+    const result = renderPayloadCompact(payload, 'FileRemoved', 'Quote')
+    expect(result).toBe('facture.pdf')
   })
 
   it('rend le contenu pour CommentAdded compact', () => {

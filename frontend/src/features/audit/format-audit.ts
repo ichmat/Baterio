@@ -21,6 +21,8 @@ export function formatAuditAction(action: string): { label: string; icon: Lucide
       return { label: 'Commentaire ajouté', icon: MessageSquare }
     case 'FileAttached':
       return { label: 'Fichier ajouté', icon: Paperclip }
+    case 'FileRemoved':
+      return { label: 'Fichier supprimé', icon: Trash2 }
     case 'Deleted':
       return { label: 'Supprimé', icon: Trash2 }
     default:

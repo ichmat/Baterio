@@ -122,6 +122,20 @@ describe('CreateCustomFieldDialog', () => {
     })
   })
 
+  it('shows validation error when label contains colon', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.type(screen.getByLabelText('Label du champ'), 'Type:travaux')
+    await user.click(screen.getByTestId('select-item-Text'))
+    await user.click(screen.getByTestId('select-item-Never'))
+    await user.click(screen.getByText('Créer'))
+
+    await waitFor(() => {
+      expect(screen.getByText("Le libellé ne peut pas contenir ':'")).toBeInTheDocument()
+    })
+  })
+
   it('submits valid form and shows toast', async () => {
     vi.mocked(api.createCustomField).mockResolvedValue({
       id: 1,

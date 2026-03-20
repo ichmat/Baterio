@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getAttachments, uploadFile, deleteAttachment, downloadFileBlob } from './api'
+import { invalidateImageCache } from './useImageUrl'
 
 export function useAttachments(entityType: string, entityId: number) {
   return useQuery({
@@ -24,7 +25,8 @@ export function useDeleteAttachment(entityType: string, entityId: number) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: number) => deleteAttachment(id),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
+      invalidateImageCache(id)
       qc.invalidateQueries({ queryKey: ['attachments', entityType, entityId] })
       qc.invalidateQueries({ queryKey: ['audit-events', entityType, entityId] })
     },

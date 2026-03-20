@@ -54,11 +54,16 @@ public class CustomFieldService : ICustomFieldService
 
     public async Task<CustomFieldResponse> CreateAsync(CreateCustomFieldRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Label))
+        var trimmedLabel = request.Label?.Trim();
+
+        if (string.IsNullOrEmpty(trimmedLabel))
             throw new ApiErrorException(ApiError.InvalidLabel);
 
-        if (request.Label.Length > 255)
+        if (trimmedLabel.Length > 255)
             throw new ApiErrorException(ApiError.InvalidLabel);
+
+        if (trimmedLabel.Contains(':'))
+            throw new ApiErrorException(ApiError.InvalidLabelCharacter);
 
         if (!request.AppliesToQuotes && !request.AppliesToSites)
             throw new ApiErrorException(ApiError.AppliesToRequired);
@@ -95,7 +100,7 @@ public class CustomFieldService : ICustomFieldService
         var field = new CustomFieldDefinition
         {
             TenantId = _tenantContext.TenantId,
-            Label = request.Label.Trim(),
+            Label = trimmedLabel,
             FieldType = fieldType,
             Options = request.Options,
             ObligationLevel = obligationLevel,
@@ -132,9 +137,12 @@ public class CustomFieldService : ICustomFieldService
 
         if (request.Label != null)
         {
-            if (string.IsNullOrWhiteSpace(request.Label) || request.Label.Length > 255)
+            var trimmed = request.Label.Trim();
+            if (string.IsNullOrEmpty(trimmed) || trimmed.Length > 255)
                 throw new ApiErrorException(ApiError.InvalidLabel);
-            field.Label = request.Label.Trim();
+            if (trimmed.Contains(':'))
+                throw new ApiErrorException(ApiError.InvalidLabelCharacter);
+            field.Label = trimmed;
         }
 
         if (request.Options != null)

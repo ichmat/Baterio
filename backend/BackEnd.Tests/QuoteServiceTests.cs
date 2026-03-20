@@ -392,6 +392,165 @@ public class QuoteServiceTests : IDisposable
             It.IsAny<object>()), Times.Never);
     }
 
+    // --- UpdateAsync: CustomFields granular diff ---
+
+    [Fact]
+    public async Task UpdateAsync_CustomFieldModified_LogsGranularDiffWithIdAndLabel()
+    {
+        // Seed custom field definition
+        var cfd = new CustomFieldDefinition
+        {
+            TenantId = _tenantId, Label = "Type de travaux", FieldType = FieldType.Text,
+            ObligationLevel = ObligationLevel.Never, AppliesToQuotes = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.CustomFieldDefinitions.Add(cfd);
+        await _db.SaveChangesAsync();
+
+        var created = await _service.CreateAsync(new CreateQuoteRequest
+        {
+            CustomerId = _customerId,
+            Subject = "CF Test",
+            CustomFields = $"{{\"{cfd.Id}\": \"Renovation\"}}"
+        });
+        _auditServiceMock.Reset();
+
+        await _service.UpdateAsync(created.Id, new UpdateQuoteRequest
+        {
+            Subject = "CF Test",
+            CustomFields = $"{{\"{cfd.Id}\": \"Neuf\"}}"
+        });
+
+        _auditServiceMock.Verify(a => a.LogEventAsync(
+            "Quote", created.Id, AuditAction.Updated,
+            It.Is<Dictionary<string, object?>>(d =>
+                d.ContainsKey($"CustomFields:{cfd.Id}:Type de travaux"))),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_CustomFieldUnchanged_AbsentFromDiff()
+    {
+        var cfd = new CustomFieldDefinition
+        {
+            TenantId = _tenantId, Label = "Surface", FieldType = FieldType.Number,
+            ObligationLevel = ObligationLevel.Never, AppliesToQuotes = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.CustomFieldDefinitions.Add(cfd);
+        await _db.SaveChangesAsync();
+
+        var cf = $"{{\"{cfd.Id}\": 100}}";
+        var created = await _service.CreateAsync(new CreateQuoteRequest
+        {
+            CustomerId = _customerId, Subject = "Same CF", CustomFields = cf
+        });
+        _auditServiceMock.Reset();
+
+        // Update subject but NOT custom fields
+        await _service.UpdateAsync(created.Id, new UpdateQuoteRequest
+        {
+            Subject = "Changed Subject", CustomFields = cf
+        });
+
+        // Should only have Subject diff, no CustomFields key
+        _auditServiceMock.Verify(a => a.LogEventAsync(
+            "Quote", created.Id, AuditAction.Updated,
+            It.Is<Dictionary<string, object?>>(d =>
+                d.ContainsKey("Subject") && !d.Keys.Any(k => k.StartsWith("CustomFields")))),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_CustomFieldDeletedDefinition_FallbackLabel()
+    {
+        // Use a non-existent definition ID
+        var created = await _service.CreateAsync(new CreateQuoteRequest
+        {
+            CustomerId = _customerId, Subject = "Deleted Def",
+            CustomFields = "{\"999\": \"old\"}"
+        });
+        _auditServiceMock.Reset();
+
+        await _service.UpdateAsync(created.Id, new UpdateQuoteRequest
+        {
+            Subject = "Deleted Def",
+            CustomFields = "{\"999\": \"new\"}"
+        });
+
+        _auditServiceMock.Verify(a => a.LogEventAsync(
+            "Quote", created.Id, AuditAction.Updated,
+            It.Is<Dictionary<string, object?>>(d =>
+                d.ContainsKey("CustomFields:999:Field #999"))),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_TwoCustomFieldsSameLabel_DistinctKeys()
+    {
+        var cfd1 = new CustomFieldDefinition
+        {
+            TenantId = _tenantId, Label = "Surface", FieldType = FieldType.Number,
+            ObligationLevel = ObligationLevel.Never, AppliesToQuotes = true, CreatedAt = DateTime.UtcNow
+        };
+        var cfd2 = new CustomFieldDefinition
+        {
+            TenantId = _tenantId, Label = "Surface", FieldType = FieldType.Number,
+            ObligationLevel = ObligationLevel.Never, AppliesToSites = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.CustomFieldDefinitions.AddRange(cfd1, cfd2);
+        await _db.SaveChangesAsync();
+
+        var created = await _service.CreateAsync(new CreateQuoteRequest
+        {
+            CustomerId = _customerId, Subject = "Dual Surface",
+            CustomFields = $"{{\"{cfd1.Id}\": 50, \"{cfd2.Id}\": 75}}"
+        });
+        _auditServiceMock.Reset();
+
+        await _service.UpdateAsync(created.Id, new UpdateQuoteRequest
+        {
+            Subject = "Dual Surface",
+            CustomFields = $"{{\"{cfd1.Id}\": 60, \"{cfd2.Id}\": 80}}"
+        });
+
+        _auditServiceMock.Verify(a => a.LogEventAsync(
+            "Quote", created.Id, AuditAction.Updated,
+            It.Is<Dictionary<string, object?>>(d =>
+                d.ContainsKey($"CustomFields:{cfd1.Id}:Surface") &&
+                d.ContainsKey($"CustomFields:{cfd2.Id}:Surface"))),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_CustomFieldsNullToValue_LogsDiff()
+    {
+        var cfd = new CustomFieldDefinition
+        {
+            TenantId = _tenantId, Label = "Notes CF", FieldType = FieldType.Text,
+            ObligationLevel = ObligationLevel.Never, AppliesToQuotes = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.CustomFieldDefinitions.Add(cfd);
+        await _db.SaveChangesAsync();
+
+        var created = await _service.CreateAsync(new CreateQuoteRequest
+        {
+            CustomerId = _customerId, Subject = "Null CF"
+            // CustomFields is null
+        });
+        _auditServiceMock.Reset();
+
+        await _service.UpdateAsync(created.Id, new UpdateQuoteRequest
+        {
+            Subject = "Null CF",
+            CustomFields = $"{{\"{cfd.Id}\": \"hello\"}}"
+        });
+
+        _auditServiceMock.Verify(a => a.LogEventAsync(
+            "Quote", created.Id, AuditAction.Updated,
+            It.Is<Dictionary<string, object?>>(d =>
+                d.ContainsKey($"CustomFields:{cfd.Id}:Notes CF"))),
+            Times.Once);
+    }
+
     // --- UpdateStatusAsync ---
 
     [Fact]

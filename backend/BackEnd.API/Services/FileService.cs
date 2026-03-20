@@ -141,8 +141,8 @@ public class FileService : IFileService
         _db.Attachments.Remove(attachment);
         await _db.SaveChangesAsync();
 
-        await _auditService.LogEventAsync(entityType, entityId, AuditAction.Updated,
-            new { action = "file_removed", attachmentId, filename });
+        await _auditService.LogEventAsync(entityType, entityId, AuditAction.FileRemoved,
+            new { attachmentId, filename });
 
         _logger.LogDebug("File deleted: {Filename} (attachment {AttachmentId})", filename, attachmentId);
     }

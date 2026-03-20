@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Text.Json;
 using BackEnd.API.Data;
 using BackEnd.Shared.Entities;
 using BackEnd.Shared.Enums;
@@ -181,7 +182,33 @@ public class QuoteService : IQuoteService
         if (quote.ValidityDate != oldValidityDate) changes["ValidityDate"] = new { Old = oldValidityDate?.ToString(), New = quote.ValidityDate?.ToString() };
         if (quote.EstimatedDuration != oldEstimatedDuration) changes["EstimatedDuration"] = new { Old = oldEstimatedDuration, New = quote.EstimatedDuration };
         if (quote.SiteAddress != oldSiteAddress) changes["SiteAddress"] = new { Old = oldSiteAddress, New = quote.SiteAddress };
-        if (quote.CustomFields != oldCustomFields) changes["CustomFields"] = new { Old = oldCustomFields, New = quote.CustomFields };
+        if (quote.CustomFields != oldCustomFields)
+        {
+            var oldDict = ParseCustomFieldsJson(oldCustomFields);
+            var newDict = ParseCustomFieldsJson(quote.CustomFields);
+            var allKeys = oldDict.Keys.Union(newDict.Keys).ToHashSet();
+
+            if (allKeys.Count > 0)
+            {
+                var ids = allKeys.Select(k => int.TryParse(k, out var id) ? id : -1).Where(id => id > 0).ToList();
+                var labels = await _db.CustomFieldDefinitions
+                    .Where(f => ids.Contains(f.Id))
+                    .ToDictionaryAsync(f => f.Id.ToString(), f => f.Label);
+
+                foreach (var key in allKeys)
+                {
+                    var hasOld = oldDict.TryGetValue(key, out var oldVal);
+                    var hasNew = newDict.TryGetValue(key, out var newVal);
+
+                    var oldRaw = hasOld ? oldVal.GetRawText() : null;
+                    var newRaw = hasNew ? newVal.GetRawText() : null;
+                    if (oldRaw == newRaw) continue;
+
+                    var label = labels.TryGetValue(key, out var l) ? l : $"Field #{key}";
+                    changes[$"CustomFields:{key}:{label}"] = new { Old = oldRaw, New = newRaw };
+                }
+            }
+        }
         if (quote.TaxRate != oldTaxRate) changes["TaxRate"] = new { Old = oldTaxRate, New = quote.TaxRate };
         if (quote.ReminderDate != oldReminderDate) changes["ReminderDate"] = new { Old = oldReminderDate?.ToString(), New = quote.ReminderDate?.ToString() };
         if (quote.AmountExclTax != oldAmountExclTax) changes["AmountExclTax"] = new { Old = oldAmountExclTax, New = quote.AmountExclTax };
@@ -385,6 +412,21 @@ public class QuoteService : IQuoteService
         if (string.IsNullOrWhiteSpace(value))
             return null;
         return DateOnly.TryParse(value, out var date) ? date : null;
+    }
+
+    private static Dictionary<string, JsonElement> ParseCustomFieldsJson(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return new Dictionary<string, JsonElement>();
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)
+                   ?? new Dictionary<string, JsonElement>();
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<string, JsonElement>();
+        }
     }
 
     private static string? NullIfEmpty(string? value) =>

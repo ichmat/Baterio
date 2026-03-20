@@ -126,7 +126,11 @@ export function EditCustomFieldDialog({ open, onOpenChange, field }: EditCustomF
             <Label htmlFor="edit-cf-label">Label du champ</Label>
             <Input
               id="edit-cf-label"
-              {...register('label', { required: 'Le label est requis', validate: v => v.trim() !== '' || 'Le label est requis' })}
+              {...register('label', { required: 'Le label est requis', validate: v => {
+                if (v.trim() === '') return 'Le label est requis'
+                if (v.includes(':')) return "Le libellé ne peut pas contenir ':'"
+                return true
+              } })}
             />
             {errors.label && (
               <p className="text-sm text-destructive">{errors.label.message}</p>

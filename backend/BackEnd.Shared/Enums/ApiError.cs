@@ -44,6 +44,9 @@ public enum ApiError
     [ApiErrorInfo(400, "Label invalide")]
     InvalidLabel,
 
+    [ApiErrorInfo(400, "Le libellé ne peut pas contenir le caractère ':'")]
+    InvalidLabelCharacter,
+
     [ApiErrorInfo(400, "Type de champ invalide")]
     InvalidFieldType,
 

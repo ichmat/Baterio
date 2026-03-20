@@ -73,6 +73,12 @@ const fieldLabelsRegistry: Record<string, Record<string, string>> = {
 }
 
 export function getFieldLabel(entityType: string, fieldKey: string): string {
+  if (fieldKey === 'CustomFields') return 'champs personnalisés'
+  if (fieldKey.startsWith('CustomFields:')) {
+    const afterPrefix = fieldKey.slice('CustomFields:'.length)
+    const colonIdx = afterPrefix.indexOf(':')
+    return colonIdx >= 0 ? afterPrefix.slice(colonIdx + 1) : afterPrefix
+  }
   return fieldLabelsRegistry[entityType]?.[fieldKey] ?? fieldKey
 }
 
@@ -101,6 +107,12 @@ function isFileAttached(
   p: Record<string, unknown>,
 ): p is { attachmentId: number; filename: string; contentType: string; size: number } {
   return typeof p.filename === 'string' && typeof p.size === 'number'
+}
+
+function isFileRemoved(
+  p: Record<string, unknown>,
+): p is { attachmentId: number; filename: string } {
+  return typeof p.filename === 'string' && typeof p.attachmentId === 'number' && !('size' in p)
 }
 
 // --- Compact renderers (inline text) ---
@@ -142,6 +154,9 @@ export function renderPayloadCompact(
     return payload.content as string
   }
   if (action === 'FileAttached' && isFileAttached(payload)) {
+    return payload.filename
+  }
+  if (action === 'FileRemoved' && isFileRemoved(payload)) {
     return payload.filename
   }
   if (action === 'Deleted') {
@@ -274,6 +289,11 @@ export function renderPayloadFull(
   }
   if (action === 'FileAttached' && isFileAttached(payload)) {
     return renderFileAttachedFull(payload)
+  }
+  if (action === 'FileRemoved' && isFileRemoved(payload)) {
+    return (
+      <div className="mt-2 text-xs text-muted-foreground">{payload.filename}</div>
+    )
   }
   if (action === 'Deleted') {
     return renderDeletedFull(payload)

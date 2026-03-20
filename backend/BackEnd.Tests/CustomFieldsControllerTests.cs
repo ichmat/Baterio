@@ -506,6 +506,65 @@ public class CustomFieldsControllerTests : IClassFixture<CustomWebApplicationFac
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    // --- Label ':' validation ---
+
+    [Fact]
+    public async Task Create_LabelWithColon_Returns400InvalidLabelCharacter()
+    {
+        var (token, _, _) = await SetupAdminAsync();
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Post, "/api/custom-fields", token,
+            new CreateCustomFieldRequest
+            {
+                Label = "Type:travaux",
+                FieldType = "Text",
+                ObligationLevel = "Never",
+                AppliesToQuotes = true,
+                AppliesToSites = true
+            }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var error = await response.Content.ReadFromJsonAsync<ErrorBody>();
+        Assert.Equal("InvalidLabelCharacter", error!.Code);
+    }
+
+    [Fact]
+    public async Task Create_LabelWithSpacedColon_Returns400InvalidLabelCharacter()
+    {
+        var (token, _, _) = await SetupAdminAsync();
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Post, "/api/custom-fields", token,
+            new CreateCustomFieldRequest
+            {
+                Label = " : ",
+                FieldType = "Text",
+                ObligationLevel = "Never",
+                AppliesToQuotes = true,
+                AppliesToSites = true
+            }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var error = await response.Content.ReadFromJsonAsync<ErrorBody>();
+        Assert.Equal("InvalidLabelCharacter", error!.Code);
+    }
+
+    [Fact]
+    public async Task Update_LabelWithColon_Returns400InvalidLabelCharacter()
+    {
+        var (token, _, _) = await SetupAdminAsync();
+        var field = await CreateTestFieldAsync(token, "Valid Label");
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Put,
+            $"/api/custom-fields/{field.Id}", token,
+            new UpdateCustomFieldRequest { Label = "Invalid:Label" }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        var error = await response.Content.ReadFromJsonAsync<ErrorBody>();
+        Assert.Equal("InvalidLabelCharacter", error!.Code);
+    }
+
+    private record ErrorBody(string Type, string Code, int Status, string Message);
+
     // --- GET /api/custom-fields/{id} ---
 
     [Fact]
