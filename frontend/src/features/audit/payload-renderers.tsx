@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import { Paperclip } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { InlineImagePreview } from './InlineImagePreview'
 
@@ -347,7 +346,7 @@ entityRenderers['Quote'] = (payload, action) => {
   }
   // Updated with Priority diff — translate values
   if (action === 'Updated' && isDiffValue(payload.Priority)) {
-    const priorityDiff = payload.Priority as { Old: unknown; New: unknown }
+    //const priorityDiff = payload.Priority as { Old: unknown; New: unknown }
     const entries = Object.entries(payload).filter(([, v]) => isDiffValue(v))
     return (
       <div className="mt-2 flex flex-wrap items-center gap-1 text-xs">
