@@ -83,6 +83,16 @@ export interface UpdateQuoteStatusRequest {
   status: string
 }
 
+export interface QuoteSearchResult {
+  id: number
+  reference: string
+  subject: string
+  status: string
+  priority: string
+  customerName: string
+  createdAt: string
+}
+
 export interface CustomFieldEntry {
   id: number
   label: string

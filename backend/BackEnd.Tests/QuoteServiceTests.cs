@@ -1367,6 +1367,211 @@ public class QuoteServiceTests : IDisposable
         Assert.Equal($"DEV-{year}-002", result2.Reference);
     }
 
+    // --- SearchAsync ---
+
+    private async Task SeedSearchDataAsync()
+    {
+        var customer2 = new Customer
+        {
+            TenantId = _tenantId,
+            LastName = "Lefevre",
+            FirstName = "Marie",
+            CreatedAt = DateTime.UtcNow
+        };
+        _db.Customers.Add(customer2);
+        await _db.SaveChangesAsync();
+
+        var quotes = new[]
+        {
+            new Quote
+            {
+                TenantId = _tenantId, CustomerId = _customerId, CreatedBy = _userId,
+                Reference = "DEV-2026-001", Subject = "Rénovation toiture",
+                Status = QuoteStatus.Draft, Priority = QuotePriority.High,
+                Notes = "Urgence avant hiver", CreatedAt = DateTime.UtcNow.AddDays(-3)
+            },
+            new Quote
+            {
+                TenantId = _tenantId, CustomerId = _customerId, CreatedBy = _userId,
+                Reference = "DEV-2026-002", Subject = "Isolation combles",
+                Status = QuoteStatus.Sent, Priority = QuotePriority.Normal,
+                CreatedAt = DateTime.UtcNow.AddDays(-2)
+            },
+            new Quote
+            {
+                TenantId = _tenantId, CustomerId = customer2.Id, CreatedBy = _userId,
+                Reference = "DEV-2026-003", Subject = "Peinture toiture garage",
+                Status = QuoteStatus.Accepted, Priority = QuotePriority.Low,
+                Notes = "Client fidele", CreatedAt = DateTime.UtcNow.AddDays(-1)
+            },
+        };
+        _db.Quotes.AddRange(quotes);
+        await _db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task SearchAsync_BySubject_ReturnsMatchingQuotes()
+    {
+        await SeedSearchDataAsync();
+
+        var results = await _service.SearchAsync("toiture");
+
+        Assert.Equal(2, results.Count);
+        Assert.All(results, r => Assert.Contains("toiture", r.Subject, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task SearchAsync_ByReference_ReturnsMatchingQuote()
+    {
+        await SeedSearchDataAsync();
+
+        var results = await _service.SearchAsync("DEV-2026-001");
+
+        Assert.Single(results);
+        Assert.Equal("DEV-2026-001", results[0].Reference);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ByCustomerName_ReturnsMatchingQuotes()
+    {
+        await SeedSearchDataAsync();
+
+        var results = await _service.SearchAsync("Lefevre");
+
+        Assert.Single(results);
+        Assert.Equal("Lefevre Marie", results[0].CustomerName);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ByNotes_ReturnsMatchingQuotes()
+    {
+        await SeedSearchDataAsync();
+
+        var results = await _service.SearchAsync("Urgence");
+
+        Assert.Single(results);
+        Assert.Equal("DEV-2026-001", results[0].Reference);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ShortQuery_ReturnsEmptyList()
+    {
+        await SeedSearchDataAsync();
+
+        var results = await _service.SearchAsync("a");
+
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public async Task SearchAsync_EmptyQuery_ReturnsEmptyList()
+    {
+        await SeedSearchDataAsync();
+
+        var results = await _service.SearchAsync("");
+
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public async Task SearchAsync_NullQuery_ReturnsEmptyList()
+    {
+        await SeedSearchDataAsync();
+
+        var results = await _service.SearchAsync(null!);
+
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public async Task SearchAsync_LimitRespected_ReturnsMaxResults()
+    {
+        await SeedSearchDataAsync();
+
+        var results = await _service.SearchAsync("DEV-2026", limit: 2);
+
+        Assert.Equal(2, results.Count);
+    }
+
+    [Fact]
+    public async Task SearchAsync_OrderedByCreatedAtDesc()
+    {
+        await SeedSearchDataAsync();
+
+        var results = await _service.SearchAsync("DEV-2026");
+
+        Assert.Equal(3, results.Count);
+        Assert.Equal("DEV-2026-003", results[0].Reference); // Most recent
+        Assert.Equal("DEV-2026-002", results[1].Reference);
+        Assert.Equal("DEV-2026-001", results[2].Reference); // Oldest
+    }
+
+    [Fact]
+    public async Task SearchAsync_ReturnsCorrectFields()
+    {
+        await SeedSearchDataAsync();
+
+        var results = await _service.SearchAsync("DEV-2026-003");
+
+        Assert.Single(results);
+        var r = results[0];
+        Assert.True(r.Id > 0);
+        Assert.Equal("DEV-2026-003", r.Reference);
+        Assert.False(string.IsNullOrEmpty(r.Subject));
+        Assert.False(string.IsNullOrEmpty(r.Status));
+        Assert.False(string.IsNullOrEmpty(r.Priority));
+        Assert.False(string.IsNullOrEmpty(r.CustomerName));
+        Assert.NotEqual(default, r.CreatedAt);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ByFirstNameOnly_ReturnsMatchingQuotes()
+    {
+        await SeedSearchDataAsync();
+
+        var results = await _service.SearchAsync("Marie");
+
+        Assert.Single(results);
+        Assert.Equal("Lefevre Marie", results[0].CustomerName);
+    }
+
+    [Fact]
+    public async Task SearchAsync_TenantIsolation_DoesNotReturnOtherTenantQuotes()
+    {
+        await SeedSearchDataAsync();
+
+        // Create another tenant with a quote matching "toiture" via raw SQL to bypass global filter
+        var otherTenant = new Tenant { Name = "Other Tenant", CreatedAt = DateTime.UtcNow };
+        _db.Tenants.Add(otherTenant);
+        await _db.SaveChangesAsync();
+
+        var otherUser = new User
+        {
+            TenantId = otherTenant.Id, Email = "other@test.fr", PasswordHash = "hash",
+            FirstName = "Other", LastName = "User", Role = UserRole.Chef, IsActive = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.Users.Add(otherUser);
+        await _db.SaveChangesAsync();
+
+        var otherCustomer = new Customer
+        {
+            TenantId = otherTenant.Id, LastName = "OtherClient", FirstName = "Test", CreatedAt = DateTime.UtcNow
+        };
+        _db.Customers.Add(otherCustomer);
+        await _db.SaveChangesAsync();
+
+        _db.Database.ExecuteSqlRaw(
+            "INSERT INTO quotes (tenant_id, customer_id, created_by, reference, subject, status, priority, created_at) " +
+            "VALUES ({0}, {1}, {2}, 'OTH-001', 'Toiture other tenant', 0, 0, datetime('now'))",
+            otherTenant.Id, otherCustomer.Id, otherUser.Id);
+
+        var results = await _service.SearchAsync("toiture");
+
+        // Should only return current tenant's quotes, not the other tenant's
+        Assert.All(results, r => Assert.DoesNotContain("other", r.Subject, StringComparison.OrdinalIgnoreCase));
+        Assert.Equal(2, results.Count);
+    }
+
     private class TestTenantContext : ITenantContext
     {
         public int TenantId { get; set; }

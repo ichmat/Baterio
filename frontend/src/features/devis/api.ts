@@ -5,6 +5,7 @@ import type {
   UpdateQuoteStatusRequest,
   QuoteResponse,
   QuoteListResponse,
+  QuoteSearchResult,
 } from './types'
 
 interface ApiResponse<T> {
@@ -47,6 +48,13 @@ export async function updateQuote(id: number, data: UpdateQuoteRequest): Promise
     body: JSON.stringify(data),
   })
   return response.data
+}
+
+export async function searchQuotes(query: string, limit = 10): Promise<QuoteSearchResult[]> {
+  const res = await apiClient<ApiResponse<QuoteSearchResult[]>>(
+    `/quotes/search?q=${encodeURIComponent(query)}&limit=${limit}`,
+  )
+  return res.data
 }
 
 export async function updateQuoteStatus(

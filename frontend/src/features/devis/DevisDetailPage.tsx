@@ -21,10 +21,15 @@ import { useAttachments } from '@/features/files/useFiles'
 import { TimelineCompact } from '@/features/audit/TimelineCompact'
 import { TimelineFull } from '@/features/audit/TimelineFull'
 
-export function DevisDetailPage() {
+interface DevisDetailPageProps {
+  quoteId?: number
+  showBackButton?: boolean
+}
+
+export function DevisDetailPage({ quoteId: propQuoteId, showBackButton = true }: DevisDetailPageProps) {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const quoteId = Number(id)
+  const quoteId = propQuoteId ?? Number(id)
   const { data: quote, isLoading, isError, refetch } = useQuote(quoteId)
   const [isEditing, setIsEditing] = useState(false)
   const [galleryOpen, setGalleryOpen] = useState(false)
@@ -45,10 +50,12 @@ export function DevisDetailPage() {
     return (
       <div className="mx-auto max-w-4xl space-y-4 p-6">
         <p className="text-destructive">Devis introuvable</p>
-        <Button variant="outline" onClick={() => navigate('/devis')}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Retour aux devis
-        </Button>
+        {showBackButton && (
+          <Button variant="outline" onClick={() => navigate('/devis')}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Retour aux devis
+          </Button>
+        )}
       </div>
     )
   }
@@ -73,9 +80,11 @@ export function DevisDetailPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/devis')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+          {showBackButton && (
+            <Button variant="ghost" size="icon" onClick={() => navigate('/devis')}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+          )}
           <div className='shrink-0'>
             <h1 className="text-2xl font-bold">{quote.reference}</h1>
             <p className="text-muted-foreground">{quote.subject}</p>

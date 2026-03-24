@@ -29,6 +29,14 @@ public class QuotesController : ControllerBase
         return Ok(new ApiResponse<PaginatedResponse<QuoteListResponse>>(result));
     }
 
+    [HttpGet("search")]
+    public async Task<IActionResult> Search([FromQuery] string q = "", [FromQuery] int limit = 10)
+    {
+        if (q.Length > 200) q = q[..200];
+        var result = await _quoteService.SearchAsync(q, limit);
+        return Ok(new ApiResponse<List<QuoteSearchResult>>(result));
+    }
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {

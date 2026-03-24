@@ -282,7 +282,7 @@ public class QuoteService : IQuoteService
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
 
-        var baseQuery = _db.Quotes.AsQueryable();
+        var baseQuery = _db.Quotes.AsNoTracking();
 
         var totalItems = await baseQuery.CountAsync();
 
@@ -316,6 +316,38 @@ public class QuoteService : IQuoteService
                 TotalPages = (int)Math.Ceiling((double)totalItems / pageSize)
             }
         };
+    }
+
+    public async Task<List<QuoteSearchResult>> SearchAsync(string query, int limit = 10)
+    {
+        if (string.IsNullOrWhiteSpace(query) || query.Trim().Length < 2)
+            return [];
+
+        var term = query.Trim();
+        limit = Math.Clamp(limit, 1, 50);
+
+        // Perf note: acceptable < 500 devis/tenant. Substring search, not word-based.
+        return await _db.Quotes
+            .AsNoTracking()
+            .Where(q =>
+                q.Subject.Contains(term) ||
+                q.Reference.Contains(term) ||
+                (q.Notes != null && q.Notes.Contains(term)) ||
+                q.Customer.LastName.Contains(term) ||
+                q.Customer.FirstName.Contains(term))
+            .OrderByDescending(q => q.CreatedAt)
+            .Take(limit)
+            .Select(q => new QuoteSearchResult
+            {
+                Id = q.Id,
+                Reference = q.Reference,
+                Subject = q.Subject,
+                Status = q.Status.ToString(),
+                Priority = q.Priority.ToString(),
+                CustomerName = (q.Customer.LastName + " " + q.Customer.FirstName).Trim(),
+                CreatedAt = q.CreatedAt,
+            })
+            .ToListAsync();
     }
 
     // --- Private helpers ---

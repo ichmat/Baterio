@@ -281,4 +281,118 @@ public class QuotesControllerTests : IClassFixture<CustomWebApplicationFactory>
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
+
+    // --- GET /api/quotes/search ---
+
+    private async Task<string> SetupWithQuotesAsync()
+    {
+        var (token, tenantId, userId, customerId) = await SetupAsync();
+
+        // Create quotes for search tests
+        var subjects = new[] { "Rénovation toiture", "Isolation combles", "Peinture garage" };
+        foreach (var subject in subjects)
+        {
+            await _client.SendAsync(CreateRequest(HttpMethod.Post, "/api/quotes", token,
+                new CreateQuoteRequest { CustomerId = customerId, Subject = subject }));
+        }
+
+        return token;
+    }
+
+    [Fact]
+    public async Task Search_ValidQuery_ReturnsMatchingQuotes()
+    {
+        var token = await SetupWithQuotesAsync();
+
+        var response = await _client.SendAsync(
+            CreateRequest(HttpMethod.Get, "/api/quotes/search?q=toiture", token));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<List<QuoteSearchResult>>>(JsonOpts);
+        Assert.NotNull(body);
+        Assert.True(body.Data.Count >= 1);
+        Assert.All(body.Data, r => Assert.Contains("toiture", r.Subject, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task Search_ShortQuery_ReturnsEmptyList()
+    {
+        var token = await SetupWithQuotesAsync();
+
+        var response = await _client.SendAsync(
+            CreateRequest(HttpMethod.Get, "/api/quotes/search?q=a", token));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<List<QuoteSearchResult>>>(JsonOpts);
+        Assert.NotNull(body);
+        Assert.Empty(body.Data);
+    }
+
+    [Fact]
+    public async Task Search_NoQuery_ReturnsEmptyList()
+    {
+        var token = await SetupWithQuotesAsync();
+
+        var response = await _client.SendAsync(
+            CreateRequest(HttpMethod.Get, "/api/quotes/search", token));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<List<QuoteSearchResult>>>(JsonOpts);
+        Assert.NotNull(body);
+        Assert.Empty(body.Data);
+    }
+
+    [Fact]
+    public async Task Search_WithLimit_RespectsLimit()
+    {
+        var token = await SetupWithQuotesAsync();
+
+        var response = await _client.SendAsync(
+            CreateRequest(HttpMethod.Get, "/api/quotes/search?q=DEV-&limit=2", token));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<List<QuoteSearchResult>>>(JsonOpts);
+        Assert.NotNull(body);
+        Assert.True(body.Data.Count <= 2);
+    }
+
+    [Fact]
+    public async Task Search_ByReference_ReturnsResult()
+    {
+        var token = await SetupWithQuotesAsync();
+
+        var response = await _client.SendAsync(
+            CreateRequest(HttpMethod.Get, "/api/quotes/search?q=DEV-", token));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<List<QuoteSearchResult>>>(JsonOpts);
+        Assert.NotNull(body);
+        Assert.True(body.Data.Count >= 1);
+        Assert.All(body.Data, r => Assert.StartsWith("DEV-", r.Reference));
+    }
+
+    [Fact]
+    public async Task Search_ByCustomerName_ReturnsResult()
+    {
+        var token = await SetupWithQuotesAsync();
+
+        var response = await _client.SendAsync(
+            CreateRequest(HttpMethod.Get, "/api/quotes/search?q=QuoteTestCustomer", token));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<List<QuoteSearchResult>>>(JsonOpts);
+        Assert.NotNull(body);
+        Assert.True(body.Data.Count >= 1);
+    }
+
+    [Fact]
+    public async Task Search_Ouvrier_Returns403()
+    {
+        var (token, _, _, _) = await SetupAsync(UserRole.Ouvrier);
+
+        var response = await _client.SendAsync(
+            CreateRequest(HttpMethod.Get, "/api/quotes/search?q=test", token));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
 }
