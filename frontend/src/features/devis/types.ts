@@ -15,7 +15,7 @@ export interface CreateQuoteRequest {
   siteAddress?: string
   taxRate?: number
   reminderDate?: string
-  customFields?: string
+  customFields?: CustomFieldEntry[] | null
   lines?: QuoteLineRequest[]
 }
 
@@ -28,7 +28,7 @@ export interface UpdateQuoteRequest {
   siteAddress?: string
   taxRate?: number
   reminderDate?: string | null
-  customFields?: string
+  customFields?: CustomFieldEntry[] | null
   lines?: QuoteLineRequest[]
 }
 
@@ -56,7 +56,7 @@ export interface QuoteResponse {
   taxRate: number | null
   amountInclTax: number | null
   reminderDate: string | null
-  customFields: string | null
+  customFields: CustomFieldEntry[] | null
   legalMentions: string | null
   notes: string | null
   createdBy: number
@@ -81,4 +81,10 @@ export interface QuoteListResponse {
 
 export interface UpdateQuoteStatusRequest {
   status: string
+}
+
+export interface CustomFieldEntry {
+  id: number
+  label: string
+  value: string | number | string[] | null
 }

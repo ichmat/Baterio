@@ -8,12 +8,14 @@ import type { CreateQuoteRequest } from './types'
 import { useCreateQuote } from './useDevis'
 import { useFormMode } from './useFormMode'
 import { DevisFormFields } from './DevisFormFields'
+import { useCustomFieldDefinitions } from './useCustomFieldDefinitions'
 
 export function CreateDevisForm() {
   const navigate = useNavigate()
   const { mode, updateMode } = useFormMode()
   const createQuote = useCreateQuote()
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerSearchResult | null>(null)
+  const { data: definitions } = useCustomFieldDefinitions()
 
   const form = useForm<CreateQuoteRequest>({
     defaultValues: {
@@ -55,10 +57,15 @@ export function CreateDevisForm() {
         : undefined,
     }
 
-    // Serialize custom fields
-    const customFields = (data as any).customFields
-    if (customFields && Object.keys(customFields).length > 0) {
-      payload.customFields = JSON.stringify(customFields)
+    // Construire la liste CustomFieldEntry à partir du form state et des définitions
+    const rawCf = (data as any).customFields as Record<string, any> | undefined
+    if (rawCf && Object.keys(rawCf).length > 0 && definitions) {
+      payload.customFields = Object.entries(rawCf)
+        .filter(([, v]) => v !== '' && v !== undefined)
+        .map(([fieldId, value]) => {
+          const def = definitions.find(d => d.id === Number(fieldId))
+          return { id: Number(fieldId), label: def?.label ?? '', value }
+        })
     }
 
     try {

@@ -1,13 +1,15 @@
-using System.Security.Claims;
-using System.Text.Json;
 using BackEnd.API.Data;
 using BackEnd.Shared.Entities;
 using BackEnd.Shared.Enums;
 using BackEnd.Shared.Exceptions;
 using BackEnd.Shared.Interfaces;
 using BackEnd.Shared.Models.Common;
+using BackEnd.Shared.Models.CustomFields;
 using BackEnd.Shared.Models.Quotes;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using System.Text;
+using System.Text.Json;
 
 namespace BackEnd.API.Services;
 
@@ -71,7 +73,7 @@ public class QuoteService : IQuoteService
             SiteAddress = NullIfEmpty(request.SiteAddress),
             TaxRate = request.TaxRate,
             ReminderDate = ParseDateOnly(request.ReminderDate),
-            CustomFields = NullIfEmpty(request.CustomFields),
+            CustomFields = await ValidateAndEnrichCustomFieldsAsync(request.CustomFields),
             LegalMentions = legalMentions,
             Notes = NullIfEmpty(request.Notes),
             CreatedAt = DateTime.UtcNow
@@ -95,7 +97,7 @@ public class QuoteService : IQuoteService
         await _db.SaveChangesAsync();
 
         await _auditService.LogEventAsync("Quote", quote.Id, AuditAction.Created,
-            new { quote.Reference, quote.Subject, quote.CustomerId, quote.Priority, quote.Status });
+            new { quote.Reference, quote.Subject, quote.Priority, quote.Status });
 
         _logger.LogInformation("Quote {QuoteId} created for tenant {TenantId}", quote.Id, _tenantContext.TenantId);
 
@@ -146,7 +148,7 @@ public class QuoteService : IQuoteService
         quote.ValidityDate = ParseDateOnly(request.ValidityDate);
         quote.EstimatedDuration = NullIfEmpty(request.EstimatedDuration);
         quote.SiteAddress = NullIfEmpty(request.SiteAddress);
-        quote.CustomFields = NullIfEmpty(request.CustomFields);
+        quote.CustomFields = await ValidateAndEnrichCustomFieldsAsync(request.CustomFields);
         quote.TaxRate = request.TaxRate;
         quote.ReminderDate = ParseDateOnly(request.ReminderDate);
 
@@ -176,47 +178,40 @@ public class QuoteService : IQuoteService
 
         // Build audit diff
         var changes = new Dictionary<string, object?>();
-        if (quote.Subject != oldSubject) changes["Subject"] = new { Old = oldSubject, New = quote.Subject };
-        if (quote.Notes != oldNotes) changes["Notes"] = new { Old = oldNotes, New = quote.Notes };
-        if (quote.Priority != oldPriority) changes["Priority"] = new { Old = oldPriority.ToString(), New = quote.Priority.ToString() };
-        if (quote.ValidityDate != oldValidityDate) changes["ValidityDate"] = new { Old = oldValidityDate?.ToString(), New = quote.ValidityDate?.ToString() };
-        if (quote.EstimatedDuration != oldEstimatedDuration) changes["EstimatedDuration"] = new { Old = oldEstimatedDuration, New = quote.EstimatedDuration };
-        if (quote.SiteAddress != oldSiteAddress) changes["SiteAddress"] = new { Old = oldSiteAddress, New = quote.SiteAddress };
+        if (quote.Subject != oldSubject) changes[nameof(quote.Subject)] = new { Old = oldSubject, New = quote.Subject };
+        if (quote.Notes != oldNotes) changes[nameof(quote.Notes)] = new { Old = oldNotes, New = quote.Notes };
+        if (quote.Priority != oldPriority) changes[nameof(quote.Priority)] = new { Old = oldPriority.ToString(), New = quote.Priority.ToString() };
+        if (quote.ValidityDate != oldValidityDate) changes[nameof(quote.ValidityDate)] = new { Old = oldValidityDate?.ToString(), New = quote.ValidityDate?.ToString() };
+        if (quote.EstimatedDuration != oldEstimatedDuration) changes[nameof(quote.EstimatedDuration)] = new { Old = oldEstimatedDuration, New = quote.EstimatedDuration };
+        if (quote.SiteAddress != oldSiteAddress) changes[nameof(quote.SiteAddress)] = new { Old = oldSiteAddress, New = quote.SiteAddress };
         if (quote.CustomFields != oldCustomFields)
         {
-            var oldDict = ParseCustomFieldsJson(oldCustomFields);
-            var newDict = ParseCustomFieldsJson(quote.CustomFields);
-            var allKeys = oldDict.Keys.Union(newDict.Keys).ToHashSet();
+            var defLabels = await _db.CustomFieldDefinitions
+                .ToDictionaryAsync(f => f.Id, f => f.Label);
 
-            if (allKeys.Count > 0)
+            var oldEntries = NormalizeCustomFieldsForDiff(oldCustomFields, defLabels);
+            var newEntries = NormalizeCustomFieldsForDiff(quote.CustomFields, defLabels);
+            var allIds = oldEntries.Keys.Union(newEntries.Keys).ToHashSet();
+
+            foreach (var fieldId in allIds)
             {
-                var ids = allKeys.Select(k => int.TryParse(k, out var id) ? id : -1).Where(id => id > 0).ToList();
-                var labels = await _db.CustomFieldDefinitions
-                    .Where(f => ids.Contains(f.Id))
-                    .ToDictionaryAsync(f => f.Id.ToString(), f => f.Label);
+                oldEntries.TryGetValue(fieldId, out var oldEntry);
+                newEntries.TryGetValue(fieldId, out var newEntry);
 
-                foreach (var key in allKeys)
-                {
-                    var hasOld = oldDict.TryGetValue(key, out var oldVal);
-                    var hasNew = newDict.TryGetValue(key, out var newVal);
+                if (oldEntry.RawValue == newEntry.RawValue) continue;
 
-                    var oldRaw = hasOld ? oldVal.GetRawText() : null;
-                    var newRaw = hasNew ? newVal.GetRawText() : null;
-                    if (oldRaw == newRaw) continue;
-
-                    var label = labels.TryGetValue(key, out var l) ? l : $"Field #{key}";
-                    changes[$"CustomFields:{key}:{label}"] = new { Old = oldRaw, New = newRaw };
-                }
+                var label = newEntry.Label ?? oldEntry.Label ?? $"Field #{fieldId}";
+                changes[$"{nameof(quote.CustomFields)}:{fieldId}:{label}"] = new { Old = oldEntry.RawValue, New = newEntry.RawValue };
             }
         }
-        if (quote.TaxRate != oldTaxRate) changes["TaxRate"] = new { Old = oldTaxRate, New = quote.TaxRate };
-        if (quote.ReminderDate != oldReminderDate) changes["ReminderDate"] = new { Old = oldReminderDate?.ToString(), New = quote.ReminderDate?.ToString() };
-        if (quote.AmountExclTax != oldAmountExclTax) changes["AmountExclTax"] = new { Old = oldAmountExclTax, New = quote.AmountExclTax };
-        if (quote.AmountInclTax != oldAmountInclTax) changes["AmountInclTax"] = new { Old = oldAmountInclTax, New = quote.AmountInclTax };
+        if (quote.TaxRate != oldTaxRate) changes[nameof(quote.TaxRate)] = new { Old = oldTaxRate, New = quote.TaxRate };
+        if (quote.ReminderDate != oldReminderDate) changes[nameof(quote.ReminderDate)] = new { Old = oldReminderDate?.ToString(), New = quote.ReminderDate?.ToString() };
+        if (quote.AmountExclTax != oldAmountExclTax) changes[nameof(quote.AmountExclTax)] = new { Old = oldAmountExclTax, New = quote.AmountExclTax };
+        if (quote.AmountInclTax != oldAmountInclTax) changes[nameof(quote.AmountInclTax)] = new { Old = oldAmountInclTax, New = quote.AmountInclTax };
 
         if (changes.Count > 0)
         {
-            await _auditService.LogEventAsync("Quote", id, AuditAction.Updated, changes);
+            await _auditService.LogEventAsync(nameof(Quote), id, AuditAction.Updated, changes);
         }
 
         _logger.LogInformation("Quote {QuoteId} updated for tenant {TenantId}", id, _tenantContext.TenantId);
@@ -271,7 +266,15 @@ public class QuoteService : IQuoteService
         if (quote == null)
             return null;
 
-        return MapToResponse(quote);
+        // Load definitions for old-format custom fields label resolution
+        Dictionary<int, string>? labelLookup = null;
+        if (!string.IsNullOrWhiteSpace(quote.CustomFields))
+        {
+            labelLookup = await _db.CustomFieldDefinitions
+                .ToDictionaryAsync(f => f.Id, f => f.Label);
+        }
+
+        return MapToResponse(quote, labelLookup);
     }
 
     public async Task<PaginatedResponse<QuoteListResponse>> GetAllAsync(int page = 1, int pageSize = 20)
@@ -432,8 +435,209 @@ public class QuoteService : IQuoteService
     private static string? NullIfEmpty(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private static QuoteResponse MapToResponse(Quote quote)
+    private static Dictionary<int, (string? Label, string? RawValue)> NormalizeCustomFieldsForDiff(
+        string? json, Dictionary<int, string> defLabels)
     {
+        var result = new Dictionary<int, (string? Label, string? RawValue)>();
+        if (string.IsNullOrWhiteSpace(json)) return result;
+
+        try
+        {
+            var dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
+            if (dict == null) return result;
+
+            foreach (var kvp in dict)
+            {
+                int fieldId;
+                string? label;
+
+                if (kvp.Key.StartsWith("CustomFields:"))
+                {
+                    var afterPrefix = kvp.Key["CustomFields:".Length..];
+                    var colonIdx = afterPrefix.IndexOf(':');
+                    if (colonIdx < 0 || !int.TryParse(afterPrefix[..colonIdx], out fieldId)) continue;
+                    label = afterPrefix[(colonIdx + 1)..];
+                }
+                else if (int.TryParse(kvp.Key, out fieldId))
+                {
+                    label = defLabels.TryGetValue(fieldId, out var l) ? l : null;
+                }
+                else continue;
+
+                var rawValue = kvp.Value.ValueKind == JsonValueKind.Null ? null : kvp.Value.GetRawText();
+                result[fieldId] = (label, rawValue);
+            }
+        }
+        catch (JsonException) { }
+
+        return result;
+    }
+
+    private async Task<string?> ValidateAndEnrichCustomFieldsAsync(List<CustomFieldEntry>? entries)
+    {
+        CustomFieldDefinition[] customFields = await _db.CustomFieldDefinitions
+            .Where(x => x.AppliesToQuotes == true)
+            .ToArrayAsync();
+
+        if (entries == null || entries.Count == 0)
+        {
+            var missingRequired = customFields.FirstOrDefault(f => f.ObligationLevel == ObligationLevel.RequiredAtCreation);
+            if (missingRequired != null)
+                throw new ApiErrorException(ApiError.CustomFieldRequired, missingRequired.Label);
+            return null;
+        }
+
+        Dictionary<string, object?> newJsonDictionnary = [];
+
+        foreach (CustomFieldEntry fieldEntry in entries)
+        {
+            CustomFieldDefinition fieldDefinition = customFields.FirstOrDefault(x => x.Id == fieldEntry.Id) 
+                ?? throw new ApiErrorException(ApiError.CustomFieldUnknown, fieldEntry.Id, fieldEntry.Label);
+
+            fieldEntry.Label = fieldDefinition.Label; // Ensure label is always up to date
+
+            bool mandatory = fieldDefinition.ObligationLevel == ObligationLevel.RequiredAtCreation;
+
+            if (mandatory)
+            {
+                if (fieldEntry.Value == null)
+                    throw new ApiErrorException(ApiError.CustomFieldRequired, fieldDefinition.Label);
+            }
+
+            switch (fieldDefinition.FieldType)
+            {
+                case FieldType.Text:
+                    if(!IsElementString(fieldEntry.Value, out _))
+                        throw new ApiErrorException(ApiError.CustomFieldInvalidValue, fieldDefinition.Label, "La valeur n'est pas un texte");
+                    if (mandatory && fieldEntry.Value is string && string.IsNullOrWhiteSpace(fieldEntry.Value.ToString()))
+                        throw new ApiErrorException(ApiError.CustomFieldRequired, fieldDefinition.Label);
+                    break;
+                case FieldType.Number:
+                    if (!IsElementNumber(fieldEntry.Value))
+                        throw new ApiErrorException(ApiError.CustomFieldInvalidValue, fieldDefinition.Label, "La valeur n'est pas un nombre");
+                    break;
+                case FieldType.SingleChoice:
+                case FieldType.MultipleChoice:
+                    if (!IsElementString(fieldEntry.Value, out string optionValue))
+                        throw new ApiErrorException(ApiError.CustomFieldInvalidValue, fieldDefinition.Label, "La valeur n'est pas une option valide");
+                    try
+                    {
+                        CustomFieldService.ValidateValueOption(optionValue, fieldDefinition.Options, fieldDefinition.FieldType, mandatory);
+                    }
+                    catch (ApiErrorException ex)
+                    {
+                        if(ex.Code == ApiError.CustomFieldInvalidValue)
+                            throw new ApiErrorException(ApiError.CustomFieldInvalidValue, fieldDefinition.Label, "La valeur n'est pas une option valide ou contient une option inconnu");
+                        if(ex.Code == ApiError.CustomFieldRequired)
+                            throw new ApiErrorException(ApiError.CustomFieldRequired, fieldDefinition.Label);
+                        throw;
+                    }
+                    break;
+                case FieldType.Date:
+                    if(fieldEntry.Value is null && mandatory)
+                        throw new ApiErrorException(ApiError.CustomFieldRequired, fieldDefinition.Label);
+                    if (!IsElementString(fieldEntry.Value, out string dateValue))
+                        throw new ApiErrorException(ApiError.CustomFieldInvalidValue, fieldDefinition.Label, "La valeur n'est pas une date");
+                    if (!DateOnly.TryParse(dateValue, out _))
+                        throw new ApiErrorException(ApiError.CustomFieldInvalidValue, fieldDefinition.Label, "La valeur n'est pas une date");
+                    break;
+            }
+
+            newJsonDictionnary.Add($"{nameof(Shared.Models.CustomFields)}:{fieldDefinition.Id}:{fieldDefinition.Label}", fieldEntry.Value);
+        }
+
+        // Check that all RequiredAtCreation fields are present in the entries list
+        var submittedIds = entries.Select(e => e.Id).ToHashSet();
+        var missingNotSubmitted = customFields.FirstOrDefault(f =>
+            f.ObligationLevel == ObligationLevel.RequiredAtCreation && !submittedIds.Contains(f.Id));
+        if (missingNotSubmitted != null)
+            throw new ApiErrorException(ApiError.CustomFieldRequired, missingNotSubmitted.Label);
+
+        return JsonSerializer.Serialize(newJsonDictionnary);
+    }
+
+    private static bool IsElementString(object? element, out string value)
+    {
+        if(element is not null)
+        {
+            if(element is string s)
+            {
+                value = s;
+                return true;
+            }
+            if(element is JsonElement jsonElement && jsonElement.ValueKind == JsonValueKind.String)
+            {
+                value = jsonElement.GetString() ?? string.Empty;
+                return true;
+            }
+
+            value = string.Empty;
+            return false;
+        }
+
+        value = string.Empty;
+        return true;
+    }
+
+    private static bool IsElementNumber(object? element)
+    {
+        if (element is decimal d)
+        {
+            return true;
+        }
+        if (element is int i)
+        {
+            return true;
+        }
+        if (element is float f)
+        {
+            return true;
+        }
+        if (element is JsonElement jsonElement && jsonElement.ValueKind == JsonValueKind.Number)
+        {
+            return true;
+        }
+        return false;
+    }
+
+    private static QuoteResponse MapToResponse(Quote quote, Dictionary<int, string>? labelLookup = null)
+    {
+        List<CustomFieldEntry>? customFieldEntries = null;
+
+        if (!string.IsNullOrWhiteSpace(quote.CustomFields))
+        {
+            var dict = ParseCustomFieldsJson(quote.CustomFields);
+            var entries = new List<CustomFieldEntry>();
+
+            foreach (var kvp in dict)
+            {
+                int fieldId;
+                string label;
+
+                if (kvp.Key.StartsWith("CustomFields:"))
+                {
+                    var afterPrefix = kvp.Key["CustomFields:".Length..];
+                    var colonIdx = afterPrefix.IndexOf(':');
+                    if (colonIdx < 0 || !int.TryParse(afterPrefix[..colonIdx], out fieldId)) continue;
+                    label = afterPrefix[(colonIdx + 1)..];
+                }
+                else if (int.TryParse(kvp.Key, out fieldId))
+                {
+                    label = labelLookup?.TryGetValue(fieldId, out var l) == true ? l : $"Field #{fieldId}";
+                }
+                else continue;
+
+                entries.Add(new CustomFieldEntry
+                {
+                    Id = fieldId,
+                    Label = label,
+                    Value = kvp.Value.ValueKind == JsonValueKind.Null ? null : kvp.Value
+                });
+            }
+
+            if (entries.Count > 0) customFieldEntries = entries;
+        }
+
         return new QuoteResponse
         {
             Id = quote.Id,
@@ -450,7 +654,7 @@ public class QuoteService : IQuoteService
             TaxRate = quote.TaxRate,
             AmountInclTax = quote.AmountInclTax,
             ReminderDate = quote.ReminderDate?.ToString("yyyy-MM-dd"),
-            CustomFields = quote.CustomFields,
+            CustomFields = customFieldEntries,
             LegalMentions = quote.LegalMentions,
             Notes = quote.Notes,
             CreatedBy = quote.CreatedBy,

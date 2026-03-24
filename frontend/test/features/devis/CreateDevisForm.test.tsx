@@ -246,4 +246,75 @@ describe('CreateDevisForm', () => {
     await user.click(screen.getByText("Renseigner plus d'informations"))
     expect(screen.getByText('Lignes de prestations')).toBeInTheDocument()
   })
+
+  it('soumission avec custom fields au format CustomFieldEntry[]', async () => {
+    vi.mocked(adminApi.getCustomFields).mockResolvedValue([
+      {
+        id: 1, label: 'Type', fieldType: 'Text', obligationLevel: 'RequiredAtCreation',
+        appliesToQuotes: true, appliesToSites: false,
+        displayOrderQuotes: 1, displayOrderSites: null, createdAt: '2026-01-01',
+      },
+    ])
+    vi.mocked(devisApi.createQuote).mockResolvedValue({
+      id: 99, reference: 'DEV-2026-099', subject: 'Test CF', status: 'Draft',
+      priority: 'Normal', customerId: 1, customerName: 'Dupont Jean',
+      validityDate: null, estimatedDuration: null, siteAddress: null,
+      amountExclTax: null, taxRate: 20, amountInclTax: null, reminderDate: null,
+      customFields: [{ id: 1, label: 'Type', value: 'Renovation' }],
+      legalMentions: null, notes: null, createdBy: 1, createdByName: 'Martin Sophie',
+      createdAt: '2026-03-23T10:00:00Z', updatedAt: null, lines: [],
+    })
+
+    const user = userEvent.setup()
+    renderForm()
+
+    // Rapide mode — RequiredAtCreation fields are visible
+    await user.click(screen.getByText('Rapide'))
+    await user.click(screen.getByTestId('select-customer'))
+    await user.type(screen.getByLabelText(/objet/i), 'Test CF')
+    await user.type(screen.getByLabelText(/adresse du chantier/i), '1 rue de Paris')
+
+    // Wait for custom field definitions to load
+    await waitFor(() => {
+      expect(screen.getByText('Champs personnalisés')).toBeInTheDocument()
+    })
+    await user.type(screen.getByRole('textbox', { name: /Type/ }), 'Renovation')
+    await user.click(screen.getByText('Créer le devis'))
+
+    await waitFor(() => {
+      expect(devisApi.createQuote).toHaveBeenCalled()
+    })
+    const callArgs = vi.mocked(devisApi.createQuote).mock.calls[0][0]
+    expect(callArgs.customFields).toEqual([{ id: 1, label: 'Type', value: 'Renovation' }])
+  })
+
+  it('champ RequiredAtCreation vide empêche la soumission en mode rapide', async () => {
+    vi.mocked(adminApi.getCustomFields).mockResolvedValue([
+      {
+        id: 1, label: 'Champ requis', fieldType: 'Text', obligationLevel: 'RequiredAtCreation',
+        appliesToQuotes: true, appliesToSites: false,
+        displayOrderQuotes: 1, displayOrderSites: null, createdAt: '2026-01-01',
+      },
+    ])
+
+    const user = userEvent.setup()
+    renderForm()
+
+    await user.click(screen.getByText('Rapide'))
+    await user.click(screen.getByTestId('select-customer'))
+    await user.type(screen.getByLabelText(/objet/i), 'Test')
+    await user.type(screen.getByLabelText(/adresse du chantier/i), '1 rue')
+
+    // Wait for custom field to appear but don't fill it
+    await waitFor(() => {
+      expect(screen.getByText('Champs personnalisés')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByText('Créer le devis'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Ce champ est obligatoire')).toBeInTheDocument()
+    })
+    expect(devisApi.createQuote).not.toHaveBeenCalled()
+  })
 })

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { ArrowLeft, Edit2, Users, ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'

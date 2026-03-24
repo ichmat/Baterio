@@ -118,4 +118,28 @@ describe('renderPayloadCompact', () => {
     const result = renderPayloadCompact(payload, 'CommentAdded', 'Quote')
     expect(result).toBe('Ceci est un commentaire de test')
   })
+
+  it('rend les valeurs lisibles pour un diff CustomFields au nouveau format', () => {
+    const payload = {
+      'CustomFields:5:Type de travaux': { Old: 'Neuf', New: 'Renovation' },
+    }
+    const result = renderPayloadCompact(payload, 'Updated', 'Quote')
+    expect(result).toBe('Type de travaux')
+  })
+
+  it('rend les valeurs tableau pour un diff CustomFields MultipleChoice', () => {
+    const payload = {
+      'CustomFields:8:Prestations': { Old: ['Peinture', 'Plomberie'], New: ['Peinture'] },
+    }
+    const result = renderPayloadCompact(payload, 'Updated', 'Quote')
+    expect(result).toBe('Prestations')
+  })
+
+  it('gere les anciennes valeurs brutes (tableaux) dans le diff', () => {
+    const payload = {
+      'CustomFields:5:Type': { Old: '[null, 5, "Neuf"]', New: '[null, 5, "Renovation"]' },
+    }
+    const result = renderPayloadCompact(payload, 'Updated', 'Quote')
+    expect(result).toBe('Type')
+  })
 })

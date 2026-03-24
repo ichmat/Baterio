@@ -3,26 +3,24 @@ import { useForm, FormProvider } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import type { CustomerSearchResult } from '@/features/clients/types'
-import type { QuoteResponse, UpdateQuoteRequest } from './types'
+import type { CustomFieldEntry, QuoteResponse, UpdateQuoteRequest } from './types'
 import { useUpdateQuote } from './useDevis'
 import { DevisFormFields } from './DevisFormFields'
+import { useCustomFieldDefinitions } from './useCustomFieldDefinitions'
 
 interface EditDevisFormProps {
   quote: QuoteResponse
   onSuccess: () => void
 }
 
-function parseCustomFields(raw: string | null): Record<string, any> {
-  if (!raw) return {}
-  try {
-    return JSON.parse(raw)
-  } catch {
-    return {}
-  }
+function parseCustomFields(raw: CustomFieldEntry[] | null): Record<string, any> {
+  if (!raw || raw.length === 0) return {}
+  return Object.fromEntries(raw.map(entry => [String(entry.id), entry.value]))
 }
 
 export function EditDevisForm({ quote, onSuccess }: EditDevisFormProps) {
   const updateQuote = useUpdateQuote()
+  const { data: definitions } = useCustomFieldDefinitions()
 
   const [selectedCustomer] = useState<CustomerSearchResult>({
     id: quote.customerId,
@@ -72,11 +70,18 @@ export function EditDevisForm({ quote, onSuccess }: EditDevisFormProps) {
       })),
     }
 
-    // Serialize custom fields — always send, even if empty
-    const customFields = data.customFields
-    payload.customFields = customFields && Object.keys(customFields).length > 0
-      ? JSON.stringify(customFields)
-      : null as any
+    // Build CustomFieldEntry[] from form state and definitions
+    const rawCf = data.customFields
+    if (rawCf && Object.keys(rawCf).length > 0 && definitions) {
+      payload.customFields = Object.entries(rawCf)
+        .filter(([, v]) => v !== '' && v !== undefined)
+        .map(([fieldId, value]) => {
+          const def = definitions.find(d => d.id === Number(fieldId))
+          return { id: Number(fieldId), label: def?.label ?? '', value }
+        })
+    } else {
+      payload.customFields = null
+    }
 
     try {
       await updateQuote.mutateAsync({ id: quote.id, data: payload })

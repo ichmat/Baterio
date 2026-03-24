@@ -133,4 +133,74 @@ describe('EditDevisForm', () => {
     expect(screen.getByLabelText(/notes/i)).toBeInTheDocument()
     expect(screen.getByText('Lignes de prestations')).toBeInTheDocument()
   })
+
+  it('champs custom pré-remplis au nouveau format', async () => {
+    vi.mocked(adminApi.getCustomFields).mockResolvedValue([
+      {
+        id: 1, label: 'Type de travaux', fieldType: 'Text', obligationLevel: 'Never',
+        appliesToQuotes: true, appliesToSites: false,
+        displayOrderQuotes: 1, displayOrderSites: null, createdAt: '2026-01-01',
+      },
+    ])
+
+    const quoteWithCf = {
+      ...mockQuote,
+      customFields: [{ id: 1, label: 'Type de travaux', value: 'Renovation' }],
+    }
+
+    renderWithProviders(
+      <MemoryRouter>
+        <EditDevisForm quote={quoteWithCf} onSuccess={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Renovation')).toBeInTheDocument()
+    })
+  })
+
+  it('soumission envoie le format CustomFieldEntry[]', async () => {
+    vi.mocked(adminApi.getCustomFields).mockResolvedValue([
+      {
+        id: 1, label: 'Type de travaux', fieldType: 'Text', obligationLevel: 'Never',
+        appliesToQuotes: true, appliesToSites: false,
+        displayOrderQuotes: 1, displayOrderSites: null, createdAt: '2026-01-01',
+      },
+    ])
+    vi.mocked(devisApi.updateQuote).mockResolvedValue({
+      ...mockQuote,
+      customFields: [{ id: 1, label: 'Type de travaux', value: 'Neuf' }],
+    })
+
+    const quoteWithCf = {
+      ...mockQuote,
+      customFields: [{ id: 1, label: 'Type de travaux', value: 'Renovation' }],
+    }
+
+    const user = userEvent.setup()
+    renderWithProviders(
+      <MemoryRouter>
+        <EditDevisForm quote={quoteWithCf} onSuccess={vi.fn()} />
+      </MemoryRouter>,
+    )
+
+    // Wait for custom field to appear and modify it
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Renovation')).toBeInTheDocument()
+    })
+
+    const cfInput = screen.getByDisplayValue('Renovation')
+    await user.clear(cfInput)
+    await user.type(cfInput, 'Neuf')
+
+    const form = document.querySelector('form')!
+    fireEvent.submit(form)
+
+    await waitFor(() => {
+      expect(devisApi.updateQuote).toHaveBeenCalled()
+    })
+    const callArgs = vi.mocked(devisApi.updateQuote).mock.calls[0]
+    expect(callArgs[0]).toBe(quoteWithCf.id)
+    expect(callArgs[1].customFields).toEqual([{ id: 1, label: 'Type de travaux', value: 'Neuf' }])
+  })
 })

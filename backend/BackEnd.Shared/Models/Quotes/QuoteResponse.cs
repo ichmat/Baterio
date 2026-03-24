@@ -1,3 +1,5 @@
+using BackEnd.Shared.Models.CustomFields;
+
 namespace BackEnd.Shared.Models.Quotes;
 
 public class QuoteResponse
@@ -16,7 +18,7 @@ public class QuoteResponse
     public decimal? TaxRate { get; set; }
     public decimal? AmountInclTax { get; set; }
     public string? ReminderDate { get; set; }
-    public string? CustomFields { get; set; }
+    public List<CustomFieldEntry>? CustomFields { get; set; }
     public string? LegalMentions { get; set; }
     public string? Notes { get; set; }
     public int CreatedBy { get; set; }

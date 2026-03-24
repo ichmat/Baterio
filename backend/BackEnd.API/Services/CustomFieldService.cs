@@ -268,6 +268,71 @@ public class CustomFieldService : ICustomFieldService
         return await GetAllAsync();
     }
 
+    internal static void ValidateValueOption(string? value, string? options, FieldType fieldType, bool mandatory)
+    {
+        if (fieldType is not FieldType.SingleChoice and not FieldType.MultipleChoice)
+            return;
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            if(mandatory)
+                throw new ApiErrorException(ApiError.CustomFieldRequired);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(options))
+            throw new ApiErrorException(ApiError.CustomFieldInvalidValue);
+
+        HashSet<string> validChoices;
+        try
+        {
+            using var doc = JsonDocument.Parse(options);
+            var choices = doc.RootElement.GetProperty("choices");
+            validChoices = choices.EnumerateArray()
+                .Select(c => c.GetString()!)
+                .ToHashSet();
+        }
+        catch 
+        {
+            throw new Exception($"Récupération des choix impossible pour {options}");
+        }
+
+        switch (fieldType)
+        {
+            case FieldType.SingleChoice:
+                if (!validChoices.Contains(value))
+                    throw new ApiErrorException(ApiError.CustomFieldInvalidValue);
+                break;
+
+            case FieldType.MultipleChoice:
+                List<string> selectedValues;
+                try
+                {
+                    using var doc = JsonDocument.Parse(value);
+                    if (doc.RootElement.ValueKind != JsonValueKind.Array)
+                        throw new ApiErrorException(ApiError.CustomFieldInvalidValue);
+
+                    selectedValues = doc.RootElement.EnumerateArray()
+                        .Select(e => e.GetString())
+                        .ToList()!;
+                }
+                catch
+                {
+                    throw new ApiErrorException(ApiError.CustomFieldInvalidValue);
+                }
+
+                if(selectedValues.Count == 0 && mandatory)
+                    throw new ApiErrorException(ApiError.CustomFieldRequired);
+
+                foreach (var selected in selectedValues)
+                {
+                    if (selected is null || !validChoices.Contains(selected))
+                        throw new ApiErrorException(ApiError.CustomFieldInvalidValue);
+                }
+                break;
+        }
+    }
+
     private static void ValidateOptions(string? options, FieldType fieldType)
     {
         var isChoiceType = fieldType == FieldType.SingleChoice || fieldType == FieldType.MultipleChoice;

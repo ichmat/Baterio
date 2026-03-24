@@ -189,10 +189,7 @@ public class UserService : IUserService
 
                 if (activeUserCount >= maxUsers)
                 {
-                    var message = string.Format(
-                        "Vous avez atteint la limite de {0} utilisateurs de votre abonnement",
-                        maxUsers);
-                    throw new ApiErrorException(ApiError.UserLimitReached, message);
+                    throw new ApiErrorException(ApiError.UserLimitReached, maxUsers);
                 }
             }
         }

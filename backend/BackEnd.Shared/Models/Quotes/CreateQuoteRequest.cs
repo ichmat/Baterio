@@ -1,3 +1,5 @@
+using BackEnd.Shared.Models.CustomFields;
+
 namespace BackEnd.Shared.Models.Quotes;
 
 public class CreateQuoteRequest
@@ -11,6 +13,6 @@ public class CreateQuoteRequest
     public string? SiteAddress { get; set; }
     public decimal? TaxRate { get; set; }
     public string? ReminderDate { get; set; }  // ISO date string
-    public string? CustomFields { get; set; }  // JSON string
+    public List<CustomFieldEntry>? CustomFields { get; set; } 
     public List<QuoteLineRequest>? Lines { get; set; }
 }

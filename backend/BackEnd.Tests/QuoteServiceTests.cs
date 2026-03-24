@@ -1,10 +1,12 @@
 using System.Security.Claims;
+using System.Text.Json;
 using BackEnd.API.Data;
 using BackEnd.API.Services;
 using BackEnd.Shared.Entities;
 using BackEnd.Shared.Enums;
 using BackEnd.Shared.Exceptions;
 using BackEnd.Shared.Interfaces;
+using BackEnd.Shared.Models.CustomFields;
 using BackEnd.Shared.Models.Quotes;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.Sqlite;
@@ -397,7 +399,6 @@ public class QuoteServiceTests : IDisposable
     [Fact]
     public async Task UpdateAsync_CustomFieldModified_LogsGranularDiffWithIdAndLabel()
     {
-        // Seed custom field definition
         var cfd = new CustomFieldDefinition
         {
             TenantId = _tenantId, Label = "Type de travaux", FieldType = FieldType.Text,
@@ -410,14 +411,20 @@ public class QuoteServiceTests : IDisposable
         {
             CustomerId = _customerId,
             Subject = "CF Test",
-            CustomFields = $"{{\"{cfd.Id}\": \"Renovation\"}}"
+            CustomFields = new List<CustomFieldEntry>
+            {
+                new() { Id = cfd.Id, Label = "Type de travaux", Value = "Renovation" }
+            }
         });
         _auditServiceMock.Reset();
 
         await _service.UpdateAsync(created.Id, new UpdateQuoteRequest
         {
             Subject = "CF Test",
-            CustomFields = $"{{\"{cfd.Id}\": \"Neuf\"}}"
+            CustomFields = new List<CustomFieldEntry>
+            {
+                new() { Id = cfd.Id, Label = "Type de travaux", Value = "Neuf" }
+            }
         });
 
         _auditServiceMock.Verify(a => a.LogEventAsync(
@@ -438,20 +445,21 @@ public class QuoteServiceTests : IDisposable
         _db.CustomFieldDefinitions.Add(cfd);
         await _db.SaveChangesAsync();
 
-        var cf = $"{{\"{cfd.Id}\": 100}}";
+        var cf = new List<CustomFieldEntry>
+        {
+            new() { Id = cfd.Id, Label = "Surface", Value = 100 }
+        };
         var created = await _service.CreateAsync(new CreateQuoteRequest
         {
             CustomerId = _customerId, Subject = "Same CF", CustomFields = cf
         });
         _auditServiceMock.Reset();
 
-        // Update subject but NOT custom fields
         await _service.UpdateAsync(created.Id, new UpdateQuoteRequest
         {
             Subject = "Changed Subject", CustomFields = cf
         });
 
-        // Should only have Subject diff, no CustomFields key
         _auditServiceMock.Verify(a => a.LogEventAsync(
             "Quote", created.Id, AuditAction.Updated,
             It.Is<Dictionary<string, object?>>(d =>
@@ -460,27 +468,19 @@ public class QuoteServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task UpdateAsync_CustomFieldDeletedDefinition_FallbackLabel()
+    public async Task UpdateAsync_CustomFieldDeletedDefinition_UnknownIdThrows()
     {
-        // Use a non-existent definition ID
-        var created = await _service.CreateAsync(new CreateQuoteRequest
-        {
-            CustomerId = _customerId, Subject = "Deleted Def",
-            CustomFields = "{\"999\": \"old\"}"
-        });
-        _auditServiceMock.Reset();
-
-        await _service.UpdateAsync(created.Id, new UpdateQuoteRequest
-        {
-            Subject = "Deleted Def",
-            CustomFields = "{\"999\": \"new\"}"
-        });
-
-        _auditServiceMock.Verify(a => a.LogEventAsync(
-            "Quote", created.Id, AuditAction.Updated,
-            It.Is<Dictionary<string, object?>>(d =>
-                d.ContainsKey("CustomFields:999:Field #999"))),
-            Times.Once);
+        // With validation, an unknown ID now throws CustomFieldUnknown
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(() =>
+            _service.CreateAsync(new CreateQuoteRequest
+            {
+                CustomerId = _customerId, Subject = "Unknown CF",
+                CustomFields = new List<CustomFieldEntry>
+                {
+                    new() { Id = 9999, Label = "Inexistant", Value = "test" }
+                }
+            }));
+        Assert.Equal(ApiError.CustomFieldUnknown, ex.Code);
     }
 
     [Fact]
@@ -494,7 +494,7 @@ public class QuoteServiceTests : IDisposable
         var cfd2 = new CustomFieldDefinition
         {
             TenantId = _tenantId, Label = "Surface", FieldType = FieldType.Number,
-            ObligationLevel = ObligationLevel.Never, AppliesToSites = true, CreatedAt = DateTime.UtcNow
+            ObligationLevel = ObligationLevel.Never, AppliesToQuotes = true, CreatedAt = DateTime.UtcNow
         };
         _db.CustomFieldDefinitions.AddRange(cfd1, cfd2);
         await _db.SaveChangesAsync();
@@ -502,14 +502,22 @@ public class QuoteServiceTests : IDisposable
         var created = await _service.CreateAsync(new CreateQuoteRequest
         {
             CustomerId = _customerId, Subject = "Dual Surface",
-            CustomFields = $"{{\"{cfd1.Id}\": 50, \"{cfd2.Id}\": 75}}"
+            CustomFields = new List<CustomFieldEntry>
+            {
+                new() { Id = cfd1.Id, Label = "Surface", Value = 50 },
+                new() { Id = cfd2.Id, Label = "Surface", Value = 75 }
+            }
         });
         _auditServiceMock.Reset();
 
         await _service.UpdateAsync(created.Id, new UpdateQuoteRequest
         {
             Subject = "Dual Surface",
-            CustomFields = $"{{\"{cfd1.Id}\": 60, \"{cfd2.Id}\": 80}}"
+            CustomFields = new List<CustomFieldEntry>
+            {
+                new() { Id = cfd1.Id, Label = "Surface", Value = 60 },
+                new() { Id = cfd2.Id, Label = "Surface", Value = 80 }
+            }
         });
 
         _auditServiceMock.Verify(a => a.LogEventAsync(
@@ -534,20 +542,502 @@ public class QuoteServiceTests : IDisposable
         var created = await _service.CreateAsync(new CreateQuoteRequest
         {
             CustomerId = _customerId, Subject = "Null CF"
-            // CustomFields is null
         });
         _auditServiceMock.Reset();
 
         await _service.UpdateAsync(created.Id, new UpdateQuoteRequest
         {
             Subject = "Null CF",
-            CustomFields = $"{{\"{cfd.Id}\": \"hello\"}}"
+            CustomFields = new List<CustomFieldEntry>
+            {
+                new() { Id = cfd.Id, Label = "Notes CF", Value = "hello" }
+            }
         });
 
         _auditServiceMock.Verify(a => a.LogEventAsync(
             "Quote", created.Id, AuditAction.Updated,
             It.Is<Dictionary<string, object?>>(d =>
                 d.ContainsKey($"CustomFields:{cfd.Id}:Notes CF"))),
+            Times.Once);
+    }
+
+    // --- CreateAsync / UpdateAsync: CustomFields validation ---
+
+    [Fact]
+    public async Task CreateAsync_CustomFieldRequiredAtCreation_Missing_ThrowsError()
+    {
+        var cfd = new CustomFieldDefinition
+        {
+            TenantId = _tenantId, Label = "Champ obligatoire", FieldType = FieldType.Text,
+            ObligationLevel = ObligationLevel.RequiredAtCreation, AppliesToQuotes = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.CustomFieldDefinitions.Add(cfd);
+        await _db.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(() =>
+            _service.CreateAsync(new CreateQuoteRequest
+            {
+                CustomerId = _customerId, Subject = "Test"
+                // CustomFields is null — required field missing
+            }));
+        Assert.Equal(ApiError.CustomFieldRequired, ex.Code);
+    }
+
+    [Fact]
+    public async Task CreateAsync_CustomFieldRequiredAtCreation_EmptyValue_ThrowsError()
+    {
+        var cfd = new CustomFieldDefinition
+        {
+            TenantId = _tenantId, Label = "Champ obligatoire", FieldType = FieldType.Text,
+            ObligationLevel = ObligationLevel.RequiredAtCreation, AppliesToQuotes = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.CustomFieldDefinitions.Add(cfd);
+        await _db.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(() =>
+            _service.CreateAsync(new CreateQuoteRequest
+            {
+                CustomerId = _customerId, Subject = "Test",
+                CustomFields = new List<CustomFieldEntry>
+                {
+                    new() { Id = cfd.Id, Label = "Champ obligatoire", Value = "" }
+                }
+            }));
+        Assert.Equal(ApiError.CustomFieldRequired, ex.Code);
+    }
+
+    [Fact]
+    public async Task CreateAsync_CustomFieldRequiredAtCreation_Present_Succeeds()
+    {
+        var cfd = new CustomFieldDefinition
+        {
+            TenantId = _tenantId, Label = "Champ obligatoire", FieldType = FieldType.Text,
+            ObligationLevel = ObligationLevel.RequiredAtCreation, AppliesToQuotes = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.CustomFieldDefinitions.Add(cfd);
+        await _db.SaveChangesAsync();
+
+        var result = await _service.CreateAsync(new CreateQuoteRequest
+        {
+            CustomerId = _customerId, Subject = "Test",
+            CustomFields = new List<CustomFieldEntry>
+            {
+                new() { Id = cfd.Id, Label = "Champ obligatoire", Value = "Valeur renseignée" }
+            }
+        });
+
+        Assert.NotEqual(0, result.Id);
+    }
+
+    [Fact]
+    public async Task CreateAsync_CustomFieldUnknownId_ThrowsError()
+    {
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(() =>
+            _service.CreateAsync(new CreateQuoteRequest
+            {
+                CustomerId = _customerId, Subject = "Test",
+                CustomFields = new List<CustomFieldEntry>
+                {
+                    new() { Id = 9999, Label = "Inexistant", Value = "test" }
+                }
+            }));
+        Assert.Equal(ApiError.CustomFieldUnknown, ex.Code);
+    }
+
+    [Fact]
+    public async Task CreateAsync_CustomFieldNotApplicableToQuotes_ThrowsError()
+    {
+        var cfd = new CustomFieldDefinition
+        {
+            TenantId = _tenantId, Label = "Champ sites", FieldType = FieldType.Text,
+            ObligationLevel = ObligationLevel.Never, AppliesToQuotes = false, AppliesToSites = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.CustomFieldDefinitions.Add(cfd);
+        await _db.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(() =>
+            _service.CreateAsync(new CreateQuoteRequest
+            {
+                CustomerId = _customerId, Subject = "Test",
+                CustomFields = new List<CustomFieldEntry>
+                {
+                    new() { Id = cfd.Id, Label = "Champ sites", Value = "test" }
+                }
+            }));
+        Assert.Equal(ApiError.CustomFieldUnknown, ex.Code);
+    }
+
+    [Fact]
+    public async Task CreateAsync_CustomFieldNumberType_StringValue_ThrowsError()
+    {
+        var cfd = new CustomFieldDefinition
+        {
+            TenantId = _tenantId, Label = "Surface", FieldType = FieldType.Number,
+            ObligationLevel = ObligationLevel.Never, AppliesToQuotes = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.CustomFieldDefinitions.Add(cfd);
+        await _db.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(() =>
+            _service.CreateAsync(new CreateQuoteRequest
+            {
+                CustomerId = _customerId, Subject = "Test",
+                CustomFields = new List<CustomFieldEntry>
+                {
+                    new() { Id = cfd.Id, Label = "Surface", Value = "abc" }
+                }
+            }));
+        Assert.Equal(ApiError.CustomFieldInvalidValue, ex.Code);
+    }
+
+    [Fact]
+    public async Task CreateAsync_CustomFieldNumberType_ValidNumber_Succeeds()
+    {
+        var cfd = new CustomFieldDefinition
+        {
+            TenantId = _tenantId, Label = "Surface", FieldType = FieldType.Number,
+            ObligationLevel = ObligationLevel.Never, AppliesToQuotes = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.CustomFieldDefinitions.Add(cfd);
+        await _db.SaveChangesAsync();
+
+        var result = await _service.CreateAsync(new CreateQuoteRequest
+        {
+            CustomerId = _customerId, Subject = "Test",
+            CustomFields = new List<CustomFieldEntry>
+            {
+                new() { Id = cfd.Id, Label = "Surface", Value = 42 }
+            }
+        });
+
+        Assert.NotEqual(0, result.Id);
+    }
+
+    [Fact]
+    public async Task CreateAsync_CustomFieldSingleChoice_InvalidOption_ThrowsError()
+    {
+        var cfd = new CustomFieldDefinition
+        {
+            TenantId = _tenantId, Label = "Type", FieldType = FieldType.SingleChoice,
+            Options = "{\"choices\":[\"A\",\"B\",\"C\"]}", ObligationLevel = ObligationLevel.Never,
+            AppliesToQuotes = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.CustomFieldDefinitions.Add(cfd);
+        await _db.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(() =>
+            _service.CreateAsync(new CreateQuoteRequest
+            {
+                CustomerId = _customerId, Subject = "Test",
+                CustomFields = new List<CustomFieldEntry>
+                {
+                    new() { Id = cfd.Id, Label = "Type", Value = "D" }
+                }
+            }));
+        Assert.Equal(ApiError.CustomFieldInvalidValue, ex.Code);
+    }
+
+    [Fact]
+    public async Task CreateAsync_CustomFieldSingleChoice_ValidOption_Succeeds()
+    {
+        var cfd = new CustomFieldDefinition
+        {
+            TenantId = _tenantId, Label = "Type", FieldType = FieldType.SingleChoice,
+            Options = "{\"choices\":[\"A\",\"B\",\"C\"]}", ObligationLevel = ObligationLevel.Never,
+            AppliesToQuotes = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.CustomFieldDefinitions.Add(cfd);
+        await _db.SaveChangesAsync();
+
+        var result = await _service.CreateAsync(new CreateQuoteRequest
+        {
+            CustomerId = _customerId, Subject = "Test",
+            CustomFields = new List<CustomFieldEntry>
+            {
+                new() { Id = cfd.Id, Label = "Type", Value = "B" }
+            }
+        });
+
+        Assert.NotEqual(0, result.Id);
+    }
+
+    [Fact]
+    public async Task CreateAsync_CustomFieldMultipleChoice_InvalidOption_ThrowsError()
+    {
+        var cfd = new CustomFieldDefinition
+        {
+            TenantId = _tenantId, Label = "Prestations", FieldType = FieldType.MultipleChoice,
+            Options = "{\"choices\":[\"X\",\"Y\",\"Z\"]}", ObligationLevel = ObligationLevel.Never,
+            AppliesToQuotes = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.CustomFieldDefinitions.Add(cfd);
+        await _db.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(() =>
+            _service.CreateAsync(new CreateQuoteRequest
+            {
+                CustomerId = _customerId, Subject = "Test",
+                CustomFields = new List<CustomFieldEntry>
+                {
+                    new() { Id = cfd.Id, Label = "Prestations", Value = "[\"X\",\"W\"]" }
+                }
+            }));
+        Assert.Equal(ApiError.CustomFieldInvalidValue, ex.Code);
+    }
+
+    [Fact]
+    public async Task CreateAsync_CustomFieldMultipleChoice_AllValid_Succeeds()
+    {
+        var cfd = new CustomFieldDefinition
+        {
+            TenantId = _tenantId, Label = "Prestations", FieldType = FieldType.MultipleChoice,
+            Options = "{\"choices\":[\"X\",\"Y\",\"Z\"]}", ObligationLevel = ObligationLevel.Never,
+            AppliesToQuotes = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.CustomFieldDefinitions.Add(cfd);
+        await _db.SaveChangesAsync();
+
+        var result = await _service.CreateAsync(new CreateQuoteRequest
+        {
+            CustomerId = _customerId, Subject = "Test",
+            CustomFields = new List<CustomFieldEntry>
+            {
+                new() { Id = cfd.Id, Label = "Prestations", Value = "[\"X\",\"Z\"]" }
+            }
+        });
+
+        Assert.NotEqual(0, result.Id);
+    }
+
+    [Fact]
+    public async Task CreateAsync_CustomFieldDate_InvalidFormat_ThrowsError()
+    {
+        var cfd = new CustomFieldDefinition
+        {
+            TenantId = _tenantId, Label = "Date début", FieldType = FieldType.Date,
+            ObligationLevel = ObligationLevel.Never, AppliesToQuotes = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.CustomFieldDefinitions.Add(cfd);
+        await _db.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(() =>
+            _service.CreateAsync(new CreateQuoteRequest
+            {
+                CustomerId = _customerId, Subject = "Test",
+                CustomFields = new List<CustomFieldEntry>
+                {
+                    new() { Id = cfd.Id, Label = "Date début", Value = "pas-une-date" }
+                }
+            }));
+        Assert.Equal(ApiError.CustomFieldInvalidValue, ex.Code);
+    }
+
+    [Fact]
+    public async Task CreateAsync_CustomFieldDate_ValidFormat_Succeeds()
+    {
+        var cfd = new CustomFieldDefinition
+        {
+            TenantId = _tenantId, Label = "Date début", FieldType = FieldType.Date,
+            ObligationLevel = ObligationLevel.Never, AppliesToQuotes = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.CustomFieldDefinitions.Add(cfd);
+        await _db.SaveChangesAsync();
+
+        var result = await _service.CreateAsync(new CreateQuoteRequest
+        {
+            CustomerId = _customerId, Subject = "Test",
+            CustomFields = new List<CustomFieldEntry>
+            {
+                new() { Id = cfd.Id, Label = "Date début", Value = "2026-04-15" }
+            }
+        });
+
+        Assert.NotEqual(0, result.Id);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_CustomFieldRequired_AlsoEnforced()
+    {
+        var cfd = new CustomFieldDefinition
+        {
+            TenantId = _tenantId, Label = "Obligatoire création", FieldType = FieldType.Text,
+            ObligationLevel = ObligationLevel.RequiredAtCreation, AppliesToQuotes = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.CustomFieldDefinitions.Add(cfd);
+        await _db.SaveChangesAsync();
+
+        var created = await _service.CreateAsync(new CreateQuoteRequest
+        {
+            CustomerId = _customerId, Subject = "Test",
+            CustomFields = new List<CustomFieldEntry>
+            {
+                new() { Id = cfd.Id, Label = "Obligatoire création", Value = "Rempli" }
+            }
+        });
+
+        // Update without the required field — should also throw (RequiredAtCreation enforced always)
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(() =>
+            _service.UpdateAsync(created.Id, new UpdateQuoteRequest
+            {
+                Subject = "Test modifié"
+            }));
+        Assert.Equal(ApiError.CustomFieldRequired, ex.Code);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_CustomFieldInvalidType_StillThrows()
+    {
+        var cfd = new CustomFieldDefinition
+        {
+            TenantId = _tenantId, Label = "Surface", FieldType = FieldType.Number,
+            ObligationLevel = ObligationLevel.Never, AppliesToQuotes = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.CustomFieldDefinitions.Add(cfd);
+        await _db.SaveChangesAsync();
+
+        var created = await _service.CreateAsync(new CreateQuoteRequest
+        {
+            CustomerId = _customerId, Subject = "Test",
+            CustomFields = new List<CustomFieldEntry>
+            {
+                new() { Id = cfd.Id, Label = "Surface", Value = 50 }
+            }
+        });
+
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(() =>
+            _service.UpdateAsync(created.Id, new UpdateQuoteRequest
+            {
+                Subject = "Test",
+                CustomFields = new List<CustomFieldEntry>
+                {
+                    new() { Id = cfd.Id, Label = "Surface", Value = "abc" }
+                }
+            }));
+        Assert.Equal(ApiError.CustomFieldInvalidValue, ex.Code);
+    }
+
+    [Fact]
+    public async Task CreateAsync_CustomFieldEnrichedLabel_UsesDefinitionLabel()
+    {
+        var cfd = new CustomFieldDefinition
+        {
+            TenantId = _tenantId, Label = "Surface totale", FieldType = FieldType.Number,
+            ObligationLevel = ObligationLevel.Never, AppliesToQuotes = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.CustomFieldDefinitions.Add(cfd);
+        await _db.SaveChangesAsync();
+
+        var result = await _service.CreateAsync(new CreateQuoteRequest
+        {
+            CustomerId = _customerId, Subject = "Test",
+            CustomFields = new List<CustomFieldEntry>
+            {
+                new() { Id = cfd.Id, Label = "nimportequoi", Value = 50 }
+            }
+        });
+
+        // The stored data should use the definition label, not the one sent by the client
+        var quote = await _db.Quotes.FirstAsync(q => q.Id == result.Id);
+        Assert.Contains("Surface totale", quote.CustomFields!);
+        Assert.DoesNotContain("nimportequoi", quote.CustomFields!);
+    }
+
+    // --- Retrocompatibility: old format custom fields ---
+
+    [Fact]
+    public async Task GetByIdAsync_OldFormatCustomFields_ReturnsEnrichedFormat()
+    {
+        var cfd = new CustomFieldDefinition
+        {
+            TenantId = _tenantId, Label = "Type de travaux", FieldType = FieldType.Text,
+            ObligationLevel = ObligationLevel.Never, AppliesToQuotes = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.CustomFieldDefinitions.Add(cfd);
+        await _db.SaveChangesAsync();
+
+        // Insert a quote with old format directly in DB
+        var quote = new Quote
+        {
+            TenantId = _tenantId, CustomerId = _customerId, CreatedBy = _userId,
+            Reference = "DEV-2026-OLD", Subject = "Old format",
+            Status = QuoteStatus.Draft, Priority = QuotePriority.Normal,
+            CustomFields = $"{{\"{cfd.Id}\": \"Renovation\"}}",
+            CreatedAt = DateTime.UtcNow
+        };
+        _db.Quotes.Add(quote);
+        await _db.SaveChangesAsync();
+
+        var result = await _service.GetByIdAsync(quote.Id);
+
+        Assert.NotNull(result);
+        Assert.NotNull(result.CustomFields);
+        Assert.Single(result.CustomFields);
+        Assert.Equal(cfd.Id, result.CustomFields[0].Id);
+        Assert.Equal("Type de travaux", result.CustomFields[0].Label);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_OldFormatCustomFields_MissingDefinition_FallbackLabel()
+    {
+        // Insert a quote with old format pointing to a non-existent definition
+        var quote = new Quote
+        {
+            TenantId = _tenantId, CustomerId = _customerId, CreatedBy = _userId,
+            Reference = "DEV-2026-OLD2", Subject = "Missing def",
+            Status = QuoteStatus.Draft, Priority = QuotePriority.Normal,
+            CustomFields = "{\"999\": \"old value\"}",
+            CreatedAt = DateTime.UtcNow
+        };
+        _db.Quotes.Add(quote);
+        await _db.SaveChangesAsync();
+
+        var result = await _service.GetByIdAsync(quote.Id);
+
+        Assert.NotNull(result);
+        Assert.NotNull(result.CustomFields);
+        Assert.Single(result.CustomFields);
+        Assert.Equal(999, result.CustomFields[0].Id);
+        Assert.Equal("Field #999", result.CustomFields[0].Label);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_OldFormatInDb_DiffStillWorks()
+    {
+        var cfd = new CustomFieldDefinition
+        {
+            TenantId = _tenantId, Label = "Type de travaux", FieldType = FieldType.Text,
+            ObligationLevel = ObligationLevel.Never, AppliesToQuotes = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.CustomFieldDefinitions.Add(cfd);
+        await _db.SaveChangesAsync();
+
+        // Insert a quote with old format directly in DB
+        var quote = new Quote
+        {
+            TenantId = _tenantId, CustomerId = _customerId, CreatedBy = _userId,
+            Reference = "DEV-2026-OLD3", Subject = "Old to new",
+            Status = QuoteStatus.Draft, Priority = QuotePriority.Normal,
+            CustomFields = $"{{\"{cfd.Id}\": \"Renovation\"}}",
+            CreatedAt = DateTime.UtcNow
+        };
+        _db.Quotes.Add(quote);
+        await _db.SaveChangesAsync();
+        _auditServiceMock.Reset();
+
+        // Update with new format
+        await _service.UpdateAsync(quote.Id, new UpdateQuoteRequest
+        {
+            Subject = "Old to new",
+            CustomFields = new List<CustomFieldEntry>
+            {
+                new() { Id = cfd.Id, Label = "Type de travaux", Value = "Neuf" }
+            }
+        });
+
+        _auditServiceMock.Verify(a => a.LogEventAsync(
+            "Quote", quote.Id, AuditAction.Updated,
+            It.Is<Dictionary<string, object?>>(d =>
+                d.ContainsKey($"CustomFields:{cfd.Id}:Type de travaux"))),
             Times.Once);
     }
 
