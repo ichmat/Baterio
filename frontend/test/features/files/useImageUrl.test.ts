@@ -41,6 +41,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.restoreAllMocks()
 })
 
@@ -65,23 +66,27 @@ describe('useImageUrl', () => {
     })
   })
 
-  it('demontage du dernier ref → revokeObjectURL appele', async () => {
+  it('demontage du dernier ref → revokeObjectURL appele apres expiration du cache (5 min)', async () => {
+    vi.useFakeTimers()
+
     const { result, unmount } = renderHook(() => useImageUrl(10))
 
     expect(downloadCalls).toBe(1)
 
-    // Resolve download
+    // Resolve download — advanceTimersByTimeAsync flush aussi les microtasks
     await act(async () => {
       resolvers[0](new Blob(['data'], { type: 'image/jpeg' }))
-      await new Promise(r => setTimeout(r, 0))
+      await vi.advanceTimersByTimeAsync(10)
     })
 
-    await waitFor(() => {
-      expect(result.current).toBe('blob:test-1')
-    })
+    expect(result.current).toBe('blob:test-1')
 
-    // Unmount — last ref, should revoke
+    // Unmount — last ref, eviction programmee mais pas immediate
     unmount()
+    expect(revokedUrls).not.toContain('blob:test-1')
+
+    // Avancer de 5 minutes → eviction effective
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000)
 
     expect(revokedUrls).toContain('blob:test-1')
   })
