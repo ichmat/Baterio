@@ -76,7 +76,7 @@ export function DevisDetailPage({ quoteId: propQuoteId, showBackButton = true }:
   const tva = totalTTC - totalHT
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6 p-4">
       {/* Header */}
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3">
