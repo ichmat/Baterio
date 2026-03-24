@@ -43,7 +43,7 @@ export function InlineImagePreview({ attachmentId, filename, contentType, size }
           {imageUrl ? (
             <img src={imageUrl} alt={filename} className="max-w-[200px] max-h-[150px] object-cover" />
           ) : (
-            <Skeleton className="h-[100px] w-[150px]" />
+            <></>
           )}
         </button>
         <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">

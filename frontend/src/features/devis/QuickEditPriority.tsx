@@ -41,7 +41,7 @@ export function QuickEditPriority({ quote, onUpdate }: QuickEditPriorityProps) {
       <PopoverTrigger asChild>
         <button
           type="button"
-          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity ${cfg.color}`}
+          className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium cursor-pointer hover:opacity-80 transition-opacity ${cfg.color}`}
           aria-label="Modifier la priorité"
         >
           {cfg.label}

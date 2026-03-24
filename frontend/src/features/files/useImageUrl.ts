@@ -6,6 +6,8 @@ type CacheEntry =
   | { status: 'ready'; url: string; refCount: number }
 
 const imageCache = new Map<number, CacheEntry>()
+const evictionTimers = new Map<number, ReturnType<typeof setTimeout>>()
+const CACHE_TTL_MS = 60_000 * 5 // garder les entrees ready 5 min apres le dernier unmount
 
 // --- Reactive notification for invalidations ---
 let cacheVersion = 0
@@ -46,6 +48,7 @@ export function useImageUrl(attachmentId: number | null) {
 
     if (existing?.status === 'ready') {
       existing.refCount++
+      cancelEviction(attachmentId)
       setUrl(existing.url)
       return () => release(attachmentId)
     }
@@ -64,9 +67,15 @@ export function useImageUrl(attachmentId: number | null) {
       const blobUrl = URL.createObjectURL(blob)
       const entry = imageCache.get(attachmentId)
       if (entry && entry.status === 'pending') {
-        imageCache.set(attachmentId, {
-          status: 'ready', url: blobUrl, refCount: entry.refCount,
-        })
+        if (entry.refCount > 0) {
+          imageCache.set(attachmentId, {
+            status: 'ready', url: blobUrl, refCount: entry.refCount,
+          })
+        } else {
+          // Plus personne n'ecoute — nettoyer
+          URL.revokeObjectURL(blobUrl)
+          imageCache.delete(attachmentId)
+        }
       }
       return blobUrl
     })
@@ -91,15 +100,36 @@ function release(attachmentId: number) {
   const entry = imageCache.get(attachmentId)
   if (!entry) return
   entry.refCount--
-  if (entry.refCount <= 0) {
-    if (entry.status === 'ready') URL.revokeObjectURL(entry.url)
-    imageCache.delete(attachmentId)
+  if (entry.refCount <= 0 && entry.status === 'ready') {
+    scheduleEviction(attachmentId)
+  }
+  // Les entrees pending restent — la resolution de la promesse nettoiera si refCount <= 0
+}
+
+function scheduleEviction(attachmentId: number) {
+  cancelEviction(attachmentId)
+  evictionTimers.set(attachmentId, setTimeout(() => {
+    evictionTimers.delete(attachmentId)
+    const entry = imageCache.get(attachmentId)
+    if (entry && entry.status === 'ready' && entry.refCount <= 0) {
+      URL.revokeObjectURL(entry.url)
+      imageCache.delete(attachmentId)
+    }
+  }, CACHE_TTL_MS))
+}
+
+function cancelEviction(attachmentId: number) {
+  const timer = evictionTimers.get(attachmentId)
+  if (timer) {
+    clearTimeout(timer)
+    evictionTimers.delete(attachmentId)
   }
 }
 
 /** Invalide le cache pour un attachement supprime.
  *  Revoque l'URL et notifie les consommateurs actifs via useSyncExternalStore. */
 export function invalidateImageCache(attachmentId: number) {
+  cancelEviction(attachmentId)
   const entry = imageCache.get(attachmentId)
   if (entry) {
     if (entry.status === 'ready') URL.revokeObjectURL(entry.url)

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { ArrowLeft, Edit2, Users, ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -69,20 +69,20 @@ export function DevisDetailPage() {
   const tva = totalTTC - totalHT
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/devis')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
+          <div className='shrink-0'>
             <h1 className="text-2xl font-bold">{quote.reference}</h1>
             <p className="text-muted-foreground">{quote.subject}</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-row flex-wrap items-center gap-2">
           <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ${statusCfg.color}`}>
             <StatusIcon className="h-3.5 w-3.5" />
             {statusCfg.label}
@@ -94,7 +94,7 @@ export function DevisDetailPage() {
               Galerie médias
             </Button>
           )}
-          <Button variant="outline" onClick={() => setIsEditing(true)}>
+          <Button size="sm" className='bg-yellow-500' onClick={() => setIsEditing(true)}>
             <Edit2 className="mr-2 h-4 w-4" />
             Modifier
           </Button>
