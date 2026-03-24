@@ -5,6 +5,7 @@ import { InlineImagePreview } from './InlineImagePreview'
 export type PayloadRenderer = (
   payload: Record<string, unknown>,
   action: string,
+  compact: boolean
 ) => ReactNode | null
 
 const fieldLabelsRegistry: Record<string, Record<string, string>> = {
@@ -188,11 +189,11 @@ function renderDiffFull(
   if (entries.length === 0) return null
 
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-1 text-xs">
+    <div className="mt-2 flex flex-wrap flex-col gap-1 text-xs">
       {entries.map(([key, val]) => {
         const diff = val as { Old: unknown; New: unknown }
         return (
-          <span key={key} className="inline-flex items-center gap-1">
+          <span key={key} className="flex flex-row flex-wrap items-center gap-1">
             <span className="text-muted-foreground text-nowrap">{getFieldLabel(entityType, key)} :</span>
             <Badge variant="outline" className="line-through text-muted-foreground">
               {String(diff.Old)}
@@ -329,12 +330,12 @@ const PRIORITY_LABELS: Record<string, string> = {
   High: 'Haute',
 }
 
-entityRenderers['Quote'] = (payload, action) => {
+entityRenderers['Quote'] = (payload, action, compact) => {
   if (action === 'StatusChanged') {
     const old = STATUS_LABELS[String(payload.Old)] ?? String(payload.Old)
     const nw = STATUS_LABELS[String(payload.New)] ?? String(payload.New)
     return (
-      <div className="mt-2 flex items-center gap-1 text-xs">
+      <div className={`flex items-center gap-1 text-xs ${compact ? '' : 'mt-2 '}`}>
         <span className="text-muted-foreground">statut :</span>
         <Badge variant="outline" className="line-through text-muted-foreground">
           {old}

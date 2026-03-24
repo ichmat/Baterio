@@ -34,9 +34,9 @@ export function TimelineCompact({ entityType, entityId, onViewDetails }: Timelin
             {events.map((event) => {
               const { label, icon: Icon } = formatAuditAction(event.action)
               return (
-                <div key={event.id} className="flex items-start gap-2 text-sm">
+                <div key={event.id} className="flex items-start gap-2 text-sm flex-row">
                   <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span>
+                  <span className='flex flex-row flex-wrap items-baseline gap-1'>
                     {label} par {event.userFullName}
                     <AuditPayloadDisplay
                       payload={event.payload}

@@ -31,7 +31,7 @@ export function AuditPayloadDisplay({
   // Check entity-specific renderer first
   const specificRenderer = entityRenderers[entityType]
   if (specificRenderer) {
-    const result = specificRenderer(parsed, action)
+    const result = specificRenderer(parsed, action, compact)
     if (result !== null) return <>{result}</>
   }
 
