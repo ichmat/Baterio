@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Paperclip } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Skeleton } from '@/components/ui/skeleton'
 import { useImageUrl } from '@/features/files/useImageUrl'
 import { formatFileSize } from '@/lib/format-file-size'
 
