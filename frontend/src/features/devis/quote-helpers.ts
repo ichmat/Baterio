@@ -15,6 +15,7 @@ export function buildUpdateRequest(
     reminderDate: quote.reminderDate ?? undefined,
     customFields: quote.customFields ?? undefined,
     lines: quote.lines.map((l) => ({
+      id: l.id,
       description: l.description,
       quantity: l.quantity,
       unitPriceExclTax: l.unitPriceExclTax,

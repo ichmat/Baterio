@@ -1,4 +1,5 @@
 export interface QuoteLineRequest {
+  id?: number
   description: string
   quantity: number
   unitPriceExclTax: number

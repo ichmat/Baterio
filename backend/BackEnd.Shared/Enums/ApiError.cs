@@ -322,5 +322,19 @@ public enum ApiError
     /// Type d'entité non supporté pour les commentaires
     /// </summary>
     [ApiErrorInfo(400, "Type d'entité non supporté pour les commentaires")]
-    CommentEntityTypeNotSupported
+    CommentEntityTypeNotSupported,
+
+    // Quote Lines
+
+    /// <summary>
+    /// Ligne de devis introuvable
+    /// </summary>
+    [ApiErrorInfo(400, "Ligne de devis introuvable")]
+    QuoteLineNotFound,
+
+    /// <summary>
+    /// Identifiant de ligne de devis en double
+    /// </summary>
+    [ApiErrorInfo(400, "Identifiant de ligne de devis en double")]
+    QuoteLineDuplicateId
 }

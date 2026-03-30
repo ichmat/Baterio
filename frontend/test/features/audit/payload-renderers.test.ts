@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getFieldLabel, renderPayloadCompact } from '@/features/audit/payload-renderers'
+import { getFieldLabel, renderPayloadCompact, renderQuoteLinesDiff } from '@/features/audit/payload-renderers'
 
 describe('getFieldLabel', () => {
   it('retourne le label traduit pour un champ Customer connu', () => {
@@ -141,5 +141,48 @@ describe('renderPayloadCompact', () => {
     }
     const result = renderPayloadCompact(payload, 'Updated', 'Quote')
     expect(result).toBe('Type')
+  })
+})
+
+describe('renderQuoteLinesDiff — compact', () => {
+  it('resume le nombre de lignes modifiées, ajoutées, supprimées', () => {
+    const payload = {
+      'Lines:Modified:1:Quantity': { Old: 10, New: 15, LineDescription: 'L1' },
+      'Lines:Modified:1:UnitPriceExclTax': { Old: 50, New: 60, LineDescription: 'L1' },
+      'Lines:Modified:2:Quantity': { Old: 5, New: 8, LineDescription: 'L2' },
+      'Lines:Added:99': { Description: 'New', Quantity: 1, UnitPriceExclTax: 100 },
+      'Lines:Removed:3': { Description: 'Old', Quantity: 2, UnitPriceExclTax: 50 },
+      'Lines:Removed:4': { Description: 'Old2', Quantity: 3, UnitPriceExclTax: 30 },
+    }
+    const result = renderQuoteLinesDiff(payload, true) as string
+    expect(result).toContain('2 lignes modifiées')
+    expect(result).toContain('1 ligne ajoutée')
+    expect(result).toContain('2 lignes supprimées')
+  })
+
+  it('utilise le singulier pour 1 ligne modifiée', () => {
+    const payload = {
+      'Lines:Modified:5:Quantity': { Old: 1, New: 2, LineDescription: 'L' },
+    }
+    const result = renderQuoteLinesDiff(payload, true) as string
+    expect(result).toBe('1 ligne modifiée')
+  })
+
+  it('retourne null si aucune entrée Lines:*', () => {
+    const payload = { Subject: { Old: 'A', New: 'B' } }
+    const result = renderQuoteLinesDiff(payload, true)
+    expect(result).toBeNull()
+  })
+})
+
+describe('renderPayloadCompact — mix diffs standard + lines', () => {
+  it('combine les diffs standard et le résumé lignes', () => {
+    const payload = {
+      Subject: { Old: 'Ancien', New: 'Nouveau' },
+      'Lines:Added:10': { Description: 'New', Quantity: 1, UnitPriceExclTax: 100 },
+    }
+    const result = renderPayloadCompact(payload, 'Updated', 'Quote')
+    expect(result).toContain('objet')
+    expect(result).toContain('1 ligne ajoutée')
   })
 })

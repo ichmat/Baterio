@@ -43,6 +43,7 @@ export function EditDevisForm({ quote, onSuccess }: EditDevisFormProps) {
       reminderDate: quote.reminderDate ?? '',
       notes: quote.notes ?? '',
       lines: quote.lines.map((l) => ({
+        id: l.id,
         description: l.description,
         quantity: l.quantity,
         unitPriceExclTax: l.unitPriceExclTax,
@@ -63,6 +64,7 @@ export function EditDevisForm({ quote, onSuccess }: EditDevisFormProps) {
       reminderDate: data.reminderDate || null as any,
       notes: data.notes?.trim() || null as any,
       lines: data.lines?.map((line, i) => ({
+        id: line.id,
         description: line.description.trim(),
         quantity: line.quantity,
         unitPriceExclTax: line.unitPriceExclTax,

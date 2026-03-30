@@ -282,7 +282,7 @@ public class QuoteServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task UpdateAsync_ReplacesLinesAndRecalculatesTotals()
+    public async Task UpdateAsync_NewLinesWithoutId_DeletesOldAndCreatesNewAndRecalculatesTotals()
     {
         var created = await _service.CreateAsync(new CreateQuoteRequest
         {
@@ -1570,6 +1570,309 @@ public class QuoteServiceTests : IDisposable
         // Should only return current tenant's quotes, not the other tenant's
         Assert.All(results, r => Assert.DoesNotContain("other", r.Subject, StringComparison.OrdinalIgnoreCase));
         Assert.Equal(2, results.Count);
+    }
+
+    // --- UpdateAsync: Lines by Id (add/update/delete) ---
+
+    private async Task<QuoteResponse> CreateQuoteWithLinesAsync(params (string desc, decimal qty, decimal price)[] lines)
+    {
+        return await _service.CreateAsync(new CreateQuoteRequest
+        {
+            CustomerId = _customerId,
+            Subject = "Test lignes",
+            TaxRate = 20m,
+            Lines = lines.Select((l, i) => new QuoteLineRequest
+            {
+                Description = l.desc, Quantity = l.qty, UnitPriceExclTax = l.price, DisplayOrder = i
+            }).ToList()
+        });
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WithLineId_UpdatesExistingLine()
+    {
+        var created = await CreateQuoteWithLinesAsync(("Pose carrelage", 10, 50m));
+        var lineId = created.Lines[0].Id;
+        _auditServiceMock.Reset();
+
+        var result = await _service.UpdateAsync(created.Id, new UpdateQuoteRequest
+        {
+            Subject = "Test lignes",
+            TaxRate = 20m,
+            Lines = [new QuoteLineRequest { Id = lineId, Description = "Pose carrelage", Quantity = 15, UnitPriceExclTax = 50m, DisplayOrder = 0 }]
+        });
+
+        Assert.Single(result.Lines);
+        Assert.Equal(lineId, result.Lines[0].Id); // Same Id, not recreated
+        Assert.Equal(15, result.Lines[0].Quantity);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_WithoutLineId_CreatesNewLine()
+    {
+        var created = await CreateQuoteWithLinesAsync(("Existing", 1, 100m));
+        var existingLineId = created.Lines[0].Id;
+        _auditServiceMock.Reset();
+
+        var result = await _service.UpdateAsync(created.Id, new UpdateQuoteRequest
+        {
+            Subject = "Test lignes",
+            TaxRate = 20m,
+            Lines =
+            [
+                new QuoteLineRequest { Id = existingLineId, Description = "Existing", Quantity = 1, UnitPriceExclTax = 100m, DisplayOrder = 0 },
+                new QuoteLineRequest { Description = "New line", Quantity = 2, UnitPriceExclTax = 75m, DisplayOrder = 1 }
+            ]
+        });
+
+        Assert.Equal(2, result.Lines.Count);
+        Assert.Equal(existingLineId, result.Lines[0].Id);
+        Assert.NotEqual(existingLineId, result.Lines[1].Id); // New Id
+        Assert.Equal("New line", result.Lines[1].Description);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_MissingLineId_DeletesLine()
+    {
+        var created = await CreateQuoteWithLinesAsync(("Line A", 1, 100m), ("Line B", 2, 50m));
+        var lineAId = created.Lines[0].Id;
+        _auditServiceMock.Reset();
+
+        var result = await _service.UpdateAsync(created.Id, new UpdateQuoteRequest
+        {
+            Subject = "Test lignes",
+            TaxRate = 20m,
+            Lines = [new QuoteLineRequest { Id = lineAId, Description = "Line A", Quantity = 1, UnitPriceExclTax = 100m, DisplayOrder = 0 }]
+        });
+
+        Assert.Single(result.Lines);
+        Assert.Equal(lineAId, result.Lines[0].Id);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_NullLines_DeletesAllLines()
+    {
+        var created = await CreateQuoteWithLinesAsync(("Line", 1, 100m));
+        _auditServiceMock.Reset();
+
+        var result = await _service.UpdateAsync(created.Id, new UpdateQuoteRequest
+        {
+            Subject = "Test lignes",
+            TaxRate = 20m,
+            Lines = null
+        });
+
+        Assert.Empty(result.Lines);
+        Assert.Null(result.AmountExclTax);
+        Assert.Null(result.AmountInclTax);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_EmptyLines_DeletesAllLines()
+    {
+        var created = await CreateQuoteWithLinesAsync(("Line", 1, 100m));
+        _auditServiceMock.Reset();
+
+        var result = await _service.UpdateAsync(created.Id, new UpdateQuoteRequest
+        {
+            Subject = "Test lignes",
+            TaxRate = 20m,
+            Lines = []
+        });
+
+        Assert.Empty(result.Lines);
+        Assert.Null(result.AmountExclTax);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_InvalidLineId_ThrowsQuoteLineNotFound()
+    {
+        var created = await CreateQuoteWithLinesAsync(("Line", 1, 100m));
+
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(() =>
+            _service.UpdateAsync(created.Id, new UpdateQuoteRequest
+            {
+                Subject = "Test lignes",
+                Lines = [new QuoteLineRequest { Id = 99999, Description = "X", Quantity = 1, UnitPriceExclTax = 1m, DisplayOrder = 0 }]
+            }));
+        Assert.Equal(ApiError.QuoteLineNotFound, ex.Code);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_LineIdZero_ThrowsQuoteLineNotFound()
+    {
+        var created = await CreateQuoteWithLinesAsync(("Line", 1, 100m));
+
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(() =>
+            _service.UpdateAsync(created.Id, new UpdateQuoteRequest
+            {
+                Subject = "Test lignes",
+                Lines = [new QuoteLineRequest { Id = 0, Description = "X", Quantity = 1, UnitPriceExclTax = 1m, DisplayOrder = 0 }]
+            }));
+        Assert.Equal(ApiError.QuoteLineNotFound, ex.Code);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_DuplicateLineId_ThrowsQuoteLineDuplicateId()
+    {
+        var created = await CreateQuoteWithLinesAsync(("Line", 1, 100m));
+        var lineId = created.Lines[0].Id;
+
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(() =>
+            _service.UpdateAsync(created.Id, new UpdateQuoteRequest
+            {
+                Subject = "Test lignes",
+                Lines =
+                [
+                    new QuoteLineRequest { Id = lineId, Description = "A", Quantity = 1, UnitPriceExclTax = 1m, DisplayOrder = 0 },
+                    new QuoteLineRequest { Id = lineId, Description = "B", Quantity = 2, UnitPriceExclTax = 2m, DisplayOrder = 1 }
+                ]
+            }));
+        Assert.Equal(ApiError.QuoteLineDuplicateId, ex.Code);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_MixedLines_AddsUpdatesAndDeletes()
+    {
+        var created = await CreateQuoteWithLinesAsync(
+            ("Keep", 1, 100m),
+            ("Modify", 2, 50m),
+            ("Delete", 3, 30m)
+        );
+        var keepId = created.Lines[0].Id;
+        var modifyId = created.Lines[1].Id;
+        _auditServiceMock.Reset();
+
+        var result = await _service.UpdateAsync(created.Id, new UpdateQuoteRequest
+        {
+            Subject = "Test lignes",
+            TaxRate = 20m,
+            Lines =
+            [
+                new QuoteLineRequest { Id = keepId, Description = "Keep", Quantity = 1, UnitPriceExclTax = 100m, DisplayOrder = 0 },
+                new QuoteLineRequest { Id = modifyId, Description = "Modify", Quantity = 5, UnitPriceExclTax = 50m, DisplayOrder = 1 },
+                new QuoteLineRequest { Description = "New", Quantity = 10, UnitPriceExclTax = 25m, DisplayOrder = 2 }
+            ]
+        });
+
+        Assert.Equal(3, result.Lines.Count);
+        Assert.Equal(keepId, result.Lines[0].Id);
+        Assert.Equal(modifyId, result.Lines[1].Id);
+        Assert.Equal(5, result.Lines[1].Quantity); // Modified
+        Assert.Equal("New", result.Lines[2].Description);
+        // Totals: 1*100 + 5*50 + 10*25 = 100+250+250 = 600 HT, 720 TTC
+        Assert.Equal(600m, result.AmountExclTax);
+        Assert.Equal(720m, result.AmountInclTax);
+    }
+
+    // --- UpdateAsync: Granular line audit ---
+
+    [Fact]
+    public async Task UpdateAsync_LineModified_LogsGranularDiffWithLineDescription()
+    {
+        var created = await CreateQuoteWithLinesAsync(("Pose carrelage", 10, 50m));
+        var lineId = created.Lines[0].Id;
+        _auditServiceMock.Reset();
+
+        await _service.UpdateAsync(created.Id, new UpdateQuoteRequest
+        {
+            Subject = "Test lignes",
+            TaxRate = 20m,
+            Lines = [new QuoteLineRequest { Id = lineId, Description = "Pose carrelage", Quantity = 15, UnitPriceExclTax = 50m, DisplayOrder = 0 }]
+        });
+
+        _auditServiceMock.Verify(a => a.LogEventAsync(
+            "Quote", created.Id, AuditAction.Updated,
+            It.Is<Dictionary<string, object?>>(d =>
+                d.ContainsKey($"Lines:Modified:{lineId}:Quantity"))),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_LineAdded_LogsAddedWithSnapshot()
+    {
+        var created = await CreateQuoteWithLinesAsync(("Existing", 1, 100m));
+        var existingId = created.Lines[0].Id;
+        _auditServiceMock.Reset();
+
+        await _service.UpdateAsync(created.Id, new UpdateQuoteRequest
+        {
+            Subject = "Test lignes",
+            TaxRate = 20m,
+            Lines =
+            [
+                new QuoteLineRequest { Id = existingId, Description = "Existing", Quantity = 1, UnitPriceExclTax = 100m, DisplayOrder = 0 },
+                new QuoteLineRequest { Description = "New line", Quantity = 3, UnitPriceExclTax = 40m, DisplayOrder = 1 }
+            ]
+        });
+
+        _auditServiceMock.Verify(a => a.LogEventAsync(
+            "Quote", created.Id, AuditAction.Updated,
+            It.Is<Dictionary<string, object?>>(d =>
+                d.Keys.Any(k => k.StartsWith("Lines:Added:")))),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_LineRemoved_LogsRemovedWithSnapshot()
+    {
+        var created = await CreateQuoteWithLinesAsync(("To remove", 5, 200m));
+        var lineId = created.Lines[0].Id;
+        _auditServiceMock.Reset();
+
+        await _service.UpdateAsync(created.Id, new UpdateQuoteRequest
+        {
+            Subject = "Test lignes",
+            TaxRate = 20m,
+            Lines = []
+        });
+
+        _auditServiceMock.Verify(a => a.LogEventAsync(
+            "Quote", created.Id, AuditAction.Updated,
+            It.Is<Dictionary<string, object?>>(d =>
+                d.ContainsKey($"Lines:Removed:{lineId}"))),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_LineDescriptionChanged_LogsModifiedDescription()
+    {
+        var created = await CreateQuoteWithLinesAsync(("Old desc", 1, 100m));
+        var lineId = created.Lines[0].Id;
+        _auditServiceMock.Reset();
+
+        await _service.UpdateAsync(created.Id, new UpdateQuoteRequest
+        {
+            Subject = "Test lignes",
+            TaxRate = 20m,
+            Lines = [new QuoteLineRequest { Id = lineId, Description = "New desc", Quantity = 1, UnitPriceExclTax = 100m, DisplayOrder = 0 }]
+        });
+
+        _auditServiceMock.Verify(a => a.LogEventAsync(
+            "Quote", created.Id, AuditAction.Updated,
+            It.Is<Dictionary<string, object?>>(d =>
+                d.ContainsKey($"Lines:Modified:{lineId}:Description"))),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_NoLineChanges_NoLineAuditEntries()
+    {
+        var created = await CreateQuoteWithLinesAsync(("Same", 1, 100m));
+        var lineId = created.Lines[0].Id;
+        _auditServiceMock.Reset();
+
+        await _service.UpdateAsync(created.Id, new UpdateQuoteRequest
+        {
+            Subject = "Test lignes",
+            TaxRate = 20m,
+            Lines = [new QuoteLineRequest { Id = lineId, Description = "Same", Quantity = 1, UnitPriceExclTax = 100m, DisplayOrder = 0 }]
+        });
+
+        // No audit event at all since nothing changed
+        _auditServiceMock.Verify(a => a.LogEventAsync(
+            It.IsAny<string>(), It.IsAny<int>(), AuditAction.Updated,
+            It.IsAny<object>()), Times.Never);
     }
 
     private class TestTenantContext : ITenantContext

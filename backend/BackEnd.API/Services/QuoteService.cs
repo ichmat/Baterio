@@ -152,20 +152,58 @@ public class QuoteService : IQuoteService
         quote.TaxRate = request.TaxRate;
         quote.ReminderDate = ParseDateOnly(request.ReminderDate);
 
-        // Replace lines completely
-        _db.QuoteLines.RemoveRange(quote.Lines);
-        quote.Lines.Clear();
+        // --- Lines: validate, classify, snapshot, apply ---
+        var lines = request.Lines ?? [];
+        var oldLines = quote.Lines.ToDictionary(l => l.Id);
+        var requestLineIds = lines.Where(l => l.Id.HasValue).Select(l => l.Id!.Value).ToList();
 
-        if (request.Lines is { Count: > 0 })
+        // Duplicate Ids
+        if (requestLineIds.Count != requestLineIds.Distinct().Count())
+            throw new ApiErrorException(ApiError.QuoteLineDuplicateId);
+
+        // Invalid Ids
+        foreach (var lineId in requestLineIds)
+            if (!oldLines.ContainsKey(lineId))
+                throw new ApiErrorException(ApiError.QuoteLineNotFound);
+
+        // Classify
+        var toUpdate = lines.Where(l => l.Id.HasValue).ToList();
+        var toCreate = lines.Where(l => !l.Id.HasValue).ToList();
+        var toDeleteIds = oldLines.Keys.Except(requestLineIds).ToHashSet();
+
+        // Snapshot BEFORE mutation (for audit)
+        var modifiedSnapshots = toUpdate.ToDictionary(
+            l => l.Id!.Value,
+            l => new { oldLines[l.Id!.Value].Description, oldLines[l.Id!.Value].Quantity, oldLines[l.Id!.Value].UnitPriceExclTax, oldLines[l.Id!.Value].DisplayOrder }
+        );
+        var removedSnapshots = toDeleteIds.Select(id => oldLines[id]).Select(l => new { l.Id, l.Description, l.Quantity, l.UnitPriceExclTax }).ToList();
+        var createdSnapshots = toCreate.Select(l => new { l.Description, l.Quantity, l.UnitPriceExclTax }).ToList();
+
+        // Apply updates
+        foreach (var req in toUpdate)
         {
-            quote.Lines = request.Lines.Select(l => new QuoteLine
-            {
-                Description = l.Description,
-                Quantity = l.Quantity,
-                UnitPriceExclTax = l.UnitPriceExclTax,
-                DisplayOrder = l.DisplayOrder,
-                CreatedAt = DateTime.UtcNow
-            }).ToList();
+            var line = oldLines[req.Id!.Value];
+            line.Description = req.Description;
+            line.Quantity = req.Quantity;
+            line.UnitPriceExclTax = req.UnitPriceExclTax;
+            line.DisplayOrder = req.DisplayOrder;
+            line.UpdatedAt = DateTime.UtcNow;
+        }
+
+        // Apply creates
+        var newLines = new List<QuoteLine>();
+        foreach (var req in toCreate)
+        {
+            var newLine = new QuoteLine { Description = req.Description, Quantity = req.Quantity, UnitPriceExclTax = req.UnitPriceExclTax, DisplayOrder = req.DisplayOrder, CreatedAt = DateTime.UtcNow };
+            quote.Lines.Add(newLine);
+            newLines.Add(newLine);
+        }
+
+        // Apply deletes
+        foreach (var deleteId in toDeleteIds)
+        {
+            quote.Lines.Remove(oldLines[deleteId]);
+            _db.QuoteLines.Remove(oldLines[deleteId]);
         }
 
         CalculateTotals(quote);
@@ -208,6 +246,30 @@ public class QuoteService : IQuoteService
         if (quote.ReminderDate != oldReminderDate) changes[nameof(quote.ReminderDate)] = new { Old = oldReminderDate?.ToString(), New = quote.ReminderDate?.ToString() };
         if (quote.AmountExclTax != oldAmountExclTax) changes[nameof(quote.AmountExclTax)] = new { Old = oldAmountExclTax, New = quote.AmountExclTax };
         if (quote.AmountInclTax != oldAmountInclTax) changes[nameof(quote.AmountInclTax)] = new { Old = oldAmountInclTax, New = quote.AmountInclTax };
+
+        // Granular line audit
+        foreach (var req in toUpdate)
+        {
+            var lineId = req.Id!.Value;
+            var old = modifiedSnapshots[lineId];
+            var cur = oldLines[lineId]; // now updated in memory
+            var lineDesc = cur.Description;
+
+            if (old.Description != cur.Description)
+                changes[$"Lines:Modified:{lineId}:Description"] = new { Old = old.Description, New = cur.Description };
+            if (old.Quantity != cur.Quantity)
+                changes[$"Lines:Modified:{lineId}:Quantity"] = new { Old = old.Quantity, New = cur.Quantity, LineDescription = lineDesc };
+            if (old.UnitPriceExclTax != cur.UnitPriceExclTax)
+                changes[$"Lines:Modified:{lineId}:UnitPriceExclTax"] = new { Old = old.UnitPriceExclTax, New = cur.UnitPriceExclTax, LineDescription = lineDesc };
+            if (old.DisplayOrder != cur.DisplayOrder)
+                changes[$"Lines:Modified:{lineId}:DisplayOrder"] = new { Old = old.DisplayOrder, New = cur.DisplayOrder, LineDescription = lineDesc };
+        }
+
+        for (int i = 0; i < newLines.Count; i++)
+            changes[$"Lines:Added:{newLines[i].Id}"] = new { createdSnapshots[i].Description, createdSnapshots[i].Quantity, createdSnapshots[i].UnitPriceExclTax };
+
+        foreach (var snap in removedSnapshots)
+            changes[$"Lines:Removed:{snap.Id}"] = new { snap.Description, snap.Quantity, snap.UnitPriceExclTax };
 
         if (changes.Count > 0)
         {
