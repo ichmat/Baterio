@@ -68,13 +68,47 @@ async function tryRefreshToken(): Promise<LoginResponse | null> {
   return refreshPromise
 }
 
+/** Fetch brut avec Bearer token et 401 refresh — retourne la Response (pour blobs, streams) */
+export async function apiFetchRaw(endpoint: string, options?: RequestInit): Promise<Response> {
+  const headers: Record<string, string> = {
+    ...(options?.headers as Record<string, string>),
+  }
+
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`
+  }
+
+  let response = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers })
+
+  if (response.status === 401 && accessToken) {
+    const refreshResult = await tryRefreshToken()
+    if (refreshResult) {
+      headers['Authorization'] = `Bearer ${refreshResult.accessToken}`
+      response = await fetch(`${API_BASE_URL}${endpoint}`, { ...options, headers })
+    } else {
+      window.location.href = '/login'
+      throw { type: 'AuthError', status: 401, message: 'Session expirée' }
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(`Fetch failed: ${response.status}`)
+  }
+
+  return response
+}
+
 export async function apiClient<T>(
   endpoint: string,
   options?: RequestInit,
 ): Promise<T> {
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...(options?.headers as Record<string, string>),
+  }
+
+  // Don't set Content-Type for FormData — browser sets it with boundary
+  if (!(options?.body instanceof FormData)) {
+    headers['Content-Type'] = headers['Content-Type'] ?? 'application/json'
   }
 
   if (accessToken) {

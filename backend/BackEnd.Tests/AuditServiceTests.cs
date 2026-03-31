@@ -205,6 +205,98 @@ public class AuditServiceTests : IDisposable
         Assert.Equal(_userId, result.Data[0].UserId);
     }
 
+    [Fact]
+    public async Task GetEventsAsync_WithActionFilter_ReturnsOnlyMatchingEvents()
+    {
+        _db.AuditEvents.Add(new AuditEvent
+        {
+            EntityType = "User", EntityId = 1, TenantId = _tenantId, UserId = _userId,
+            Action = AuditAction.StatusChanged, CreatedAt = DateTime.UtcNow.AddMinutes(-2)
+        });
+        _db.AuditEvents.Add(new AuditEvent
+        {
+            EntityType = "User", EntityId = 1, TenantId = _tenantId, UserId = _userId,
+            Action = AuditAction.Updated, CreatedAt = DateTime.UtcNow.AddMinutes(-1)
+        });
+        _db.AuditEvents.Add(new AuditEvent
+        {
+            EntityType = "User", EntityId = 1, TenantId = _tenantId, UserId = _userId,
+            Action = AuditAction.StatusChanged, CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        var result = await _auditService.GetEventsAsync("User", 1, action: "StatusChanged");
+
+        Assert.Equal(2, result.Data.Count);
+        Assert.All(result.Data, e => Assert.Equal("StatusChanged", e.Action));
+    }
+
+    [Fact]
+    public async Task GetEventsAsync_WithoutActionFilter_ReturnsAllEvents()
+    {
+        _db.AuditEvents.Add(new AuditEvent
+        {
+            EntityType = "User", EntityId = 1, TenantId = _tenantId, UserId = _userId,
+            Action = AuditAction.Created, CreatedAt = DateTime.UtcNow.AddMinutes(-2)
+        });
+        _db.AuditEvents.Add(new AuditEvent
+        {
+            EntityType = "User", EntityId = 1, TenantId = _tenantId, UserId = _userId,
+            Action = AuditAction.StatusChanged, CreatedAt = DateTime.UtcNow.AddMinutes(-1)
+        });
+        _db.AuditEvents.Add(new AuditEvent
+        {
+            EntityType = "User", EntityId = 1, TenantId = _tenantId, UserId = _userId,
+            Action = AuditAction.CommentAdded, CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        var result = await _auditService.GetEventsAsync("User", 1);
+
+        Assert.Equal(3, result.Data.Count);
+    }
+
+    [Fact]
+    public async Task GetEventsAsync_WithInvalidAction_ReturnsEmptyList()
+    {
+        _db.AuditEvents.Add(new AuditEvent
+        {
+            EntityType = "User", EntityId = 1, TenantId = _tenantId, UserId = _userId,
+            Action = AuditAction.Created, CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        var result = await _auditService.GetEventsAsync("User", 1, action: "InvalidAction");
+
+        Assert.Empty(result.Data);
+        Assert.Equal(0, result.Pagination.TotalItems);
+    }
+
+    [Fact]
+    public async Task GetEventsAsync_WithActionFilterAndPagination_WorksTogether()
+    {
+        for (var i = 0; i < 5; i++)
+        {
+            _db.AuditEvents.Add(new AuditEvent
+            {
+                EntityType = "User", EntityId = 1, TenantId = _tenantId, UserId = _userId,
+                Action = AuditAction.CommentAdded, CreatedAt = DateTime.UtcNow.AddMinutes(-i)
+            });
+        }
+        _db.AuditEvents.Add(new AuditEvent
+        {
+            EntityType = "User", EntityId = 1, TenantId = _tenantId, UserId = _userId,
+            Action = AuditAction.Created, CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        var page1 = await _auditService.GetEventsAsync("User", 1, page: 1, pageSize: 2, action: "CommentAdded");
+
+        Assert.Equal(2, page1.Data.Count);
+        Assert.Equal(5, page1.Pagination.TotalItems);
+        Assert.All(page1.Data, e => Assert.Equal("CommentAdded", e.Action));
+    }
+
     private static IHttpContextAccessor CreateHttpContextAccessor(int userId)
     {
         var claims = new[] { new Claim(ClaimTypes.NameIdentifier, userId.ToString()) };

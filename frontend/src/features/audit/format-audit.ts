@@ -21,6 +21,8 @@ export function formatAuditAction(action: string): { label: string; icon: Lucide
       return { label: 'Commentaire ajouté', icon: MessageSquare }
     case 'FileAttached':
       return { label: 'Fichier ajouté', icon: Paperclip }
+    case 'FileRemoved':
+      return { label: 'Fichier supprimé', icon: Trash2 }
     case 'Deleted':
       return { label: 'Supprimé', icon: Trash2 }
     default:
@@ -30,7 +32,7 @@ export function formatAuditAction(action: string): { label: string; icon: Lucide
 
 export function formatAuditDate(dateString: string): string {
   const now = Date.now()
-  const date = new Date(dateString)
+  const date = new Date(dateString.endsWith('Z') ? dateString : dateString + 'Z')
   const diffMs = now - date.getTime()
   const diffMin = Math.floor(diffMs / 60_000)
   const diffH = Math.floor(diffMs / 3_600_000)

@@ -5,12 +5,14 @@ import { MemoryRouter, Route, Routes } from 'react-router'
 import { ClientDetailPage } from '@/features/clients/ClientDetailPage'
 import * as api from '@/features/clients/api'
 import * as auditApi from '@/features/audit/api'
+import * as devisApi from '@/features/devis/api'
 import type { CustomerResponse } from '@/features/clients/types'
 import type { AuditEventsPage } from '@/features/audit/types'
 import { renderWithProviders } from '../../test-utils'
 
 vi.mock('@/features/clients/api')
 vi.mock('@/features/audit/api')
+vi.mock('@/features/devis/api')
 vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
@@ -55,6 +57,10 @@ const mockAuditEvents: AuditEventsPage = {
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(auditApi.getAuditEvents).mockResolvedValue(mockAuditEvents)
+  vi.mocked(devisApi.getQuotes).mockResolvedValue({
+    data: [],
+    pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 },
+  })
 })
 
 function renderPage(customerId = '1') {
@@ -105,7 +111,7 @@ describe('ClientDetailPage', () => {
       expect(screen.getByText('Devis associés')).toBeInTheDocument()
     })
     expect(screen.getByText('Chantiers associés')).toBeInTheDocument()
-    expect(screen.getByText('Aucun devis pour ce client — les devis seront disponibles prochainement')).toBeInTheDocument()
+    expect(screen.getByText('Aucun devis pour ce client')).toBeInTheDocument()
     expect(screen.getByText('Aucun chantier pour ce client — les chantiers seront disponibles prochainement')).toBeInTheDocument()
   })
 })

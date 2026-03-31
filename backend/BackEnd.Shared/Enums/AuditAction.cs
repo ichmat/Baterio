@@ -10,5 +10,6 @@ public enum AuditAction
     StatusChanged,
     CommentAdded,
     FileAttached,
+    FileRemoved,
     Deleted
 }

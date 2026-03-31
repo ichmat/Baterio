@@ -216,7 +216,7 @@ public class FileServiceTests : IDisposable
 
         await _fileService.DeleteAsync(1);
 
-        _auditServiceMock.Verify(a => a.LogEventAsync("Quote", 5, AuditAction.Updated, It.IsAny<object>()), Times.Once);
+        _auditServiceMock.Verify(a => a.LogEventAsync("Quote", 5, AuditAction.FileRemoved, It.IsAny<object>()), Times.Once);
     }
 
     [Fact]

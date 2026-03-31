@@ -56,7 +56,7 @@ describe('AuditPayloadDisplay', () => {
     )
 
     expect(screen.getByText('devis.pdf')).toBeInTheDocument()
-    expect(screen.getByText('239 KB')).toBeInTheDocument()
+    expect(screen.getByText('239 Ko')).toBeInTheDocument()
   })
 
   it('rend du texte brut tronqué pour un JSON invalide', () => {

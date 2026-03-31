@@ -72,6 +72,22 @@ describe('EditCustomFieldDialog', () => {
     expect(screen.getByText('Le type ne peut pas être modifié après création')).toBeInTheDocument()
   })
 
+  it('shows validation error when label contains colon', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(
+      <EditCustomFieldDialog open={true} onOpenChange={mockOnOpenChange} field={mockField} />,
+    )
+
+    const input = screen.getByDisplayValue('Surface m²')
+    await user.clear(input)
+    await user.type(input, 'Type:travaux')
+    await user.click(screen.getByText('Enregistrer'))
+
+    await waitFor(() => {
+      expect(screen.getByText("Le libellé ne peut pas contenir ':'")).toBeInTheDocument()
+    })
+  })
+
   it('submits update and shows toast', async () => {
     vi.mocked(api.updateCustomField).mockResolvedValue({
       ...mockField,

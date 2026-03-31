@@ -12,14 +12,15 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { useCreateCustomer } from './useCustomers'
-import type { CreateCustomerRequest } from './types'
+import type { CreateCustomerRequest, CustomerResponse } from './types'
 
 interface CreateClientDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onCustomerCreated?: (customer: CustomerResponse) => void
 }
 
-export function CreateClientDialog({ open, onOpenChange }: CreateClientDialogProps) {
+export function CreateClientDialog({ open, onOpenChange, onCustomerCreated }: CreateClientDialogProps) {
   const createCustomer = useCreateCustomer()
   const {
     register,
@@ -38,7 +39,7 @@ export function CreateClientDialog({ open, onOpenChange }: CreateClientDialogPro
 
   const onSubmit = async (data: CreateCustomerRequest) => {
     try {
-      await createCustomer.mutateAsync({
+      const created = await createCustomer.mutateAsync({
         lastName: data.lastName.trim(),
         firstName: data.firstName.trim(),
         telephone: data.telephone?.trim() || undefined,
@@ -48,6 +49,7 @@ export function CreateClientDialog({ open, onOpenChange }: CreateClientDialogPro
       toast.success('Client créé')
       reset()
       onOpenChange(false)
+      onCustomerCreated?.(created)
     } catch (err: unknown) {
       const apiError = err as { message?: string }
       toast.error(apiError?.message ?? 'Une erreur est survenue')

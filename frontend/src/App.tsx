@@ -7,6 +7,9 @@ import { LoginPage } from '@/features/auth/LoginPage'
 import { AdminPage } from '@/pages/AdminPage'
 import { ClientsPage } from '@/features/clients/ClientsPage'
 import { ClientDetailPage } from '@/features/clients/ClientDetailPage'
+import { DevisPage } from '@/features/devis/DevisPage'
+import { CreateDevisForm } from '@/features/devis/CreateDevisForm'
+import { DevisDetailPage } from '@/features/devis/DevisDetailPage'
 import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/sonner'
 
@@ -69,6 +72,42 @@ export default function App() {
                 <RoleRoute roles={['Admin', 'Chef', 'Secretaire']}>
                   <AppLayout>
                     <ClientDetailPage />
+                  </AppLayout>
+                </RoleRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/devis"
+            element={
+              <ProtectedRoute>
+                <RoleRoute roles={['Admin', 'Chef', 'Secretaire']}>
+                  <AppLayout>
+                    <DevisPage />
+                  </AppLayout>
+                </RoleRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/devis/new"
+            element={
+              <ProtectedRoute>
+                <RoleRoute roles={['Admin', 'Chef', 'Secretaire']}>
+                  <AppLayout>
+                    <CreateDevisForm />
+                  </AppLayout>
+                </RoleRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/devis/:id"
+            element={
+              <ProtectedRoute>
+                <RoleRoute roles={['Admin', 'Chef', 'Secretaire']}>
+                  <AppLayout>
+                    <DevisDetailPage />
                   </AppLayout>
                 </RoleRoute>
               </ProtectedRoute>

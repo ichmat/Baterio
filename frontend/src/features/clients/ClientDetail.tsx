@@ -1,11 +1,15 @@
 import { useState } from 'react'
-import { ArrowLeft, Pencil, FileText, Building2 } from 'lucide-react'
+import { useNavigate } from 'react-router'
+import { ArrowLeft, Pencil, FileText, Building2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EntityLinksBar } from '@/components/EntityLinksBar'
 import { TimelineCompact } from '@/features/audit/TimelineCompact'
 import { TimelineFull } from '@/features/audit/TimelineFull'
+import { useQuotes } from '@/features/devis/useDevis'
+import { STATUS_CONFIG } from '@/features/devis/status-config'
+import { formatMontant } from '@/lib/format-montant'
 import { useCustomer } from './useCustomers'
 import { EditClientDialog } from './EditClientDialog'
 
@@ -16,9 +20,14 @@ interface ClientDetailProps {
 }
 
 export function ClientDetail({ customerId, showBackButton = false, onBack }: ClientDetailProps) {
+  const navigate = useNavigate()
   const { data: customer, isLoading, isError } = useCustomer(customerId)
+  const { data: quotesData } = useQuotes()
   const [editOpen, setEditOpen] = useState(false)
   const [timelineOpen, setTimelineOpen] = useState(false)
+
+  const customerName = customer ? `${customer.lastName} ${customer.firstName}`.trim() : ''
+  const customerQuotes = quotesData?.data.filter((q) => q.customerName === customerName) ?? []
 
   if (isLoading) {
     return (
@@ -108,9 +117,47 @@ export function ClientDetail({ customerId, showBackButton = false, onBack }: Cli
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Aucun devis pour ce client — les devis seront disponibles prochainement
-              </p>
+              {customerQuotes.length === 0 ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Aucun devis pour ce client</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate('/devis/new')}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Créer un devis
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {customerQuotes.map((q) => {
+                    const statusCfg = STATUS_CONFIG[q.status] ?? STATUS_CONFIG.Draft
+                    const StatusIcon = statusCfg.icon
+                    return (
+                      <div
+                        key={q.id}
+                        className="flex cursor-pointer items-center justify-between rounded-md border p-2 text-sm hover:bg-accent/50"
+                        onClick={() => navigate(`/devis/${q.id}`)}
+                      >
+                        <div>
+                          <span className="font-medium">{q.reference}</span>
+                          <span className="ml-2 text-muted-foreground">{q.subject}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${statusCfg.color}`}>
+                            <StatusIcon className="h-3 w-3" />
+                            {statusCfg.label}
+                          </span>
+                          {q.amountInclTax != null && (
+                            <span className="text-xs font-medium">{formatMontant(q.amountInclTax)}</span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
-import { Users } from 'lucide-react'
+import { Users, FileText } from 'lucide-react'
 import {
   CommandDialog,
   CommandInput,
@@ -11,6 +11,8 @@ import {
 } from '@/components/ui/command'
 import { useDebounce } from '@/hooks/useDebounce'
 import { useCustomerSearch } from '@/features/clients/useCustomerSearch'
+import { useQuoteSearch } from '@/features/devis/useQuoteSearch'
+import { STATUS_CONFIG } from '@/features/devis/status-config'
 
 interface GlobalSearchProps {
   open: boolean
@@ -21,6 +23,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
   const [query, setQuery] = useState('')
   const debouncedQuery = useDebounce(query, 300)
   const { data: customers, isLoading } = useCustomerSearch(debouncedQuery, 5)
+  const { data: quotes, isLoading: quotesLoading } = useQuoteSearch(debouncedQuery, 5)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -60,7 +63,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
       />
       <CommandList>
         <CommandEmpty>
-          {isLoading && debouncedQuery.length >= 2
+          {(isLoading || quotesLoading) && debouncedQuery.length >= 2
             ? 'Recherche en cours...'
             : 'Aucun résultat'}
         </CommandEmpty>
@@ -81,6 +84,33 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                 )}
               </CommandItem>
             ))}
+          </CommandGroup>
+        )}
+        {quotes && quotes.length > 0 && (
+          <CommandGroup heading="Devis">
+            {quotes.map((q) => {
+              const statusCfg = STATUS_CONFIG[q.status] ?? STATUS_CONFIG.Draft
+              const StatusIcon = statusCfg.icon
+              return (
+                <CommandItem
+                  key={q.id}
+                  value={`quote-${q.id}`}
+                  onSelect={() => {
+                    navigate(`/devis/${q.id}`)
+                    onOpenChange(false)
+                    setQuery('')
+                  }}
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  <span>{q.reference}</span>
+                  <span className="ml-1 text-muted-foreground">{q.customerName} — {q.subject}</span>
+                  <span className={`ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${statusCfg.color}`}>
+                    <StatusIcon className="h-3 w-3" />
+                    {statusCfg.label}
+                  </span>
+                </CommandItem>
+              )
+            })}
           </CommandGroup>
         )}
       </CommandList>

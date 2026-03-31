@@ -3,11 +3,14 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { GlobalSearch } from '@/features/search/GlobalSearch'
 import * as api from '@/features/clients/api'
+import * as devisApi from '@/features/devis/api'
 import type { CustomerSearchResult } from '@/features/clients/types'
+import type { QuoteSearchResult } from '@/features/devis/types'
 import { renderWithProviders } from '../../test-utils'
 import type { ReactNode } from 'react'
 
 vi.mock('@/features/clients/api')
+vi.mock('@/features/devis/api')
 
 const mockNavigate = vi.fn()
 vi.mock('react-router', async () => {
@@ -133,6 +136,7 @@ describe('GlobalSearch', () => {
 
   it('shows "Aucun résultat" when no matches', async () => {
     vi.mocked(api.searchCustomers).mockResolvedValue([])
+    vi.mocked(devisApi.searchQuotes).mockResolvedValue([])
     const onOpenChange = vi.fn()
     renderWithProviders(<GlobalSearch open={true} onOpenChange={onOpenChange} />)
 
@@ -141,6 +145,128 @@ describe('GlobalSearch', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Aucun résultat')).toBeInTheDocument()
+    })
+  })
+
+  // --- Task 16: Tests GlobalSearch Devis ---
+
+  describe('Catégorie Devis', () => {
+    const mockQuoteResults: QuoteSearchResult[] = [
+      {
+        id: 10,
+        reference: 'DEV-2026-001',
+        subject: 'Rénovation toiture',
+        status: 'Draft',
+        priority: 'High',
+        customerName: 'Dupont Jean',
+        createdAt: '2026-03-01T10:00:00Z',
+      },
+      {
+        id: 11,
+        reference: 'DEV-2026-002',
+        subject: 'Isolation combles',
+        status: 'Sent',
+        priority: 'Normal',
+        customerName: 'Martin Marie',
+        createdAt: '2026-03-02T10:00:00Z',
+      },
+    ]
+
+    it('affiche la catégorie "Devis" avec résultats', async () => {
+      vi.mocked(api.searchCustomers).mockResolvedValue([])
+      vi.mocked(devisApi.searchQuotes).mockResolvedValue(mockQuoteResults)
+      const onOpenChange = vi.fn()
+      renderWithProviders(<GlobalSearch open={true} onOpenChange={onOpenChange} />)
+
+      const input = screen.getByPlaceholderText('Rechercher...')
+      await userEvent.type(input, 'toiture')
+
+      await waitFor(() => {
+        expect(screen.getByText('Devis')).toBeInTheDocument()
+      })
+      expect(screen.getByText('DEV-2026-001')).toBeInTheDocument()
+      expect(screen.getByText('DEV-2026-002')).toBeInTheDocument()
+    })
+
+    it('clic sur un devis navigue vers /devis/:id', async () => {
+      vi.mocked(api.searchCustomers).mockResolvedValue([])
+      vi.mocked(devisApi.searchQuotes).mockResolvedValue(mockQuoteResults)
+      const onOpenChange = vi.fn()
+      renderWithProviders(<GlobalSearch open={true} onOpenChange={onOpenChange} />)
+
+      const input = screen.getByPlaceholderText('Rechercher...')
+      await userEvent.type(input, 'toiture')
+
+      await waitFor(() => {
+        expect(screen.getByText('DEV-2026-001')).toBeInTheDocument()
+      })
+
+      await userEvent.click(screen.getByText('DEV-2026-001'))
+
+      expect(mockNavigate).toHaveBeenCalledWith('/devis/10')
+      expect(onOpenChange).toHaveBeenCalledWith(false)
+    })
+
+    it('badge statut visible dans les résultats', async () => {
+      vi.mocked(api.searchCustomers).mockResolvedValue([])
+      vi.mocked(devisApi.searchQuotes).mockResolvedValue(mockQuoteResults)
+      const onOpenChange = vi.fn()
+      renderWithProviders(<GlobalSearch open={true} onOpenChange={onOpenChange} />)
+
+      const input = screen.getByPlaceholderText('Rechercher...')
+      await userEvent.type(input, 'toiture')
+
+      await waitFor(() => {
+        expect(screen.getByText('Brouillon')).toBeInTheDocument()
+        expect(screen.getByText('Envoyé')).toBeInTheDocument()
+      })
+    })
+
+    it('terme < 2 chars → pas de catégorie Devis', async () => {
+      vi.mocked(api.searchCustomers).mockResolvedValue([])
+      vi.mocked(devisApi.searchQuotes).mockResolvedValue([])
+      const onOpenChange = vi.fn()
+      renderWithProviders(<GlobalSearch open={true} onOpenChange={onOpenChange} />)
+
+      const input = screen.getByPlaceholderText('Rechercher...')
+      await userEvent.type(input, 'a')
+
+      // Query is only 1 char — search not triggered, no Devis category
+      expect(screen.queryByText('Devis')).not.toBeInTheDocument()
+    })
+
+    it('icône FileText présente dans les résultats devis', async () => {
+      vi.mocked(api.searchCustomers).mockResolvedValue([])
+      vi.mocked(devisApi.searchQuotes).mockResolvedValue(mockQuoteResults)
+      const onOpenChange = vi.fn()
+      renderWithProviders(<GlobalSearch open={true} onOpenChange={onOpenChange} />)
+
+      const input = screen.getByPlaceholderText('Rechercher...')
+      await userEvent.type(input, 'toiture')
+
+      await waitFor(() => {
+        expect(screen.getByText('DEV-2026-001')).toBeInTheDocument()
+      })
+
+      // FileText icon rendered as SVG — lucide-react renders <svg> elements
+      const devisGroup = screen.getByText('Devis').parentElement!
+      const svgs = devisGroup.querySelectorAll('svg')
+      expect(svgs.length).toBeGreaterThanOrEqual(2) // one FileText per result
+    })
+
+    it('pas de groupe "Devis" quand la recherche retourne un tableau vide', async () => {
+      vi.mocked(api.searchCustomers).mockResolvedValue([])
+      vi.mocked(devisApi.searchQuotes).mockResolvedValue([])
+      const onOpenChange = vi.fn()
+      renderWithProviders(<GlobalSearch open={true} onOpenChange={onOpenChange} />)
+
+      const input = screen.getByPlaceholderText('Rechercher...')
+      await userEvent.type(input, 'xyz')
+
+      await waitFor(() => {
+        expect(screen.getByText('Aucun résultat')).toBeInTheDocument()
+      })
+      expect(screen.queryByText('Devis')).not.toBeInTheDocument()
     })
   })
 })

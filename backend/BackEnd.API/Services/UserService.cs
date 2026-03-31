@@ -32,8 +32,8 @@ public class UserService : IUserService
             .OrderBy(u => u.LastName)
             .ThenBy(u => u.FirstName)
             // On retire le mot de passe de la réponse pour éviter qu'il soit 
-            // charché inutilement et pour des raisons de sécurité
-            // (chargé en RAM et potentiellement exposé dans les logs ou les dumps mémoire)
+            // chargé inutilement et pour des raisons de sécurité
+            // (chargé en RAM peut être potentiellement exposé dans les logs ou les dumps mémoire)
             .Select(u => new UserResponse
             {
                 Id = u.Id,
@@ -189,10 +189,7 @@ public class UserService : IUserService
 
                 if (activeUserCount >= maxUsers)
                 {
-                    var message = string.Format(
-                        "Vous avez atteint la limite de {0} utilisateurs de votre abonnement",
-                        maxUsers);
-                    throw new ApiErrorException(ApiError.UserLimitReached, message);
+                    throw new ApiErrorException(ApiError.UserLimitReached, maxUsers);
                 }
             }
         }

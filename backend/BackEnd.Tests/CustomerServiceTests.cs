@@ -394,6 +394,58 @@ public class CustomerServiceTests : IDisposable
         Assert.Equal("Dupont", result[0].LastName);
     }
 
+    // --- SearchAsync QuoteCount ---
+
+    [Fact]
+    public async Task SearchAsync_CustomerWithQuotes_ReturnsCorrectQuoteCount()
+    {
+        var customer = new Customer { TenantId = _tenantId, LastName = "QuoteTest", FirstName = "Client", CreatedAt = DateTime.UtcNow };
+        _db.Customers.Add(customer);
+        await _db.SaveChangesAsync();
+
+        // Seed a user for CreatedBy
+        var user = new User
+        {
+            TenantId = _tenantId, Email = "quotetest@test.fr", PasswordHash = "hash",
+            FirstName = "Test", LastName = "User", Role = UserRole.Chef, IsActive = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.Users.Add(user);
+        await _db.SaveChangesAsync();
+
+        // Create 3 quotes for this customer
+        for (int i = 0; i < 3; i++)
+        {
+            _db.Quotes.Add(new Quote
+            {
+                TenantId = _tenantId,
+                CustomerId = customer.Id,
+                CreatedBy = user.Id,
+                Reference = $"DEV-2026-{i + 100:000}",
+                Subject = $"Quote {i}",
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+        await _db.SaveChangesAsync();
+
+        var result = await _service.SearchAsync("QuoteTest");
+
+        Assert.Single(result);
+        Assert.Equal(3, result[0].QuoteCount);
+    }
+
+    [Fact]
+    public async Task SearchAsync_CustomerWithoutQuotes_ReturnsZeroQuoteCount()
+    {
+        var customer = new Customer { TenantId = _tenantId, LastName = "NoQuotes", FirstName = "Client", CreatedAt = DateTime.UtcNow };
+        _db.Customers.Add(customer);
+        await _db.SaveChangesAsync();
+
+        var result = await _service.SearchAsync("NoQuotes");
+
+        Assert.Single(result);
+        Assert.Equal(0, result[0].QuoteCount);
+    }
+
     private class TestTenantContext : ITenantContext
     {
         public int TenantId { get; set; }

@@ -5,10 +5,11 @@ export function useInfiniteAuditEvents(
   entityType: string,
   entityId: number,
   pageSize = 20,
+  action?: string,
 ) {
   return useInfiniteQuery({
-    queryKey: ['audit-events', entityType, entityId],
-    queryFn: ({ pageParam }) => getAuditEvents(entityType, entityId, pageParam, pageSize),
+    queryKey: ['audit-events', entityType, entityId, pageSize, action],
+    queryFn: ({ pageParam }) => getAuditEvents(entityType, entityId, pageParam, pageSize, action),
     initialPageParam: 1,
     getNextPageParam: (lastPage) =>
       lastPage.pagination.page < lastPage.pagination.totalPages

@@ -1,10 +1,12 @@
 import type { ReactNode } from 'react'
-import { Paperclip } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { InlineImagePreview } from './InlineImagePreview'
+import { formatMontant } from '@/lib/format-montant'
 
 export type PayloadRenderer = (
   payload: Record<string, unknown>,
   action: string,
+  compact: boolean
 ) => ReactNode | null
 
 const fieldLabelsRegistry: Record<string, Record<string, string>> = {
@@ -32,6 +34,32 @@ const fieldLabelsRegistry: Record<string, Record<string, string>> = {
     AppliesToQuotes: 'appliqué aux devis',
     AppliesToSites: 'appliqué aux chantiers',
   },
+  Quote: {
+    Subject: 'objet',
+    subject: 'objet',
+    Priority: 'priorité',
+    priority: 'priorité',
+    Status: 'statut',
+    status: 'statut',
+    ReminderDate: 'date de relance',
+    reminderDate: 'date de relance',
+    ValidityDate: 'date de validité',
+    validityDate: 'date de validité',
+    EstimatedDuration: 'durée estimée',
+    estimatedDuration: 'durée estimée',
+    SiteAddress: 'adresse chantier',
+    siteAddress: 'adresse chantier',
+    TaxRate: 'taux TVA',
+    taxRate: 'taux TVA',
+    Notes: 'notes',
+    notes: 'notes',
+    AmountExclTax: 'montant HT',
+    amountExclTax: 'montant HT',
+    AmountInclTax: 'montant TTC',
+    amountInclTax: 'montant TTC',
+    LegalMentions: 'mentions légales',
+    legalMentions: 'mentions légales',
+  },
   CompanyInfo: {
     CompanyName: 'raison sociale',
     Address: 'adresse',
@@ -46,13 +74,13 @@ const fieldLabelsRegistry: Record<string, Record<string, string>> = {
 }
 
 export function getFieldLabel(entityType: string, fieldKey: string): string {
+  if (fieldKey === 'CustomFields') return 'champs personnalisés'
+  if (fieldKey.startsWith('CustomFields:')) {
+    const afterPrefix = fieldKey.slice('CustomFields:'.length)
+    const colonIdx = afterPrefix.indexOf(':')
+    return colonIdx >= 0 ? afterPrefix.slice(colonIdx + 1) : afterPrefix
+  }
   return fieldLabelsRegistry[entityType]?.[fieldKey] ?? fieldKey
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 function isDiffValue(val: unknown): val is { Old: unknown; New: unknown } {
@@ -62,6 +90,13 @@ function isDiffValue(val: unknown): val is { Old: unknown; New: unknown } {
     'Old' in val &&
     'New' in val
   )
+}
+
+export function formatDiffValue(value: unknown): ReactNode {
+  if (value === null || value === undefined) {
+    return <em className="text-muted-foreground italic">vide</em>
+  }
+  return String(value)
 }
 
 function isSingleFieldUpdate(
@@ -82,6 +117,12 @@ function isFileAttached(
   return typeof p.filename === 'string' && typeof p.size === 'number'
 }
 
+function isFileRemoved(
+  p: Record<string, unknown>,
+): p is { attachmentId: number; filename: string } {
+  return typeof p.filename === 'string' && typeof p.attachmentId === 'number' && !('size' in p)
+}
+
 // --- Compact renderers (inline text) ---
 
 function renderDiffCompact(
@@ -89,7 +130,7 @@ function renderDiffCompact(
   entityType: string,
 ): string {
   const fields = Object.entries(payload)
-    .filter(([, v]) => isDiffValue(v))
+    .filter(([k, v]) => !k.startsWith('Lines:') && isDiffValue(v))
     .map(([k]) => getFieldLabel(entityType, k))
   return fields.length > 0 ? fields.join(', ') : ''
 }
@@ -117,7 +158,13 @@ export function renderPayloadCompact(
   action: string,
   entityType: string,
 ): string {
+  if (action === 'CommentAdded' && typeof payload.content === 'string') {
+    return payload.content as string
+  }
   if (action === 'FileAttached' && isFileAttached(payload)) {
+    return payload.filename
+  }
+  if (action === 'FileRemoved' && isFileRemoved(payload)) {
     return payload.filename
   }
   if (action === 'Deleted') {
@@ -132,7 +179,16 @@ export function renderPayloadCompact(
   }
   const hasDiff = Object.values(payload).some(isDiffValue)
   if (hasDiff) {
-    return renderDiffCompact(payload, entityType)
+    const diffCompact = renderDiffCompact(payload, entityType)
+    const linesCompact = renderQuoteLinesDiff(payload, true)
+    if (linesCompact) {
+      return diffCompact ? diffCompact + ', ' + linesCompact : (linesCompact as string)
+    }
+    return diffCompact
+  }
+  const linesCompact = renderQuoteLinesDiff(payload, true)
+  if (linesCompact) {
+    return linesCompact as string
   }
   if (action === 'Created') {
     return renderCreatedCompact(payload, entityType)
@@ -150,17 +206,17 @@ function renderDiffFull(
   if (entries.length === 0) return null
 
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-1 text-xs">
+    <div className="mt-2 flex flex-wrap flex-col gap-1 text-xs">
       {entries.map(([key, val]) => {
         const diff = val as { Old: unknown; New: unknown }
         return (
-          <span key={key} className="inline-flex items-center gap-1">
+          <span key={key} className="flex flex-row flex-wrap items-center gap-1">
             <span className="text-muted-foreground text-nowrap">{getFieldLabel(entityType, key)} :</span>
             <Badge variant="outline" className="line-through text-muted-foreground">
-              {String(diff.Old)}
+              {formatDiffValue(diff.Old)}
             </Badge>
             <span className="text-muted-foreground">→</span>
-            <Badge variant="secondary">{String(diff.New)}</Badge>
+            <Badge variant="secondary">{formatDiffValue(diff.New)}</Badge>
           </span>
         )
       })}
@@ -176,10 +232,10 @@ function renderSingleFieldFull(
     <div className="mt-2 flex flex-wrap items-center gap-1 text-xs">
       <span className="text-muted-foreground">{getFieldLabel(entityType, payload.Field)} :</span>
       <Badge variant="outline" className="line-through text-muted-foreground">
-        {String(payload.OldValue)}
+        {formatDiffValue(payload.OldValue)}
       </Badge>
       <span className="text-muted-foreground">→</span>
-      <Badge variant="secondary">{String(payload.NewValue)}</Badge>
+      <Badge variant="secondary">{formatDiffValue(payload.NewValue)}</Badge>
     </div>
   )
 }
@@ -207,13 +263,12 @@ function renderFileAttachedFull(
   payload: { attachmentId: number; filename: string; contentType: string; size: number },
 ): ReactNode {
   return (
-    <div className="mt-2 flex items-center gap-1 text-xs">
-      <Badge variant="outline">
-        <Paperclip className="mr-1 h-3 w-3" />
-        {payload.filename}
-      </Badge>
-      <span className="text-muted-foreground">{formatFileSize(payload.size)}</span>
-    </div>
+    <InlineImagePreview
+      attachmentId={payload.attachmentId}
+      filename={payload.filename}
+      contentType={payload.contentType}
+      size={payload.size}
+    />
   )
 }
 
@@ -242,8 +297,20 @@ export function renderPayloadFull(
   action: string,
   entityType: string,
 ): ReactNode {
+  if (action === 'CommentAdded' && typeof payload.content === 'string') {
+    return (
+      <div className="mt-2 text-sm text-foreground whitespace-pre-wrap">
+        {payload.content as string}
+      </div>
+    )
+  }
   if (action === 'FileAttached' && isFileAttached(payload)) {
     return renderFileAttachedFull(payload)
+  }
+  if (action === 'FileRemoved' && isFileRemoved(payload)) {
+    return (
+      <div className="mt-2 text-xs text-muted-foreground">{payload.filename}</div>
+    )
   }
   if (action === 'Deleted') {
     return renderDeletedFull(payload)
@@ -264,5 +331,179 @@ export function renderPayloadFull(
   return null
 }
 
+// --- Quote lines diff renderer ---
+
+const LINE_FIELD_LABELS: Record<string, string> = {
+  Description: 'description',
+  Quantity: 'quantité',
+  UnitPriceExclTax: 'prix unitaire HT',
+  DisplayOrder: 'ordre',
+}
+
+export function renderQuoteLinesDiff(
+  payload: Record<string, unknown>,
+  compact: boolean,
+): ReactNode | string | null {
+  const lineEntries = Object.entries(payload).filter(([k]) => k.startsWith('Lines:'))
+  if (lineEntries.length === 0) return null
+
+  if (compact) {
+    const addedIds = new Set<string>()
+    const modifiedIds = new Set<string>()
+    const removedIds = new Set<string>()
+    for (const [key] of lineEntries) {
+      const parts = key.split(':')
+      const action = parts[1]
+      const lineId = parts[2]
+      if (action === 'Added') addedIds.add(lineId)
+      else if (action === 'Modified') modifiedIds.add(lineId)
+      else if (action === 'Removed') removedIds.add(lineId)
+    }
+    const summaryParts: string[] = []
+    if (modifiedIds.size > 0)
+      summaryParts.push(`${modifiedIds.size} ligne${modifiedIds.size > 1 ? 's' : ''} modifiée${modifiedIds.size > 1 ? 's' : ''}`)
+    if (addedIds.size > 0)
+      summaryParts.push(`${addedIds.size} ligne${addedIds.size > 1 ? 's' : ''} ajoutée${addedIds.size > 1 ? 's' : ''}`)
+    if (removedIds.size > 0)
+      summaryParts.push(`${removedIds.size} ligne${removedIds.size > 1 ? 's' : ''} supprimée${removedIds.size > 1 ? 's' : ''}`)
+    return summaryParts.join(', ')
+  }
+
+  // Full mode
+  const elements: ReactNode[] = []
+
+  for (const [key, val] of lineEntries) {
+    const parts = key.split(':')
+    const action = parts[1]
+    const lineId = parts[2]
+
+    if (action === 'Added') {
+      const snap = val as { Description: string; Quantity: number; UnitPriceExclTax: number }
+      elements.push(
+        <span key={key} className="flex flex-row flex-wrap items-center gap-1">
+          <Badge variant="secondary" className="bg-green-100 text-green-800">
+            Ligne ajoutée : <strong>{snap.Description}</strong> ({snap.Quantity} × {formatMontant(snap.UnitPriceExclTax)})
+          </Badge>
+        </span>
+      )
+    } else if (action === 'Removed') {
+      const snap = val as { Description: string; Quantity: number; UnitPriceExclTax: number }
+      elements.push(
+        <span key={key} className="flex flex-row flex-wrap items-center gap-1">
+          <Badge variant="outline" className="line-through text-muted-foreground">
+            Ligne supprimée : {snap.Description} ({snap.Quantity} × {formatMontant(snap.UnitPriceExclTax)})
+          </Badge>
+        </span>
+      )
+    } else if (action === 'Modified') {
+      const field = parts[3]
+      const diff = val as { Old: unknown; New: unknown; LineDescription?: string }
+      const fieldLabel = LINE_FIELD_LABELS[field] ?? field
+      const isPrice = field === 'UnitPriceExclTax'
+      elements.push(
+        <span key={key} className="flex flex-row flex-wrap items-center gap-1">
+          <span className="text-muted-foreground text-nowrap">
+            {diff.LineDescription
+              ? <><strong>{diff.LineDescription}</strong> (Ligne #{lineId}), </>
+              : <><strong>Ligne #{lineId}</strong>, </>
+            }
+            {fieldLabel} :
+          </span>
+          <Badge variant="outline" className="line-through text-muted-foreground">
+            {isPrice ? formatMontant(diff.Old as number) : formatDiffValue(diff.Old)}
+          </Badge>
+          <span className="text-muted-foreground">→</span>
+          <Badge variant="secondary">
+            {isPrice ? formatMontant(diff.New as number) : formatDiffValue(diff.New)}
+          </Badge>
+        </span>
+      )
+    }
+  }
+
+  return <>{elements}</>
+}
+
 // Entity-specific renderer registry — extensible for Epic 3/4
 export const entityRenderers: Record<string, PayloadRenderer> = {}
+
+const STATUS_LABELS: Record<string, string> = {
+  Draft: 'Brouillon',
+  Sent: 'Envoyé',
+  Accepted: 'Validé',
+  Refused: 'Refusé',
+}
+
+const PRIORITY_LABELS: Record<string, string> = {
+  Low: 'Basse',
+  Normal: 'Normale',
+  High: 'Haute',
+}
+
+entityRenderers['Quote'] = (payload, action, compact) => {
+  if (action === 'StatusChanged') {
+    const old = STATUS_LABELS[String(payload.Old)] ?? formatDiffValue(payload.Old)
+    const nw = STATUS_LABELS[String(payload.New)] ?? formatDiffValue(payload.New)
+    return (
+      <div className={`flex items-center gap-1 text-xs ${compact ? '' : 'mt-2 '}`}>
+        <span className="text-muted-foreground">statut :</span>
+        <Badge variant="outline" className="line-through text-muted-foreground">
+          {old}
+        </Badge>
+        <span className="text-muted-foreground">→</span>
+        <Badge variant="secondary">{nw}</Badge>
+      </div>
+    )
+  }
+  if (action === 'Updated') {
+    const hasLineEntries = Object.keys(payload).some(k => k.startsWith('Lines:'))
+    const hasPriority = isDiffValue(payload.Priority)
+
+    // If no Lines:* entries and no Priority, let the default renderer handle it
+    if (!hasLineEntries && !hasPriority) return null
+
+    // Render standard diffs (non-Lines:* entries)
+    const standardEntries = Object.entries(payload)
+      .filter(([k, v]) => !k.startsWith('Lines:') && isDiffValue(v))
+
+    const linesDiff = renderQuoteLinesDiff(payload, compact)
+
+    if (compact) {
+      const standardParts = standardEntries.map(([k]) => getFieldLabel('Quote', k))
+      const parts: string[] = []
+      if (standardParts.length > 0) parts.push(standardParts.join(', '))
+      if (linesDiff) parts.push(linesDiff as string)
+      return parts.length > 0 ? parts.join(', ') : null
+    }
+
+    // Full mode
+    return (
+      <div className="mt-2 flex flex-wrap flex-col gap-1 text-xs">
+        {standardEntries.map(([key, val]) => {
+          const diff = val as { Old: unknown; New: unknown }
+          const isPriority = key === 'Priority' || key === 'priority'
+          const oldVal = isPriority
+            ? (PRIORITY_LABELS[String(diff.Old)] ?? formatDiffValue(diff.Old))
+            : formatDiffValue(diff.Old)
+          const newVal = isPriority
+            ? (PRIORITY_LABELS[String(diff.New)] ?? formatDiffValue(diff.New))
+            : formatDiffValue(diff.New)
+          return (
+            <span key={key} className="inline-flex items-center gap-1">
+              <span className="text-muted-foreground text-nowrap">
+                {getFieldLabel('Quote', key)} :
+              </span>
+              <Badge variant="outline" className="line-through text-muted-foreground">
+                {oldVal}
+              </Badge>
+              <span className="text-muted-foreground">→</span>
+              <Badge variant="secondary">{newVal}</Badge>
+            </span>
+          )
+        })}
+        {linesDiff}
+      </div>
+    )
+  }
+  return null
+}

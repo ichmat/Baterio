@@ -142,6 +142,53 @@ namespace BackEnd.API.Migrations
                     b.ToTable("audit_events", (string)null);
                 });
 
+            modelBuilder.Entity("BackEnd.Shared.Entities.Comment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("content");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("EntityId")
+                        .HasColumnType("int")
+                        .HasColumnName("entity_id");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("entity_type");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("TenantId", "CreatedAt");
+
+                    b.HasIndex("TenantId", "EntityType", "EntityId");
+
+                    b.ToTable("comments", (string)null);
+                });
+
             modelBuilder.Entity("BackEnd.Shared.Entities.CompanyInfo", b =>
                 {
                     b.Property<int>("Id")
@@ -342,6 +389,162 @@ namespace BackEnd.API.Migrations
                     b.ToTable("customers", (string)null);
                 });
 
+            modelBuilder.Entity("BackEnd.Shared.Entities.Quote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal?>("AmountExclTax")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("amount_excl_tax");
+
+                    b.Property<decimal?>("AmountInclTax")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("amount_incl_tax");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("CreatedBy")
+                        .HasColumnType("int")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("CustomFields")
+                        .HasColumnType("json")
+                        .HasColumnName("custom_fields");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("int")
+                        .HasColumnName("customer_id");
+
+                    b.Property<string>("EstimatedDuration")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("estimated_duration");
+
+                    b.Property<string>("LegalMentions")
+                        .HasColumnType("text")
+                        .HasColumnName("legal_mentions");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("priority");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("reference");
+
+                    b.Property<DateOnly?>("ReminderDate")
+                        .HasColumnType("date")
+                        .HasColumnName("reminder_date");
+
+                    b.Property<string>("SiteAddress")
+                        .HasColumnType("text")
+                        .HasColumnName("site_address");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("subject");
+
+                    b.Property<decimal?>("TaxRate")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("tax_rate");
+
+                    b.Property<int>("TenantId")
+                        .HasColumnType("int")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<DateOnly?>("ValidityDate")
+                        .HasColumnType("date")
+                        .HasColumnName("validity_date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedBy");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "CustomerId");
+
+                    b.HasIndex("TenantId", "Reference")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "Status");
+
+                    b.ToTable("quotes", (string)null);
+                });
+
+            modelBuilder.Entity("BackEnd.Shared.Entities.QuoteLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("display_order");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("quantity");
+
+                    b.Property<int>("QuoteId")
+                        .HasColumnType("int")
+                        .HasColumnName("quote_id");
+
+                    b.Property<decimal>("UnitPriceExclTax")
+                        .HasColumnType("decimal(10,2)")
+                        .HasColumnName("unit_price_excl_tax");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuoteId", "DisplayOrder");
+
+                    b.ToTable("quote_lines", (string)null);
+                });
+
             modelBuilder.Entity("BackEnd.Shared.Entities.RefreshToken", b =>
                 {
                     b.Property<int>("Id")
@@ -407,6 +610,18 @@ namespace BackEnd.API.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)")
                         .HasColumnName("name");
+
+                    b.Property<int>("QuoteRefSequence")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("quote_ref_sequence");
+
+                    b.Property<int>("QuoteRefYear")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("quote_ref_year");
 
                     b.Property<string>("Subscription")
                         .HasMaxLength(50)
@@ -525,6 +740,25 @@ namespace BackEnd.API.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("BackEnd.Shared.Entities.Comment", b =>
+                {
+                    b.HasOne("BackEnd.Shared.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BackEnd.Shared.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("BackEnd.Shared.Entities.CompanyInfo", b =>
                 {
                     b.HasOne("BackEnd.Shared.Entities.Tenant", "Tenant")
@@ -558,6 +792,44 @@ namespace BackEnd.API.Migrations
                     b.Navigation("Tenant");
                 });
 
+            modelBuilder.Entity("BackEnd.Shared.Entities.Quote", b =>
+                {
+                    b.HasOne("BackEnd.Shared.Entities.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BackEnd.Shared.Entities.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("BackEnd.Shared.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("BackEnd.Shared.Entities.QuoteLine", b =>
+                {
+                    b.HasOne("BackEnd.Shared.Entities.Quote", "Quote")
+                        .WithMany("Lines")
+                        .HasForeignKey("QuoteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Quote");
+                });
+
             modelBuilder.Entity("BackEnd.Shared.Entities.RefreshToken", b =>
                 {
                     b.HasOne("BackEnd.Shared.Entities.User", "User")
@@ -578,6 +850,11 @@ namespace BackEnd.API.Migrations
                         .IsRequired();
 
                     b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("BackEnd.Shared.Entities.Quote", b =>
+                {
+                    b.Navigation("Lines");
                 });
 
             modelBuilder.Entity("BackEnd.Shared.Entities.Tenant", b =>

@@ -48,15 +48,16 @@ public class LocalFileStorage : IFileStorage
         }
     }
 
-    public Task<bool> DeleteAsync(string path)
+    public async Task<bool> DeleteAsync(string path)
     {
         var absolutePath = GetAbsolutePath(path);
-
-        if (!File.Exists(absolutePath))
-            return Task.FromResult(false);
-
-        File.Delete(absolutePath);
-        return Task.FromResult(true);
+        return await Task.Run(() =>
+        {
+            if (!File.Exists(absolutePath))
+                return false;
+            File.Delete(absolutePath);
+            return true;
+        });
     }
 
     private string GetAbsolutePath(string relativePath)

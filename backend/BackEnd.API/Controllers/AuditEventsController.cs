@@ -30,7 +30,7 @@ public class AuditEventsController : ControllerBase
             throw new ApiErrorException(ApiError.AuditEntityIdRequired);
 
         var result = await _auditService.GetEventsAsync(
-            query.EntityType, query.EntityId.Value, query.Page, query.PageSize);
+            query.EntityType, query.EntityId.Value, query.Page, query.PageSize, query.Action);
 
         return Ok(new ApiResponse<PaginatedResponse<AuditEventResponse>> { Data = result });
     }
