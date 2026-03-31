@@ -49,32 +49,24 @@ export function CreateChantierForm() {
     },
   })
 
-  // Pre-fill core fields from quote when loaded
+  // Pre-fill all fields from quote (setValue only — no reset to avoid Controller re-mount)
   useEffect(() => {
     if (quote && quoteId) {
-      form.reset({
-        customerId: quote.customerId,
-        quoteId: quote.id,
-        subject: quote.subject ?? '',
-        siteAddress: quote.siteAddress ?? '',
-        startDate: '',
-        endDate: '',
-        notes: '',
-      })
-    }
-  }, [quote, quoteId, form])
-
-  // Pre-fill custom fields from quote (separate to avoid resetting user edits)
-  useEffect(() => {
-    if (quote?.customFields && definitions) {
-      for (const cf of quote.customFields) {
-        const def = definitions.find(d => d.id === cf.id)
-        if (def?.appliesToSites) {
-          form.setValue(`customFields.${cf.id}` as any, cf.value)
+      form.setValue('customerId', quote.customerId)
+      form.setValue('quoteId' as any, quote.id)
+      form.setValue('subject', quote.subject ?? '')
+      form.setValue('siteAddress', quote.siteAddress ?? '')
+      if (quote.customFields && definitions) {
+        for (const cf of quote.customFields) {
+          const def = definitions.find(d => d.id === cf.id)
+          if (def?.appliesToSites) {
+            console.log(`apply to field ${cf.id} value ${cf.value}`)
+            form.setValue(`customFields.${cf.id}` as any, cf.value)
+          }
         }
       }
     }
-  }, [quote, definitions, form])
+  }, [quote, quoteId, definitions, form])
 
   const onSubmit = async (data: CreateSiteRequest) => {
     if (!data.customerId && !quoteId) {
@@ -90,21 +82,6 @@ export function CreateChantierForm() {
     if (!data.siteAddress?.trim()) {
       form.setError('siteAddress' as any, { message: "L'adresse est obligatoire" })
       return
-    }
-
-    // Validate RequiredForSiteConversion custom fields
-    if (definitions) {
-      const rawCf = (data as any).customFields as Record<string, any> | undefined
-      const requiredDefs = definitions.filter(d => d.obligationLevel === 'RequiredForSiteConversion')
-      for (const def of requiredDefs) {
-        const value = rawCf?.[String(def.id)]
-        if (value === undefined || value === null || value === '') {
-          form.setError(`customFields.${def.id}` as any, {
-            message: `Il manque **${def.label}** pour créer le chantier`,
-          })
-          return
-        }
-      }
     }
 
     const payload: CreateSiteRequest = {
@@ -234,19 +211,9 @@ export function CreateChantierForm() {
                 definitions={definitions}
                 control={form.control}
                 mode="complet"
+                requiredLevel="RequiredForSiteConversion"
               />
             )}
-            {/* Custom field validation errors */}
-            {definitions?.map((def) => {
-              const err = (form.formState.errors as any)?.customFields?.[String(def.id)]
-              if (!err) return null
-              return (
-                <p key={def.id} className="text-sm text-destructive">
-                  {(err.message as string)?.replace(/\*\*(.*?)\*\*/g, '$1')}
-                </p>
-              )
-            })}
-
             {/* Notes */}
             <div className="space-y-2">
               <Label htmlFor="notes">Notes</Label>

@@ -175,6 +175,25 @@ public class SiteService : ISiteService
             .ToListAsync();
     }
 
+    public async Task<List<SiteSearchResult>> GetByCustomerAsync(int customerId)
+    {
+        return await _db.Sites
+            .AsNoTracking()
+            .Where(s => s.CustomerId == customerId)
+            .OrderByDescending(s => s.CreatedAt)
+            .Select(s => new SiteSearchResult
+            {
+                Id = s.Id,
+                Reference = s.Reference,
+                Subject = s.Subject,
+                Status = s.Status.ToString(),
+                CustomerName = (s.Customer.LastName + " " + s.Customer.FirstName).Trim(),
+                SiteAddress = s.SiteAddress,
+                CreatedAt = s.CreatedAt,
+            })
+            .ToListAsync();
+    }
+
     // --- Private helpers ---
 
     private async Task<string> GenerateReference()

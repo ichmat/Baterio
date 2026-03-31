@@ -38,6 +38,13 @@ public class SitesController : ControllerBase
         return Ok(new ApiResponse<SiteResponse>(result));
     }
 
+    [HttpGet("by-customer/{customerId}")]
+    public async Task<IActionResult> GetByCustomer(int customerId)
+    {
+        var result = await _siteService.GetByCustomerAsync(customerId);
+        return Ok(new ApiResponse<List<SiteSearchResult>>(result));
+    }
+
     [HttpGet("search")]
     public async Task<IActionResult> Search([FromQuery] string q = "", [FromQuery] int limit = 10)
     {

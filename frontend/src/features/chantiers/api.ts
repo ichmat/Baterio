@@ -18,6 +18,13 @@ export async function createSite(data: CreateSiteRequest): Promise<SiteResponse>
   return response.data
 }
 
+export async function getSitesByCustomer(customerId: number): Promise<SiteSearchResult[]> {
+  const res = await apiClient<ApiResponse<SiteSearchResult[]>>(
+    `/sites/by-customer/${customerId}`,
+  )
+  return res.data
+}
+
 export async function searchSites(query: string, limit = 10): Promise<SiteSearchResult[]> {
   const res = await apiClient<ApiResponse<SiteSearchResult[]>>(
     `/sites/search?q=${encodeURIComponent(query)}&limit=${limit}`,
