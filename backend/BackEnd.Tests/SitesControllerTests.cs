@@ -133,4 +133,48 @@ public class SitesControllerTests : IClassFixture<CustomWebApplicationFactory>
         Assert.NotNull(body);
         Assert.NotEmpty(body.Data);
     }
+
+    // --- DELETE /api/sites/:id ---
+
+    [Fact]
+    public async Task Delete_ExistingSite_Returns204()
+    {
+        var (token, _, _, customerId) = await SetupAsync();
+
+        var createResponse = await _client.SendAsync(CreateRequest(HttpMethod.Post, "/api/sites", token,
+            new CreateSiteRequest { CustomerId = customerId, Subject = "Chantier à supprimer", SiteAddress = "1 rue Test" }));
+        var created = await createResponse.Content.ReadFromJsonAsync<ApiResponse<SiteResponse>>(JsonOpts);
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Delete, $"/api/sites/{created!.Data.Id}", token));
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Delete_NotFound_Returns404()
+    {
+        var (token, _, _, _) = await SetupAsync();
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Delete, "/api/sites/99999", token));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    // --- GET /api/sites/by-customer/:customerId ---
+
+    [Fact]
+    public async Task GetByCustomer_ReturnsCustomerSites()
+    {
+        var (token, _, _, customerId) = await SetupAsync();
+
+        await _client.SendAsync(CreateRequest(HttpMethod.Post, "/api/sites", token,
+            new CreateSiteRequest { CustomerId = customerId, Subject = "Chantier client", SiteAddress = "2 rue Client" }));
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Get, $"/api/sites/by-customer/{customerId}", token));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<List<SiteSearchResult>>>(JsonOpts);
+        Assert.NotNull(body);
+        Assert.NotEmpty(body.Data);
+    }
 }

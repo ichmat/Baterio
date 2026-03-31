@@ -1875,6 +1875,85 @@ public class QuoteServiceTests : IDisposable
             It.IsAny<object>()), Times.Never);
     }
 
+    // --- DeleteAsync ---
+
+    [Fact]
+    public async Task DeleteAsync_ExistingQuote_ShouldRemoveFromDb()
+    {
+        var created = await _service.CreateAsync(new CreateQuoteRequest
+        {
+            CustomerId = _customerId,
+            Subject = "À supprimer",
+            TaxRate = 20m
+        });
+
+        await _service.DeleteAsync(created.Id);
+
+        var result = await _service.GetByIdAsync(created.Id);
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_NotFound_ShouldThrow()
+    {
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(() => _service.DeleteAsync(9999));
+        Assert.Equal(ApiError.QuoteNotFound, ex.Code);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WithLinkedSite_ShouldThrow()
+    {
+        // Create an accepted quote
+        var quote = await _service.CreateAsync(new CreateQuoteRequest
+        {
+            CustomerId = _customerId,
+            Subject = "Devis avec chantier",
+            TaxRate = 20m
+        });
+        await _service.UpdateStatusAsync(quote.Id, new UpdateQuoteStatusRequest { Status = "Sent" });
+        await _service.UpdateStatusAsync(quote.Id, new UpdateQuoteStatusRequest { Status = "Accepted" });
+
+        // Create a site linked to the quote
+        var site = new Site
+        {
+            TenantId = _tenantId,
+            CustomerId = _customerId,
+            CreatedBy = _userId,
+            QuoteId = quote.Id,
+            Reference = "CH-2026-001",
+            Subject = "Chantier lié",
+            SiteAddress = "1 rue Test",
+            Status = SiteStatus.Planned,
+            CreatedAt = DateTime.UtcNow
+        };
+        _db.Sites.Add(site);
+        await _db.SaveChangesAsync();
+
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(() => _service.DeleteAsync(quote.Id));
+        Assert.Equal(ApiError.QuoteHasLinkedSite, ex.Code);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_ShouldLogAuditEvent()
+    {
+        var created = await _service.CreateAsync(new CreateQuoteRequest
+        {
+            CustomerId = _customerId,
+            Subject = "À supprimer audit",
+            TaxRate = 20m
+        });
+        _auditServiceMock.Reset();
+
+        await _service.DeleteAsync(created.Id);
+
+        _auditServiceMock.Verify(a => a.LogEventAsync(
+            "Quote",
+            created.Id,
+            AuditAction.Deleted,
+            null
+        ), Times.Once);
+    }
+
     private class TestTenantContext : ITenantContext
     {
         public int TenantId { get; set; }

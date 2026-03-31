@@ -316,4 +316,57 @@ describe('DevisDetailPage', () => {
       expect(screen.getByText('Galerie médias')).toBeInTheDocument()
     })
   })
+
+  it('bouton Supprimer présent', async () => {
+    vi.mocked(devisApi.getQuoteById).mockResolvedValue(mockQuote)
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Supprimer')).toBeInTheDocument()
+    })
+  })
+
+  it('clic Supprimer ouvre le dialog de confirmation', async () => {
+    vi.mocked(devisApi.getQuoteById).mockResolvedValue(mockQuote)
+    const user = userEvent.setup()
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Supprimer')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByText('Supprimer'))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Supprimer le devis DEV-2026-0001/)).toBeInTheDocument()
+    })
+    expect(screen.getByText('Annuler')).toBeInTheDocument()
+  })
+
+  it('confirmation suppression appelle deleteQuote + toast', async () => {
+    vi.mocked(devisApi.getQuoteById).mockResolvedValue(mockQuote)
+    vi.mocked(devisApi.deleteQuote).mockResolvedValue(undefined)
+    const user = userEvent.setup()
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Supprimer')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByText('Supprimer'))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Supprimer le devis/)).toBeInTheDocument()
+    })
+
+    const buttons = screen.getAllByText('Supprimer')
+    await user.click(buttons[buttons.length - 1])
+
+    await waitFor(() => {
+      expect(devisApi.deleteQuote).toHaveBeenCalledWith(1)
+    })
+
+    const { toast } = await import('sonner')
+    expect(toast.success).toHaveBeenCalledWith('Devis supprimé')
+  })
 })

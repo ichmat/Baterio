@@ -66,4 +66,11 @@ public class QuotesController : ControllerBase
         var result = await _quoteService.UpdateStatusAsync(id, request);
         return Ok(new ApiResponse<QuoteResponse>(result));
     }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        await _quoteService.DeleteAsync(id);
+        return NoContent();
+    }
 }

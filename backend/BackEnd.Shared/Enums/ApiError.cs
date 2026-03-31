@@ -374,5 +374,11 @@ public enum ApiError
     SiteNotesTooLong,
 
     [ApiErrorInfo(400, "La date de fin doit être après la date de début")]
-    SiteEndDateBeforeStartDate
+    SiteEndDateBeforeStartDate,
+
+    /// <summary>
+    /// Impossible de supprimer ce devis : un chantier y est lié
+    /// </summary>
+    [ApiErrorInfo(400, "Impossible de supprimer ce devis : un chantier y est lié. Supprimez d'abord le chantier.")]
+    QuoteHasLinkedSite,
 }

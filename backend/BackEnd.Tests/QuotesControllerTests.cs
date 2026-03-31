@@ -395,4 +395,56 @@ public class QuotesControllerTests : IClassFixture<CustomWebApplicationFactory>
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
+
+    // --- DELETE /api/quotes/{id} ---
+
+    [Fact]
+    public async Task Delete_ExistingQuote_Returns204()
+    {
+        var (token, _, _, customerId) = await SetupAsync();
+
+        var createResponse = await _client.SendAsync(CreateRequest(HttpMethod.Post, "/api/quotes", token,
+            new CreateQuoteRequest { CustomerId = customerId, Subject = "Devis à supprimer" }));
+        var created = await createResponse.Content.ReadFromJsonAsync<ApiResponse<QuoteResponse>>(JsonOpts);
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Delete, $"/api/quotes/{created!.Data.Id}", token));
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Delete_NotFound_Returns404()
+    {
+        var (token, _, _, _) = await SetupAsync();
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Delete, "/api/quotes/99999", token));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Delete_WithLinkedSite_Returns400()
+    {
+        var (token, _, _, customerId) = await SetupAsync();
+
+        // Create quote → Sent → Accepted
+        var createResponse = await _client.SendAsync(CreateRequest(HttpMethod.Post, "/api/quotes", token,
+            new CreateQuoteRequest { CustomerId = customerId, Subject = "Devis avec chantier" }));
+        var created = await createResponse.Content.ReadFromJsonAsync<ApiResponse<QuoteResponse>>(JsonOpts);
+        var quoteId = created!.Data.Id;
+
+        await _client.SendAsync(CreateRequest(HttpMethod.Patch, $"/api/quotes/{quoteId}/status", token,
+            new UpdateQuoteStatusRequest { Status = "Sent" }));
+        await _client.SendAsync(CreateRequest(HttpMethod.Patch, $"/api/quotes/{quoteId}/status", token,
+            new UpdateQuoteStatusRequest { Status = "Accepted" }));
+
+        // Create linked site
+        await _client.SendAsync(CreateRequest(HttpMethod.Post, "/api/sites", token,
+            new CreateSiteRequest { CustomerId = customerId, QuoteId = quoteId, Subject = "Chantier lié", SiteAddress = "1 rue Test" }));
+
+        // Try to delete the quote
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Delete, $"/api/quotes/{quoteId}", token));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }

@@ -194,6 +194,18 @@ public class SiteService : ISiteService
             .ToListAsync();
     }
 
+    public async Task DeleteAsync(int id)
+    {
+        var site = await _db.Sites.FirstOrDefaultAsync(s => s.Id == id)
+            ?? throw new ApiErrorException(ApiError.SiteNotFound);
+
+        _db.Sites.Remove(site);
+        await _db.SaveChangesAsync();
+
+        await _auditService.LogEventAsync("Site", site.Id, AuditAction.Deleted);
+        _logger.LogInformation("Site {SiteId} deleted for tenant {TenantId}", site.Id, _tenantContext.TenantId);
+    }
+
     // --- Private helpers ---
 
     private async Task<string> GenerateReference()

@@ -414,6 +414,22 @@ public class QuoteService : IQuoteService
             .ToListAsync();
     }
 
+    public async Task DeleteAsync(int id)
+    {
+        var quote = await _db.Quotes.FirstOrDefaultAsync(q => q.Id == id)
+            ?? throw new ApiErrorException(ApiError.QuoteNotFound);
+
+        var hasLinkedSite = await _db.Sites.AnyAsync(s => s.QuoteId == quote.Id);
+        if (hasLinkedSite)
+            throw new ApiErrorException(ApiError.QuoteHasLinkedSite);
+
+        _db.Quotes.Remove(quote);
+        await _db.SaveChangesAsync();
+
+        await _auditService.LogEventAsync("Quote", quote.Id, AuditAction.Deleted);
+        _logger.LogInformation("Quote {QuoteId} deleted for tenant {TenantId}", quote.Id, _tenantContext.TenantId);
+    }
+
     // --- Private helpers ---
 
     private static void ValidateTransition(QuoteStatus current, QuoteStatus target)

@@ -18,6 +18,10 @@ export async function createSite(data: CreateSiteRequest): Promise<SiteResponse>
   return response.data
 }
 
+export async function deleteSite(id: number): Promise<void> {
+  await apiClient<void>(`/sites/${id}`, { method: 'DELETE' })
+}
+
 export async function getSitesByCustomer(customerId: number): Promise<SiteSearchResult[]> {
   const res = await apiClient<ApiResponse<SiteSearchResult[]>>(
     `/sites/by-customer/${customerId}`,

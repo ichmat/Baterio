@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Routes, Route } from 'react-router'
 import { ChantierDetailPage } from '@/features/chantiers/ChantierDetailPage'
 import * as sitesApi from '@/features/chantiers/api'
@@ -7,6 +8,12 @@ import type { SiteResponse } from '@/features/chantiers/types'
 import { renderWithProviders } from '../../test-utils'
 
 vi.mock('@/features/chantiers/api')
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+  },
+}))
 
 const mockSite: SiteResponse = {
   id: 1,
@@ -119,5 +126,59 @@ describe('ChantierDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Chantier introuvable')).toBeInTheDocument()
     })
+  })
+
+  it('bouton Supprimer présent', async () => {
+    vi.mocked(sitesApi.getSiteById).mockResolvedValue(mockSite)
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Supprimer')).toBeInTheDocument()
+    })
+  })
+
+  it('clic Supprimer ouvre le dialog de confirmation', async () => {
+    vi.mocked(sitesApi.getSiteById).mockResolvedValue(mockSite)
+    const user = userEvent.setup()
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Supprimer')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByText('Supprimer'))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Supprimer le chantier CH-2026-001/)).toBeInTheDocument()
+    })
+    expect(screen.getByText('Annuler')).toBeInTheDocument()
+  })
+
+  it('confirmation suppression appelle deleteSite + toast + navigation', async () => {
+    vi.mocked(sitesApi.getSiteById).mockResolvedValue(mockSite)
+    vi.mocked(sitesApi.deleteSite).mockResolvedValue(undefined)
+    const user = userEvent.setup()
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Supprimer')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByText('Supprimer'))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Supprimer le chantier/)).toBeInTheDocument()
+    })
+
+    // Click the confirm button inside the dialog
+    const buttons = screen.getAllByText('Supprimer')
+    await user.click(buttons[buttons.length - 1])
+
+    await waitFor(() => {
+      expect(sitesApi.deleteSite).toHaveBeenCalledWith(1)
+    })
+
+    const { toast } = await import('sonner')
+    expect(toast.success).toHaveBeenCalledWith('Chantier supprimé')
   })
 })

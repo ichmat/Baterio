@@ -52,4 +52,11 @@ public class SitesController : ControllerBase
         var result = await _siteService.SearchAsync(q, limit);
         return Ok(new ApiResponse<List<SiteSearchResult>>(result));
     }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        await _siteService.DeleteAsync(id);
+        return NoContent();
+    }
 }

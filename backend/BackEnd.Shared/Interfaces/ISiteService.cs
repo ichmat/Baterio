@@ -8,4 +8,5 @@ public interface ISiteService
     Task<SiteResponse> CreateAsync(CreateSiteRequest request);
     Task<List<SiteSearchResult>> SearchAsync(string query, int limit = 10);
     Task<List<SiteSearchResult>> GetByCustomerAsync(int customerId);
+    Task DeleteAsync(int id);
 }

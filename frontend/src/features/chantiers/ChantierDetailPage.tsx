@@ -1,11 +1,14 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router'
-import { ArrowLeft, Users, FileText, Building2 } from 'lucide-react'
+import { ArrowLeft, Users, FileText, Building2, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { EntityLinksBar } from '@/components/EntityLinksBar'
 import type { EntityLink } from '@/components/EntityLinksBar'
-import { useSite } from './useSites'
+import { toast } from 'sonner'
+import { useSite, useDeleteSite } from './useSites'
 import { SITE_STATUS_CONFIG } from './status-config'
 
 interface ChantierDetailPageProps {
@@ -18,6 +21,8 @@ export function ChantierDetailPage({ siteId: propSiteId, showBackButton = true }
   const navigate = useNavigate()
   const siteId = propSiteId ?? Number(id)
   const { data: site, isLoading, isError } = useSite(siteId)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const deleteMutation = useDeleteSite()
 
   if (isLoading) {
     return (
@@ -70,6 +75,10 @@ export function ChantierDetailPage({ siteId: propSiteId, showBackButton = true }
           </div>
           <p className="mt-1 text-muted-foreground">{site.subject}</p>
         </div>
+        <Button size="sm" variant="destructive" onClick={() => setDeleteOpen(true)}>
+          <Trash2 className="mr-2 h-4 w-4" />
+          Supprimer
+        </Button>
       </div>
 
       {/* Entity Links */}
@@ -150,6 +159,39 @@ export function ChantierDetailPage({ siteId: propSiteId, showBackButton = true }
           </CardContent>
         </Card>
       )}
+
+      {/* Dialog suppression */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Supprimer le chantier {site.reference} ?</DialogTitle>
+            <DialogDescription>
+              Cette action est irréversible. Le chantier sera définitivement supprimé.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={deleteMutation.isPending}>
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={async () => {
+                try {
+                  await deleteMutation.mutateAsync(siteId)
+                  toast.success('Chantier supprimé')
+                  navigate('/chantiers')
+                } catch (err: unknown) {
+                  const apiError = err as { message?: string }
+                  toast.error(apiError?.message ?? 'Erreur lors de la suppression')
+                }
+              }}
+            >
+              {deleteMutation.isPending ? 'Suppression...' : 'Supprimer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

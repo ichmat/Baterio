@@ -365,6 +365,71 @@ public class SiteServiceTests : IDisposable
         Assert.Equal("Dupont Jean", byCustomer[0].CustomerName);
     }
 
+    // --- DeleteAsync ---
+
+    [Fact]
+    public async Task DeleteAsync_ExistingSite_ShouldRemoveFromDb()
+    {
+        var created = await _service.CreateAsync(MakeValidRequest());
+
+        await _service.DeleteAsync(created.Id);
+
+        var result = await _service.GetByIdAsync(created.Id);
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_NotFound_ShouldThrow()
+    {
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(() => _service.DeleteAsync(9999));
+        Assert.Equal(ApiError.SiteNotFound, ex.Code);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_ShouldLogAuditEvent()
+    {
+        var created = await _service.CreateAsync(MakeValidRequest());
+        _auditServiceMock.Reset();
+
+        await _service.DeleteAsync(created.Id);
+
+        _auditServiceMock.Verify(a => a.LogEventAsync(
+            "Site",
+            created.Id,
+            AuditAction.Deleted,
+            null
+        ), Times.Once);
+    }
+
+    // --- GetByCustomerAsync ---
+
+    [Fact]
+    public async Task GetByCustomerAsync_ShouldReturnOnlyCustomerSites()
+    {
+        await _service.CreateAsync(MakeValidRequest());
+
+        var otherCustomer = new Customer
+        {
+            TenantId = _tenantId,
+            LastName = "Martin",
+            FirstName = "Pierre",
+            CreatedAt = DateTime.UtcNow
+        };
+        _db.Customers.Add(otherCustomer);
+        await _db.SaveChangesAsync();
+
+        await _service.CreateAsync(new CreateSiteRequest
+        {
+            CustomerId = otherCustomer.Id,
+            Subject = "Autre chantier",
+            SiteAddress = "Ailleurs"
+        });
+
+        var results = await _service.GetByCustomerAsync(_customerId);
+        Assert.Single(results);
+        Assert.Equal("Rénovation cuisine", results[0].Subject);
+    }
+
     private class TestTenantContext : ITenantContext
     {
         public int TenantId { get; set; }

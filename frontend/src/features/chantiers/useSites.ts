@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getSiteById, createSite, searchSites, getSitesByCustomer } from './api'
+import { getSiteById, createSite, searchSites, getSitesByCustomer, deleteSite } from './api'
 
 export function useSite(id: number) {
   return useQuery({
@@ -13,6 +13,16 @@ export function useCreateSite() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: createSite,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sites'] })
+    },
+  })
+}
+
+export function useDeleteSite() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => deleteSite(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sites'] })
     },

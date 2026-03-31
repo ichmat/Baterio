@@ -11,4 +11,5 @@ public interface IQuoteService
     Task<QuoteResponse> UpdateAsync(int id, UpdateQuoteRequest request);
     Task<QuoteResponse> UpdateStatusAsync(int id, UpdateQuoteStatusRequest request);
     Task<List<QuoteSearchResult>> SearchAsync(string query, int limit = 10);
+    Task DeleteAsync(int id);
 }
