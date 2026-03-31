@@ -12,7 +12,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar onSearchClick={() => setSearchOpen(true)} />
-      <main className="p-6">{children}</main>
+      <main>{children}</main>
       <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
     </div>
   )

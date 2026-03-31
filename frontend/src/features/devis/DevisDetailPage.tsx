@@ -178,12 +178,19 @@ export function DevisDetailPage({ quoteId: propQuoteId, showBackButton = true }:
                 <dd>{quote.siteAddress}</dd>
               </div>
             )}
+            {quote.customFields && quote.customFields.map((field, index) => (
+              <div key={index}>
+                <dt className="text-muted-foreground">{field.label}</dt>
+                <dd>{field.value}</dd>
+              </div>
+            ))}
             {quote.notes && (
               <div className="sm:col-span-2">
                 <dt className="text-muted-foreground">Notes</dt>
                 <dd className="whitespace-pre-wrap">{quote.notes}</dd>
               </div>
             )}
+            
           </dl>
         </CardContent>
       </Card>
