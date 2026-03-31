@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, Link } from 'react-router'
 import { ArrowLeft, Pencil, FileText, Building2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -170,7 +170,9 @@ export function ClientDetail({ customerId, showBackButton = false, onBack }: Cli
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Aucun chantier pour ce client — les chantiers seront disponibles prochainement
+                <Link to="/chantiers" className="text-primary hover:underline">
+                  Voir les chantiers
+                </Link>
               </p>
             </CardContent>
           </Card>

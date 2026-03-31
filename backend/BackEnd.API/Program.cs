@@ -68,6 +68,7 @@ builder.Services.AddScoped<IFileStorage, LocalFileStorage>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IQuoteService, QuoteService>();
+builder.Services.AddScoped<ISiteService, SiteService>();
 builder.Services.AddScoped<ICommentService, CommentService>();
 builder.Services.AddScoped<JwtService>();
 

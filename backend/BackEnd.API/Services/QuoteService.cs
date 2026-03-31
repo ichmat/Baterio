@@ -7,7 +7,6 @@ using BackEnd.Shared.Models.Common;
 using BackEnd.Shared.Models.CustomFields;
 using BackEnd.Shared.Models.Quotes;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 
@@ -55,7 +54,7 @@ public class QuoteService : IQuoteService
         if (!Enum.TryParse<QuotePriority>(request.Priority, ignoreCase: true, out var priority))
             throw new ApiErrorException(ApiError.QuoteInvalidPriority);
 
-        var userId = GetCurrentUserId();
+        var userId = ServiceHelpers.GetCurrentUserId(_httpContextAccessor);
         var reference = await GenerateReference();
         var legalMentions = await GenerateLegalMentions();
 
@@ -68,14 +67,14 @@ public class QuoteService : IQuoteService
             Subject = request.Subject.Trim(),
             Status = QuoteStatus.Draft,
             Priority = priority,
-            ValidityDate = ParseDateOnly(request.ValidityDate),
-            EstimatedDuration = NullIfEmpty(request.EstimatedDuration),
-            SiteAddress = NullIfEmpty(request.SiteAddress),
+            ValidityDate = ServiceHelpers.ParseDateOnly(request.ValidityDate),
+            EstimatedDuration = ServiceHelpers.NullIfEmpty(request.EstimatedDuration),
+            SiteAddress = ServiceHelpers.NullIfEmpty(request.SiteAddress),
             TaxRate = request.TaxRate,
-            ReminderDate = ParseDateOnly(request.ReminderDate),
+            ReminderDate = ServiceHelpers.ParseDateOnly(request.ReminderDate),
             CustomFields = await ValidateAndEnrichCustomFieldsAsync(request.CustomFields),
             LegalMentions = legalMentions,
-            Notes = NullIfEmpty(request.Notes),
+            Notes = ServiceHelpers.NullIfEmpty(request.Notes),
             CreatedAt = DateTime.UtcNow
         };
 
@@ -144,13 +143,13 @@ public class QuoteService : IQuoteService
             throw new ApiErrorException(ApiError.QuoteInvalidPriority);
 
         quote.Priority = priority;
-        quote.Notes = NullIfEmpty(request.Notes);
-        quote.ValidityDate = ParseDateOnly(request.ValidityDate);
-        quote.EstimatedDuration = NullIfEmpty(request.EstimatedDuration);
-        quote.SiteAddress = NullIfEmpty(request.SiteAddress);
+        quote.Notes = ServiceHelpers.NullIfEmpty(request.Notes);
+        quote.ValidityDate = ServiceHelpers.ParseDateOnly(request.ValidityDate);
+        quote.EstimatedDuration = ServiceHelpers.NullIfEmpty(request.EstimatedDuration);
+        quote.SiteAddress = ServiceHelpers.NullIfEmpty(request.SiteAddress);
         quote.CustomFields = await ValidateAndEnrichCustomFieldsAsync(request.CustomFields);
         quote.TaxRate = request.TaxRate;
-        quote.ReminderDate = ParseDateOnly(request.ReminderDate);
+        quote.ReminderDate = ServiceHelpers.ParseDateOnly(request.ReminderDate);
 
         // --- Lines: validate, classify, snapshot, apply ---
         var lines = request.Lines ?? [];
@@ -336,7 +335,10 @@ public class QuoteService : IQuoteService
                 .ToDictionaryAsync(f => f.Id, f => f.Label);
         }
 
-        return MapToResponse(quote, labelLookup);
+        // Load linked site (if any) for bidirectional link
+        var site = await _db.Sites.FirstOrDefaultAsync(s => s.QuoteId == quote.Id);
+
+        return MapToResponse(quote, labelLookup, site);
     }
 
     public async Task<PaginatedResponse<QuoteListResponse>> GetAllAsync(int page = 1, int pageSize = 20)
@@ -496,38 +498,7 @@ public class QuoteService : IQuoteService
             quote.AmountInclTax = quote.AmountExclTax;
     }
 
-    private int GetCurrentUserId()
-    {
-        var userIdClaim = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier);
-        if (userIdClaim == null)
-            throw new ApiErrorException(ApiError.Unauthorized);
-        return int.Parse(userIdClaim.Value);
-    }
-
-    private static DateOnly? ParseDateOnly(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return null;
-        return DateOnly.TryParse(value, out var date) ? date : null;
-    }
-
-    private static Dictionary<string, JsonElement> ParseCustomFieldsJson(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json))
-            return new Dictionary<string, JsonElement>();
-        try
-        {
-            return JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)
-                   ?? new Dictionary<string, JsonElement>();
-        }
-        catch (JsonException)
-        {
-            return new Dictionary<string, JsonElement>();
-        }
-    }
-
-    private static string? NullIfEmpty(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    private int GetCurrentUserId() => ServiceHelpers.GetCurrentUserId(_httpContextAccessor);
 
     private static Dictionary<int, (string? Label, string? RawValue)> NormalizeCustomFieldsForDiff(
         string? json, Dictionary<int, string> defLabels)
@@ -601,18 +572,18 @@ public class QuoteService : IQuoteService
             switch (fieldDefinition.FieldType)
             {
                 case FieldType.Text:
-                    if(!IsElementString(fieldEntry.Value, out _))
+                    if(!ServiceHelpers.IsElementString(fieldEntry.Value, out _))
                         throw new ApiErrorException(ApiError.CustomFieldInvalidValue, fieldDefinition.Label, "La valeur n'est pas un texte");
                     if (mandatory && fieldEntry.Value is string && string.IsNullOrWhiteSpace(fieldEntry.Value.ToString()))
                         throw new ApiErrorException(ApiError.CustomFieldRequired, fieldDefinition.Label);
                     break;
                 case FieldType.Number:
-                    if (!IsElementNumber(fieldEntry.Value))
+                    if (!ServiceHelpers.IsElementNumber(fieldEntry.Value))
                         throw new ApiErrorException(ApiError.CustomFieldInvalidValue, fieldDefinition.Label, "La valeur n'est pas un nombre");
                     break;
                 case FieldType.SingleChoice:
                 case FieldType.MultipleChoice:
-                    if (!IsElementString(fieldEntry.Value, out string optionValue))
+                    if (!ServiceHelpers.IsElementString(fieldEntry.Value, out string optionValue))
                         throw new ApiErrorException(ApiError.CustomFieldInvalidValue, fieldDefinition.Label, "La valeur n'est pas une option valide");
                     try
                     {
@@ -630,7 +601,7 @@ public class QuoteService : IQuoteService
                 case FieldType.Date:
                     if(fieldEntry.Value is null && mandatory)
                         throw new ApiErrorException(ApiError.CustomFieldRequired, fieldDefinition.Label);
-                    if (!IsElementString(fieldEntry.Value, out string dateValue))
+                    if (!ServiceHelpers.IsElementString(fieldEntry.Value, out string dateValue))
                         throw new ApiErrorException(ApiError.CustomFieldInvalidValue, fieldDefinition.Label, "La valeur n'est pas une date");
                     if (!DateOnly.TryParse(dateValue, out _))
                         throw new ApiErrorException(ApiError.CustomFieldInvalidValue, fieldDefinition.Label, "La valeur n'est pas une date");
@@ -650,57 +621,13 @@ public class QuoteService : IQuoteService
         return JsonSerializer.Serialize(newJsonDictionnary);
     }
 
-    private static bool IsElementString(object? element, out string value)
-    {
-        if(element is not null)
-        {
-            if(element is string s)
-            {
-                value = s;
-                return true;
-            }
-            if(element is JsonElement jsonElement && jsonElement.ValueKind == JsonValueKind.String)
-            {
-                value = jsonElement.GetString() ?? string.Empty;
-                return true;
-            }
-
-            value = string.Empty;
-            return false;
-        }
-
-        value = string.Empty;
-        return true;
-    }
-
-    private static bool IsElementNumber(object? element)
-    {
-        if (element is decimal d)
-        {
-            return true;
-        }
-        if (element is int i)
-        {
-            return true;
-        }
-        if (element is float f)
-        {
-            return true;
-        }
-        if (element is JsonElement jsonElement && jsonElement.ValueKind == JsonValueKind.Number)
-        {
-            return true;
-        }
-        return false;
-    }
-
-    private static QuoteResponse MapToResponse(Quote quote, Dictionary<int, string>? labelLookup = null)
+    private static QuoteResponse MapToResponse(Quote quote, Dictionary<int, string>? labelLookup = null, Site? linkedSite = null)
     {
         List<CustomFieldEntry>? customFieldEntries = null;
 
         if (!string.IsNullOrWhiteSpace(quote.CustomFields))
         {
-            var dict = ParseCustomFieldsJson(quote.CustomFields);
+            var dict = ServiceHelpers.ParseCustomFieldsJson(quote.CustomFields);
             var entries = new List<CustomFieldEntry>();
 
             foreach (var kvp in dict)
@@ -763,7 +690,9 @@ public class QuoteService : IQuoteService
                 UnitPriceExclTax = l.UnitPriceExclTax,
                 LineTotalExclTax = l.Quantity * l.UnitPriceExclTax,
                 DisplayOrder = l.DisplayOrder
-            }).ToList()
+            }).ToList(),
+            SiteId = linkedSite?.Id,
+            SiteReference = linkedSite?.Reference
         };
     }
 }

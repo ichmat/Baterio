@@ -158,7 +158,7 @@ public class CustomerService : ICustomerService
                 Telephone = c.Telephone,
                 Email = c.Email,
                 QuoteCount = _db.Quotes.Count(q => q.CustomerId == c.Id),
-                SiteCount = 0,  // TODO: LEFT JOIN sites quand la table existe
+                SiteCount = _db.Sites.Count(s => s.CustomerId == c.Id),
             })
             .ToListAsync();
     }

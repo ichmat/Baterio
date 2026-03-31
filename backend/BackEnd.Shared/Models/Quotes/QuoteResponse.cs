@@ -26,4 +26,6 @@ public class QuoteResponse
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public List<QuoteLineResponse> Lines { get; set; } = [];
+    public int? SiteId { get; set; }
+    public string? SiteReference { get; set; }
 }

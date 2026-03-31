@@ -203,7 +203,7 @@ describe('DevisDetailPage', () => {
     })
   })
 
-  it('bouton "Créer le chantier" visible et désactivé si Accepted', async () => {
+  it('bouton "Créer le chantier" visible et cliquable si Accepted sans siteId', async () => {
     vi.mocked(devisApi.getQuoteById).mockResolvedValue({
       ...mockQuote,
       status: 'Accepted',
@@ -213,7 +213,7 @@ describe('DevisDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Créer le chantier')).toBeInTheDocument()
     })
-    expect(screen.getByText('Créer le chantier').closest('button')).toBeDisabled()
+    expect(screen.getByText('Créer le chantier').closest('button')).not.toBeDisabled()
   })
 
   it('bouton "Créer le chantier" non visible pour Draft', async () => {

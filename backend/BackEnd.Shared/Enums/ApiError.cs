@@ -336,5 +336,43 @@ public enum ApiError
     /// Identifiant de ligne de devis en double
     /// </summary>
     [ApiErrorInfo(400, "Identifiant de ligne de devis en double")]
-    QuoteLineDuplicateId
+    QuoteLineDuplicateId,
+
+    // Sites
+
+    [ApiErrorInfo(404, "Chantier introuvable")]
+    SiteNotFound,
+
+    [ApiErrorInfo(400, "Le client est obligatoire")]
+    SiteCustomerRequired,
+
+    [ApiErrorInfo(400, "L'objet du chantier est obligatoire")]
+    SiteSubjectRequired,
+
+    [ApiErrorInfo(400, "L'adresse du chantier est obligatoire")]
+    SiteAddressRequired,
+
+    [ApiErrorInfo(400, "Client introuvable pour ce chantier")]
+    SiteCustomerNotFound,
+
+    [ApiErrorInfo(400, "Devis introuvable")]
+    SiteQuoteNotFound,
+
+    [ApiErrorInfo(400, "Le devis doit être en statut Validé pour créer un chantier")]
+    SiteQuoteNotAccepted,
+
+    [ApiErrorInfo(400, "Champ obligatoire manquant pour le chantier : {0}")]
+    SiteCustomFieldRequired,
+
+    [ApiErrorInfo(400, "L'objet du chantier ne peut pas dépasser 500 caractères")]
+    SiteSubjectTooLong,
+
+    [ApiErrorInfo(400, "L'adresse du chantier ne peut pas dépasser 1000 caractères")]
+    SiteAddressTooLong,
+
+    [ApiErrorInfo(400, "Les notes ne peuvent pas dépasser 5000 caractères")]
+    SiteNotesTooLong,
+
+    [ApiErrorInfo(400, "La date de fin doit être après la date de début")]
+    SiteEndDateBeforeStartDate
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router'
-import { ArrowLeft, Edit2, Users, ImageIcon } from 'lucide-react'
+import { ArrowLeft, Edit2, Users, ImageIcon, Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -115,9 +115,14 @@ export function DevisDetailPage({ quoteId: propQuoteId, showBackButton = true }:
         <StatusPipeline currentStatus={quote.status} />
         <div className="flex items-center gap-2">
           <StatusActions quoteId={quote.id} currentStatus={quote.status} onStatusChange={() => refetch()} />
-          {quote.status === 'Accepted' && (
-            <Button disabled title="Disponible prochainement">
+          {quote.status === 'Accepted' && !quote.siteId && (
+            <Button onClick={() => navigate(`/chantiers/new?quoteId=${quote.id}`)}>
               Créer le chantier
+            </Button>
+          )}
+          {quote.siteId && (
+            <Button variant="outline" onClick={() => navigate(`/chantiers/${quote.siteId}`)}>
+              Voir le chantier
             </Button>
           )}
         </div>
@@ -132,6 +137,7 @@ export function DevisDetailPage({ quoteId: propQuoteId, showBackButton = true }:
       <EntityLinksBar
         links={[
           { label: 'Voir le client', href: `/clients/${quote.customerId}`, icon: Users },
+          ...(quote.siteId ? [{ label: 'Voir le chantier', href: `/chantiers/${quote.siteId}`, icon: Building2 }] : []),
         ]}
       />
 

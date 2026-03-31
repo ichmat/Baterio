@@ -10,6 +10,9 @@ import { ClientDetailPage } from '@/features/clients/ClientDetailPage'
 import { DevisPage } from '@/features/devis/DevisPage'
 import { CreateDevisForm } from '@/features/devis/CreateDevisForm'
 import { DevisDetailPage } from '@/features/devis/DevisDetailPage'
+import { ChantiersPage } from '@/pages/ChantiersPage'
+import { CreateChantierForm } from '@/features/chantiers/CreateChantierForm'
+import { ChantierDetailPage } from '@/features/chantiers/ChantierDetailPage'
 import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/sonner'
 
@@ -108,6 +111,42 @@ export default function App() {
                 <RoleRoute roles={['Admin', 'Chef', 'Secretaire']}>
                   <AppLayout>
                     <DevisDetailPage />
+                  </AppLayout>
+                </RoleRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/chantiers"
+            element={
+              <ProtectedRoute>
+                <RoleRoute roles={['Admin', 'Chef', 'Secretaire']}>
+                  <AppLayout>
+                    <ChantiersPage />
+                  </AppLayout>
+                </RoleRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/chantiers/new"
+            element={
+              <ProtectedRoute>
+                <RoleRoute roles={['Admin', 'Chef', 'Secretaire']}>
+                  <AppLayout>
+                    <CreateChantierForm />
+                  </AppLayout>
+                </RoleRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/chantiers/:id"
+            element={
+              <ProtectedRoute>
+                <RoleRoute roles={['Admin', 'Chef', 'Secretaire']}>
+                  <AppLayout>
+                    <ChantierDetailPage />
                   </AppLayout>
                 </RoleRoute>
               </ProtectedRoute>

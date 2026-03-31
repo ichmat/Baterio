@@ -102,7 +102,7 @@ describe('ClientDetail', () => {
     await waitFor(() => {
       expect(screen.getByText('Chantiers associés')).toBeInTheDocument()
     })
-    expect(screen.getByText('Aucun chantier pour ce client — les chantiers seront disponibles prochainement')).toBeInTheDocument()
+    expect(screen.getByText('Voir les chantiers')).toBeInTheDocument()
   })
 
   it('affiche la section historique (TimelineCompact)', async () => {
