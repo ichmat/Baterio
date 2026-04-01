@@ -18,8 +18,8 @@ export const SITE_STATUS_CONFIG: Record<string, StatusConfig> = {
 export const SITE_PIPELINE_CONFIG: PipelineConfig = {
   linearSteps: [
     { key: 'Planned', label: 'Planifié', icon: Calendar },
-    { key: 'InProgress', label: 'En cours', icon: Play },
     { key: 'Paused', label: 'Pause', icon: Pause },
+    { key: 'InProgress', label: 'En cours', icon: Play },
     { key: 'Completed', label: 'Terminé', icon: CheckCircle2 },
   ],
   terminalSteps: {},

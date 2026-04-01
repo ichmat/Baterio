@@ -280,6 +280,11 @@ describe('CreateChantierForm', () => {
       },
     ])
 
+    // Backend rejects with custom field required error
+    vi.mocked(sitesApi.createSite).mockRejectedValue({
+      message: 'Champ obligatoire manquant pour le chantier : Type de sol',
+    })
+
     renderForm()
 
     // Select customer
@@ -292,8 +297,11 @@ describe('CreateChantierForm', () => {
     // Submit WITHOUT filling the required custom field
     await user.click(screen.getByRole('button', { name: /créer le chantier/i }))
 
+    const { toast } = await import('sonner')
     await waitFor(() => {
-      expect(screen.getByText(/il manque type de sol pour créer le chantier/i)).toBeInTheDocument()
+      expect(toast.error).toHaveBeenCalledWith(
+        'Champ obligatoire manquant pour le chantier : Type de sol',
+      )
     })
   })
 })

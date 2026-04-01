@@ -171,7 +171,7 @@ describe('ChantierDetailPage', () => {
     expect(screen.getByText('Historique')).toBeInTheDocument()
   })
 
-  it('bouton Modifier ouvre le sheet d\'édition', async () => {
+  it('bouton Modifier bascule en mode édition plein écran', async () => {
     vi.mocked(sitesApi.getSiteById).mockResolvedValue(mockSite)
     const user = userEvent.setup()
     renderPage()
