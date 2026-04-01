@@ -376,6 +376,9 @@ public enum ApiError
     [ApiErrorInfo(400, "La date de fin doit être après la date de début")]
     SiteEndDateBeforeStartDate,
 
+    [ApiErrorInfo(400, "Transition de statut non autorisée pour le chantier")]
+    SiteInvalidStatusTransition,
+
     /// <summary>
     /// Impossible de supprimer ce devis : un chantier y est lié
     /// </summary>

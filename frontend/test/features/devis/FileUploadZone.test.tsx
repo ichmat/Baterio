@@ -45,7 +45,7 @@ beforeEach(() => {
 describe('FileUploadZone', () => {
   it('affiche "Aucune pièce jointe" si liste vide', async () => {
     vi.mocked(filesApi.getAttachments).mockResolvedValue([])
-    renderWithProviders(<FileUploadZone quoteId={1} />)
+    renderWithProviders(<FileUploadZone entityType="Quote" entityId={1} />)
 
     await waitFor(() => {
       expect(screen.getByText('Aucune pièce jointe')).toBeInTheDocument()
@@ -54,7 +54,7 @@ describe('FileUploadZone', () => {
 
   it('affiche la liste avec nom, taille, auteur', async () => {
     vi.mocked(filesApi.getAttachments).mockResolvedValue(mockAttachments)
-    renderWithProviders(<FileUploadZone quoteId={1} />)
+    renderWithProviders(<FileUploadZone entityType="Quote" entityId={1} />)
 
     await waitFor(() => {
       expect(screen.getByText('photo-chantier.png')).toBeInTheDocument()
@@ -80,7 +80,7 @@ describe('FileUploadZone', () => {
 
     const { toast } = await import('sonner')
     const user = userEvent.setup()
-    renderWithProviders(<FileUploadZone quoteId={1} />)
+    renderWithProviders(<FileUploadZone entityType="Quote" entityId={1} />)
 
     await waitFor(() => {
       expect(screen.getByText('Ajouter un fichier')).toBeInTheDocument()
@@ -105,7 +105,7 @@ describe('FileUploadZone', () => {
     vi.mocked(filesApi.uploadFile).mockReturnValue(new Promise(() => {}))
 
     const user = userEvent.setup()
-    renderWithProviders(<FileUploadZone quoteId={1} />)
+    renderWithProviders(<FileUploadZone entityType="Quote" entityId={1} />)
 
     await waitFor(() => {
       expect(screen.getByText('Ajouter un fichier')).toBeInTheDocument()
@@ -128,7 +128,7 @@ describe('FileUploadZone', () => {
 
     const { toast } = await import('sonner')
     const user = userEvent.setup()
-    renderWithProviders(<FileUploadZone quoteId={1} />)
+    renderWithProviders(<FileUploadZone entityType="Quote" entityId={1} />)
 
     await waitFor(() => {
       expect(screen.getByText('Ajouter un fichier')).toBeInTheDocument()
@@ -149,7 +149,7 @@ describe('FileUploadZone', () => {
 
     const { toast } = await import('sonner')
     const user = userEvent.setup()
-    renderWithProviders(<FileUploadZone quoteId={1} />)
+    renderWithProviders(<FileUploadZone entityType="Quote" entityId={1} />)
 
     await waitFor(() => {
       expect(screen.getByText('photo-chantier.png')).toBeInTheDocument()

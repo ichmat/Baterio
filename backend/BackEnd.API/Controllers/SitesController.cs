@@ -3,6 +3,7 @@ using BackEnd.Shared.Enums;
 using BackEnd.Shared.Exceptions;
 using BackEnd.Shared.Interfaces;
 using BackEnd.Shared.Models.Common;
+using BackEnd.Shared.Models.Quotes;
 using BackEnd.Shared.Models.Sites;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -51,6 +52,33 @@ public class SitesController : ControllerBase
         if (q.Length > 200) q = q[..200];
         var result = await _siteService.SearchAsync(q, limit);
         return Ok(new ApiResponse<List<SiteSearchResult>>(result));
+    }
+
+    [HttpPatch("{id}/status")]
+    public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateQuoteStatusRequest request)
+    {
+        var result = await _siteService.UpdateStatusAsync(id, request.Status);
+        return Ok(new ApiResponse<SiteResponse>(result));
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, [FromBody] UpdateSiteRequest request)
+    {
+        var result = await _siteService.UpdateAsync(id, request);
+        return Ok(new ApiResponse<SiteResponse>(result));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? status = null,
+        [FromQuery] string? search = null,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] string? sortDirection = null)
+    {
+        var result = await _siteService.GetAllAsync(page, pageSize, status, search, sortBy, sortDirection);
+        return Ok(new ApiResponse<PaginatedResponse<SiteResponse>>(result));
     }
 
     [HttpDelete("{id}")]

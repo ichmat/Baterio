@@ -1,8 +1,18 @@
 import { apiClient } from '@/lib/api-client'
-import type { CreateSiteRequest, SiteResponse, SiteSearchResult } from './types'
+import type { CreateSiteRequest, UpdateSiteRequest, SiteResponse, SiteSearchResult, SiteListFilters } from './types'
 
 interface ApiResponse<T> {
   data: T
+}
+
+export interface SitesPage {
+  data: SiteResponse[]
+  pagination: {
+    page: number
+    pageSize: number
+    totalItems: number
+    totalPages: number
+  }
 }
 
 export async function getSiteById(id: number): Promise<SiteResponse> {
@@ -34,4 +44,34 @@ export async function searchSites(query: string, limit = 10): Promise<SiteSearch
     `/sites/search?q=${encodeURIComponent(query)}&limit=${limit}`,
   )
   return res.data
+}
+
+export async function updateSite(id: number, data: UpdateSiteRequest): Promise<SiteResponse> {
+  const response = await apiClient<ApiResponse<SiteResponse>>(`/sites/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+  return response.data
+}
+
+export async function updateSiteStatus(id: number, status: string): Promise<SiteResponse> {
+  const response = await apiClient<ApiResponse<SiteResponse>>(`/sites/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  })
+  return response.data
+}
+
+export async function getSites(page: number, pageSize: number, filters?: SiteListFilters): Promise<SitesPage> {
+  const params = new URLSearchParams({
+    page: String(page),
+    pageSize: String(pageSize),
+  })
+  if (filters?.status) params.set('status', filters.status)
+  if (filters?.search) params.set('search', filters.search)
+  if (filters?.sortBy) params.set('sortBy', filters.sortBy)
+  if (filters?.sortDirection) params.set('sortDirection', filters.sortDirection)
+
+  const response = await apiClient<ApiResponse<SitesPage>>(`/sites?${params}`)
+  return response.data
 }

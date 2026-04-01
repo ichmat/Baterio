@@ -3,6 +3,7 @@ using BackEnd.Shared.Entities;
 using BackEnd.Shared.Enums;
 using BackEnd.Shared.Exceptions;
 using BackEnd.Shared.Interfaces;
+using BackEnd.Shared.Models.Common;
 using BackEnd.Shared.Models.CustomFields;
 using BackEnd.Shared.Models.Sites;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +18,14 @@ public class SiteService : ISiteService
     private readonly IAuditService _auditService;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<SiteService> _logger;
+
+    private static readonly Dictionary<SiteStatus, SiteStatus[]> AllowedTransitions = new()
+    {
+        { SiteStatus.Planned, [SiteStatus.InProgress] },
+        { SiteStatus.InProgress, [SiteStatus.Paused, SiteStatus.Completed] },
+        { SiteStatus.Paused, [SiteStatus.InProgress, SiteStatus.Completed] },
+        { SiteStatus.Completed, [] },
+    };
 
     public SiteService(AppDbContext db, ITenantContext tenantContext,
         IAuditService auditService, IHttpContextAccessor httpContextAccessor,
@@ -225,6 +234,228 @@ public class SiteService : ISiteService
 
         // Tenant update is saved in the same SaveChanges as the Site (atomicity via TransactionMiddleware)
         return $"CH-{year}-{tenant.SiteRefSequence:000}";
+    }
+
+    public async Task<PaginatedResponse<SiteResponse>> GetAllAsync(int page = 1, int pageSize = 20,
+        string? status = null, string? search = null, string? sortBy = null, string? sortDirection = null)
+    {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
+        var query = _db.Sites
+            .Include(s => s.Customer)
+            .Include(s => s.CreatedByUser)
+            .Include(s => s.Quote)
+            .AsNoTracking()
+            .AsQueryable();
+
+        // Filter by status
+        if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<SiteStatus>(status, ignoreCase: true, out var parsedStatus))
+            query = query.Where(s => s.Status == parsedStatus);
+
+        // Search
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            query = query.Where(s =>
+                s.Customer.LastName.Contains(term) ||
+                s.Customer.FirstName.Contains(term) ||
+                s.Subject.Contains(term) ||
+                s.Reference.Contains(term) ||
+                s.SiteAddress.Contains(term));
+        }
+
+        // Sorting — default CreatedAt desc (newest first)
+        var isAsc = string.Equals(sortDirection, "asc", StringComparison.OrdinalIgnoreCase);
+        query = (sortBy?.ToLowerInvariant()) switch
+        {
+            "reference" => isAsc ? query.OrderBy(s => s.Reference) : query.OrderByDescending(s => s.Reference),
+            "subject" => isAsc ? query.OrderBy(s => s.Subject) : query.OrderByDescending(s => s.Subject),
+            "status" => isAsc ? query.OrderBy(s => s.Status) : query.OrderByDescending(s => s.Status),
+            "customername" => isAsc
+                ? query.OrderBy(s => s.Customer.LastName).ThenBy(s => s.Customer.FirstName)
+                : query.OrderByDescending(s => s.Customer.LastName).ThenByDescending(s => s.Customer.FirstName),
+            _ => isAsc ? query.OrderBy(s => s.CreatedAt) : query.OrderByDescending(s => s.CreatedAt),
+        };
+
+        var totalItems = await query.CountAsync();
+
+        var items = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        return new PaginatedResponse<SiteResponse>
+        {
+            Data = items.Select(s => MapToResponse(s)).ToList(),
+            Pagination = new PaginationInfo
+            {
+                Page = page,
+                PageSize = pageSize,
+                TotalItems = totalItems,
+                TotalPages = (int)Math.Ceiling((double)totalItems / pageSize)
+            }
+        };
+    }
+
+    public async Task<SiteResponse> UpdateStatusAsync(int id, string newStatus)
+    {
+        var site = await _db.Sites
+            .Include(s => s.Customer)
+            .Include(s => s.CreatedByUser)
+            .Include(s => s.Quote)
+            .FirstOrDefaultAsync(s => s.Id == id);
+
+        if (site == null)
+            throw new ApiErrorException(ApiError.SiteNotFound);
+
+        if (!Enum.TryParse<SiteStatus>(newStatus, ignoreCase: true, out var status))
+            throw new ApiErrorException(ApiError.SiteInvalidStatusTransition);
+
+        var oldStatus = site.Status;
+        ValidateTransition(oldStatus, status);
+
+        site.Status = status;
+        site.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        await _auditService.LogEventAsync("Site", id, AuditAction.StatusChanged,
+            new { Old = oldStatus.ToString(), New = status.ToString() });
+
+        _logger.LogInformation("Site {SiteId} status changed {Old} → {New}", id, oldStatus, status);
+
+        return MapToResponse(site);
+    }
+
+    public async Task<SiteResponse> UpdateAsync(int id, UpdateSiteRequest request)
+    {
+        var site = await _db.Sites
+            .Include(s => s.Customer)
+            .Include(s => s.CreatedByUser)
+            .Include(s => s.Quote)
+            .FirstOrDefaultAsync(s => s.Id == id);
+
+        if (site == null)
+            throw new ApiErrorException(ApiError.SiteNotFound);
+
+        // Capture old values for audit diff
+        var oldSubject = site.Subject;
+        var oldAddress = site.SiteAddress;
+        var oldStartDate = site.StartDate;
+        var oldEndDate = site.EndDate;
+        var oldNotes = site.Notes;
+        var oldCustomFields = site.CustomFields;
+
+        // Validate
+        if (string.IsNullOrWhiteSpace(request.Subject))
+            throw new ApiErrorException(ApiError.SiteSubjectRequired);
+
+        if (request.Subject.Length > 500)
+            throw new ApiErrorException(ApiError.SiteSubjectTooLong);
+
+        if (string.IsNullOrWhiteSpace(request.SiteAddress))
+            throw new ApiErrorException(ApiError.SiteAddressRequired);
+
+        if (request.SiteAddress.Length > 1000)
+            throw new ApiErrorException(ApiError.SiteAddressTooLong);
+
+        if (request.Notes?.Length > 5000)
+            throw new ApiErrorException(ApiError.SiteNotesTooLong);
+
+        var startDate = ServiceHelpers.ParseDateOnly(request.StartDate);
+        var endDate = ServiceHelpers.ParseDateOnly(request.EndDate);
+        if (startDate.HasValue && endDate.HasValue && endDate < startDate)
+            throw new ApiErrorException(ApiError.SiteEndDateBeforeStartDate);
+
+        // Mutate
+        site.Subject = request.Subject.Trim();
+        site.SiteAddress = request.SiteAddress.Trim();
+        site.StartDate = startDate;
+        site.EndDate = endDate;
+        site.Notes = ServiceHelpers.NullIfEmpty(request.Notes);
+        site.CustomFields = await ValidateAndEnrichCustomFieldsAsync(request.CustomFields);
+
+        site.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        // Build audit diff
+        var changes = new Dictionary<string, object?>();
+        if (site.Subject != oldSubject) changes[nameof(site.Subject)] = new { Old = oldSubject, New = site.Subject };
+        if (site.SiteAddress != oldAddress) changes[nameof(site.SiteAddress)] = new { Old = oldAddress, New = site.SiteAddress };
+        if (site.StartDate != oldStartDate) changes[nameof(site.StartDate)] = new { Old = oldStartDate?.ToString(), New = site.StartDate?.ToString() };
+        if (site.EndDate != oldEndDate) changes[nameof(site.EndDate)] = new { Old = oldEndDate?.ToString(), New = site.EndDate?.ToString() };
+        if (site.Notes != oldNotes) changes[nameof(site.Notes)] = new { Old = oldNotes, New = site.Notes };
+        if (site.CustomFields != oldCustomFields)
+        {
+            var defLabels = await _db.CustomFieldDefinitions
+                .ToDictionaryAsync(f => f.Id, f => f.Label);
+
+            var oldEntries = NormalizeCustomFieldsForDiff(oldCustomFields, defLabels);
+            var newEntries = NormalizeCustomFieldsForDiff(site.CustomFields, defLabels);
+            var allIds = oldEntries.Keys.Union(newEntries.Keys).ToHashSet();
+
+            foreach (var fieldId in allIds)
+            {
+                oldEntries.TryGetValue(fieldId, out var oldEntry);
+                newEntries.TryGetValue(fieldId, out var newEntry);
+
+                if (oldEntry.RawValue == newEntry.RawValue) continue;
+
+                var label = newEntry.Label ?? oldEntry.Label ?? $"Field #{fieldId}";
+                changes[$"CustomFields:{fieldId}:{label}"] = new { Old = oldEntry.RawValue, New = newEntry.RawValue };
+            }
+        }
+
+        if (changes.Count > 0)
+            await _auditService.LogEventAsync("Site", id, AuditAction.Updated, changes);
+
+        _logger.LogInformation("Site {SiteId} updated for tenant {TenantId}", id, _tenantContext.TenantId);
+
+        return MapToResponse(site);
+    }
+
+    private static Dictionary<int, (string? Label, string? RawValue)> NormalizeCustomFieldsForDiff(
+        string? json, Dictionary<int, string> defLabels)
+    {
+        var result = new Dictionary<int, (string? Label, string? RawValue)>();
+        if (string.IsNullOrWhiteSpace(json)) return result;
+
+        try
+        {
+            var dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json);
+            if (dict == null) return result;
+
+            foreach (var kvp in dict)
+            {
+                int fieldId;
+                string? label;
+
+                if (kvp.Key.StartsWith("CustomFields:"))
+                {
+                    var afterPrefix = kvp.Key["CustomFields:".Length..];
+                    var colonIdx = afterPrefix.IndexOf(':');
+                    if (colonIdx < 0 || !int.TryParse(afterPrefix[..colonIdx], out fieldId)) continue;
+                    label = afterPrefix[(colonIdx + 1)..];
+                }
+                else if (int.TryParse(kvp.Key, out fieldId))
+                {
+                    label = defLabels.TryGetValue(fieldId, out var l) ? l : null;
+                }
+                else continue;
+
+                var rawValue = kvp.Value.ValueKind == JsonValueKind.Null ? null : kvp.Value.GetRawText();
+                result[fieldId] = (label, rawValue);
+            }
+        }
+        catch { /* malformed JSON — treat as empty */ }
+
+        return result;
+    }
+
+    private static void ValidateTransition(SiteStatus current, SiteStatus target)
+    {
+        if (!AllowedTransitions.TryGetValue(current, out var allowed) || !allowed.Contains(target))
+            throw new ApiErrorException(ApiError.SiteInvalidStatusTransition);
     }
 
     private async Task<string?> ValidateAndEnrichCustomFieldsAsync(List<CustomFieldEntry>? entries)

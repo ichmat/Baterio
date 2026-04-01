@@ -7,6 +7,7 @@ using BackEnd.Shared.Entities;
 using BackEnd.Shared.Enums;
 using BackEnd.Shared.Models.Common;
 using BackEnd.Shared.Models.Quotes;
+using BackEnd.Shared.Models.Sites;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 

@@ -17,7 +17,8 @@ import { formatAuditDate } from '@/features/audit/format-audit'
 import type { AttachmentResponse } from '@/features/files/types'
 
 interface FileUploadZoneProps {
-  quoteId: number
+  entityType: string
+  entityId: number
 }
 
 function getFileIcon(contentType: string) {
@@ -32,12 +33,12 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`
 }
 
-export function FileUploadZone({ quoteId }: FileUploadZoneProps) {
+export function FileUploadZone({ entityType, entityId }: FileUploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [deleteTarget, setDeleteTarget] = useState<AttachmentResponse | null>(null)
-  const { data: attachments, isLoading } = useAttachments('Quote', quoteId)
-  const uploadMutation = useUploadFile('Quote', quoteId)
-  const deleteMutation = useDeleteAttachment('Quote', quoteId)
+  const { data: attachments, isLoading } = useAttachments(entityType, entityId)
+  const uploadMutation = useUploadFile(entityType, entityId)
+  const deleteMutation = useDeleteAttachment(entityType, entityId)
   const download = useDownloadFile()
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -29,6 +29,9 @@ vi.mock('@/features/audit/api', () => ({
     pagination: { page: 1, pageSize: 5, totalItems: 1, totalPages: 1 },
   }),
 }))
+vi.mock('@/features/auth/useAuth', () => ({
+  useAuth: () => ({ user: { id: 1 } }),
+}))
 vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),

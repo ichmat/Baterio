@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getSiteById, createSite, searchSites, getSitesByCustomer, deleteSite } from './api'
+import { getSiteById, createSite, searchSites, getSitesByCustomer, deleteSite, updateSite, updateSiteStatus, getSites } from './api'
+import type { UpdateSiteRequest, SiteListFilters } from './types'
 
 export function useSite(id: number) {
   return useQuery({
@@ -42,5 +43,34 @@ export function useSiteSearch(query: string, limit = 10) {
     queryKey: ['sites', 'search', query, limit],
     queryFn: () => searchSites(query, limit),
     enabled: query.length >= 2,
+  })
+}
+
+export function useUpdateSite(id: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: UpdateSiteRequest) => updateSite(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sites', id] })
+      queryClient.invalidateQueries({ queryKey: ['sites'] })
+    },
+  })
+}
+
+export function useUpdateSiteStatus(id: number) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (status: string) => updateSiteStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sites', id] })
+      queryClient.invalidateQueries({ queryKey: ['sites'] })
+    },
+  })
+}
+
+export function useSites(page: number, pageSize: number, filters?: SiteListFilters) {
+  return useQuery({
+    queryKey: ['sites', 'list', page, pageSize, filters?.status, filters?.search, filters?.sortBy, filters?.sortDirection],
+    queryFn: () => getSites(page, pageSize, filters),
   })
 }

@@ -12,6 +12,9 @@ vi.mock('sonner', () => ({
     error: vi.fn(),
   },
 }))
+vi.mock('@/features/auth/useAuth', () => ({
+  useAuth: () => ({ user: { id: 1 } }),
+}))
 
 const emptyPage = {
   data: [],
@@ -49,7 +52,7 @@ beforeEach(() => {
 describe('CommentSection', () => {
   it('affiche "Aucun commentaire" si liste vide', async () => {
     vi.mocked(commentsApi.getComments).mockResolvedValue(emptyPage)
-    renderWithProviders(<CommentSection quoteId={1} />)
+    renderWithProviders(<CommentSection entityType="Quote" entityId={1} />)
 
     await waitFor(() => {
       expect(screen.getByText('Aucun commentaire')).toBeInTheDocument()
@@ -58,7 +61,7 @@ describe('CommentSection', () => {
 
   it('affiche Skeleton en chargement', () => {
     vi.mocked(commentsApi.getComments).mockReturnValue(new Promise(() => {}))
-    renderWithProviders(<CommentSection quoteId={1} />)
+    renderWithProviders(<CommentSection entityType="Quote" entityId={1} />)
 
     const skeletons = document.querySelectorAll('[data-slot="skeleton"]')
     expect(skeletons.length).toBeGreaterThan(0)
@@ -66,7 +69,7 @@ describe('CommentSection', () => {
 
   it('affiche les commentaires avec avatar, nom, contenu', async () => {
     vi.mocked(commentsApi.getComments).mockResolvedValue(commentsPage)
-    renderWithProviders(<CommentSection quoteId={1} />)
+    renderWithProviders(<CommentSection entityType="Quote" entityId={1} />)
 
     await waitFor(() => {
       expect(screen.getByText('Martin Sophie')).toBeInTheDocument()
@@ -79,7 +82,7 @@ describe('CommentSection', () => {
 
   it('bouton désactivé si champ texte vide', async () => {
     vi.mocked(commentsApi.getComments).mockResolvedValue(emptyPage)
-    renderWithProviders(<CommentSection quoteId={1} />)
+    renderWithProviders(<CommentSection entityType="Quote" entityId={1} />)
 
     await waitFor(() => {
       expect(screen.getByText('Aucun commentaire')).toBeInTheDocument()
@@ -103,7 +106,7 @@ describe('CommentSection', () => {
 
     const { toast } = await import('sonner')
     const user = userEvent.setup()
-    renderWithProviders(<CommentSection quoteId={1} />)
+    renderWithProviders(<CommentSection entityType="Quote" entityId={1} />)
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Ajouter un commentaire...')).toBeInTheDocument()
@@ -127,13 +130,68 @@ describe('CommentSection', () => {
     })
   })
 
+  // --- Suppression de commentaire ---
+
+  it('bouton supprimer visible uniquement sur ses propres commentaires', async () => {
+    vi.mocked(commentsApi.getComments).mockResolvedValue(commentsPage)
+    renderWithProviders(<CommentSection entityType="Quote" entityId={1} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Martin Sophie')).toBeInTheDocument()
+    })
+
+    // userId=1 (current user) → 1 delete button
+    const deleteButtons = screen.getAllByLabelText('Supprimer le commentaire')
+    expect(deleteButtons).toHaveLength(1)
+  })
+
+  it('clic supprimer → appel API deleteComment + toast succes', async () => {
+    vi.mocked(commentsApi.getComments).mockResolvedValue(commentsPage)
+    vi.mocked(commentsApi.deleteComment).mockResolvedValue(undefined)
+
+    const { toast } = await import('sonner')
+    const user = userEvent.setup()
+    renderWithProviders(<CommentSection entityType="Quote" entityId={1} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Martin Sophie')).toBeInTheDocument()
+    })
+
+    const deleteBtn = screen.getByLabelText('Supprimer le commentaire')
+    await user.click(deleteBtn)
+
+    await waitFor(() => {
+      expect(commentsApi.deleteComment).toHaveBeenCalledWith(1)
+    })
+    expect(toast.success).toHaveBeenCalledWith('Commentaire supprimé')
+  })
+
+  it('erreur suppression → toast erreur', async () => {
+    vi.mocked(commentsApi.getComments).mockResolvedValue(commentsPage)
+    vi.mocked(commentsApi.deleteComment).mockRejectedValue(new Error('fail'))
+
+    const { toast } = await import('sonner')
+    const user = userEvent.setup()
+    renderWithProviders(<CommentSection entityType="Quote" entityId={1} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Martin Sophie')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByLabelText('Supprimer le commentaire'))
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith('Erreur lors de la suppression')
+    })
+  })
+
   it('erreur API → toast erreur', async () => {
     vi.mocked(commentsApi.getComments).mockResolvedValue(emptyPage)
     vi.mocked(commentsApi.addComment).mockRejectedValue(new Error('Server error'))
 
     const { toast } = await import('sonner')
     const user = userEvent.setup()
-    renderWithProviders(<CommentSection quoteId={1} />)
+    renderWithProviders(<CommentSection entityType="Quote" entityId={1} />)
 
     await waitFor(() => {
       expect(screen.getByPlaceholderText('Ajouter un commentaire...')).toBeInTheDocument()

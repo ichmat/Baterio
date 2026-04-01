@@ -251,13 +251,13 @@ export function DevisDetailPage({ quoteId: propQuoteId, showBackButton = true }:
       )}
 
       {/* Commentaires */}
-      <CommentSection quoteId={quote.id} />
+      <CommentSection entityType="Quote" entityId={quote.id} />
 
       {/* Pièces jointes */}
-      <FileUploadZone quoteId={quote.id} />
+      <FileUploadZone entityType="Quote" entityId={quote.id} />
 
       {/* Galerie médias */}
-      <MediaGallery quoteId={quote.id} open={galleryOpen} onOpenChange={setGalleryOpen} />
+      <MediaGallery entityType="Quote" entityId={quote.id} open={galleryOpen} onOpenChange={setGalleryOpen} />
 
       {/* Historique */}
       <TimelineCompact

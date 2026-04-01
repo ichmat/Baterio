@@ -1,26 +1,31 @@
 import { useState, useCallback } from 'react'
-import { MessageSquare, Send, Loader2 } from 'lucide-react'
+import { MessageSquare, Send, Loader2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
 import { formatAuditDate } from '@/features/audit/format-audit'
-import { useComments, useAddComment } from '@/features/comments/useComments'
+import { useComments, useAddComment, useDeleteComment } from '@/features/comments/useComments'
+import { useAuth } from '@/features/auth/useAuth'
 import type { CommentResponse } from '@/features/comments/types'
 
 interface CommentSectionProps {
-  quoteId: number
+  entityType: string
+  entityId: number
 }
 
-export function CommentSection({ quoteId }: CommentSectionProps) {
+export function CommentSection({ entityType, entityId }: CommentSectionProps) {
   const [content, setContent] = useState('')
   // page=0 means "last page" (backend convention)
   const [currentPage, setCurrentPage] = useState(0)
   const [olderComments, setOlderComments] = useState<CommentResponse[]>([])
+  const [deletingCommentId, setDeletingCommentId] = useState<number | null>(null)
 
-  const { data, isLoading } = useComments('Quote', quoteId, currentPage)
-  const addMutation = useAddComment('Quote', quoteId)
+  const { user } = useAuth()
+  const { data, isLoading } = useComments(entityType, entityId, currentPage)
+  const addMutation = useAddComment(entityType, entityId)
+  const deleteMutation = useDeleteComment(entityType, entityId)
 
   const resolvedPage = data?.pagination.page ?? 1
   const hasOlderPages = resolvedPage > 1
@@ -91,8 +96,32 @@ export function CommentSection({ quoteId }: CommentSectionProps) {
               {comment.userFullName.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1">
-              <div className="text-sm font-medium">{comment.userFullName}</div>
-              <div className="text-xs text-muted-foreground">{formatAuditDate(comment.createdAt)}</div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">{comment.userFullName}</span>
+                <span className="text-xs text-muted-foreground">{formatAuditDate(comment.createdAt)}</span>
+                {user && comment.userId === user.id && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    aria-label="Supprimer le commentaire"
+                    disabled={deletingCommentId === comment.id}
+                    onClick={async () => {
+                      setDeletingCommentId(comment.id)
+                      try {
+                        await deleteMutation.mutateAsync(comment.id)
+                        toast.success('Commentaire supprimé')
+                      } catch {
+                        toast.error('Erreur lors de la suppression')
+                      } finally {
+                        setDeletingCommentId(null)
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                  </Button>
+                )}
+              </div>
               <p className="mt-1 text-sm whitespace-pre-wrap">{comment.content}</p>
             </div>
           </div>

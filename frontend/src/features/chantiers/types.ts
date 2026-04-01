@@ -40,3 +40,19 @@ export interface SiteSearchResult {
   siteAddress: string
   createdAt: string
 }
+
+export interface UpdateSiteRequest {
+  subject: string
+  siteAddress: string
+  startDate?: string | null
+  endDate?: string | null
+  customFields?: CustomFieldEntry[] | null
+  notes?: string | null
+}
+
+export interface SiteListFilters {
+  status?: string
+  search?: string
+  sortBy?: string
+  sortDirection?: 'asc' | 'desc'
+}

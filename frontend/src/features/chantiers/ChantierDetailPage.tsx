@@ -1,15 +1,32 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router'
-import { ArrowLeft, Users, FileText, Building2, Trash2 } from 'lucide-react'
+import { useForm } from 'react-hook-form'
+import { ArrowLeft, Users, FileText, Building2, Trash2, Edit2, ImageIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { EntityLinksBar } from '@/components/EntityLinksBar'
 import type { EntityLink } from '@/components/EntityLinksBar'
 import { toast } from 'sonner'
-import { useSite, useDeleteSite } from './useSites'
-import { SITE_STATUS_CONFIG } from './status-config'
+import { useQuery } from '@tanstack/react-query'
+import { getCustomFields } from '@/features/admin/api'
+import { DynamicCustomFields } from '@/features/devis/DynamicCustomFields'
+import { StatusPipeline } from '@/features/devis/StatusPipeline'
+import { CommentSection } from '@/features/devis/CommentSection'
+import { FileUploadZone } from '@/features/devis/FileUploadZone'
+import { MediaGallery } from '@/features/devis/MediaGallery'
+import { TimelineCompact } from '@/features/audit/TimelineCompact'
+import { TimelineFull } from '@/features/audit/TimelineFull'
+import { useAttachments } from '@/features/files/useFiles'
+import { useSite, useDeleteSite, useUpdateSite } from './useSites'
+import { SITE_STATUS_CONFIG, SITE_PIPELINE_CONFIG } from './status-config'
+import { SiteStatusActions } from './SiteStatusActions'
+import type { UpdateSiteRequest } from './types'
 
 interface ChantierDetailPageProps {
   siteId?: number
@@ -20,9 +37,13 @@ export function ChantierDetailPage({ siteId: propSiteId, showBackButton = true }
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const siteId = propSiteId ?? Number(id)
-  const { data: site, isLoading, isError } = useSite(siteId)
+  const { data: site, isLoading, isError, refetch } = useSite(siteId)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [galleryOpen, setGalleryOpen] = useState(false)
+  const [timelineOpen, setTimelineOpen] = useState(false)
   const deleteMutation = useDeleteSite()
+  const { data: attachments } = useAttachments('Site', siteId)
 
   if (isLoading) {
     return (
@@ -56,8 +77,8 @@ export function ChantierDetailPage({ siteId: propSiteId, showBackButton = true }
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
-      {/* Header */}
+    <div className="mx-auto max-w-4xl space-y-6 p-4">
+      {/* 1. Header */}
       <div className="flex items-center gap-4">
         {showBackButton && (
           <Button variant="ghost" size="icon" onClick={() => navigate('/chantiers')}>
@@ -75,16 +96,34 @@ export function ChantierDetailPage({ siteId: propSiteId, showBackButton = true }
           </div>
           <p className="mt-1 text-muted-foreground">{site.subject}</p>
         </div>
-        <Button size="sm" variant="destructive" onClick={() => setDeleteOpen(true)}>
-          <Trash2 className="mr-2 h-4 w-4" />
-          Supprimer
-        </Button>
+        <div className="flex items-center gap-2">
+          {(attachments?.length ?? 0) > 0 && (
+            <Button variant="outline" size="sm" onClick={() => setGalleryOpen(true)}>
+              <ImageIcon className="mr-2 h-4 w-4" />
+              Galerie médias
+            </Button>
+          )}
+          <Button size="sm" className="bg-yellow-500" onClick={() => setEditOpen(true)}>
+            <Edit2 className="mr-2 h-4 w-4" />
+            Modifier
+          </Button>
+          <Button size="sm" variant="destructive" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="mr-2 h-4 w-4" />
+            Supprimer
+          </Button>
+        </div>
       </div>
 
-      {/* Entity Links */}
+      {/* 2. StatusPipeline + SiteStatusActions */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <StatusPipeline currentStatus={site.status} config={SITE_PIPELINE_CONFIG} />
+        <SiteStatusActions siteId={site.id} currentStatus={site.status} onStatusChange={() => refetch()} />
+      </div>
+
+      {/* 3. EntityLinksBar */}
       <EntityLinksBar links={links} />
 
-      {/* Informations */}
+      {/* 4. Informations */}
       <Card>
         <CardHeader>
           <CardTitle>Informations</CardTitle>
@@ -125,42 +164,69 @@ export function ChantierDetailPage({ siteId: propSiteId, showBackButton = true }
               <dt className="text-sm font-medium text-muted-foreground">Date de création</dt>
               <dd className="mt-1">{new Date(site.createdAt).toLocaleDateString('fr-FR')}</dd>
             </div>
+            {site.customFields && site.customFields.map((cf) => (
+              <div key={cf.id}>
+                <dt className="text-sm font-medium text-muted-foreground">{cf.label}</dt>
+                <dd className="mt-1">{cf.value != null ? String(cf.value) : '—'}</dd>
+              </div>
+            ))}
           </dl>
+          {site.notes && (
+            <div className="mt-4 border-t pt-4">
+              <dt className="text-sm font-medium text-muted-foreground">Notes</dt>
+              <dd className="mt-1 whitespace-pre-wrap text-sm">{site.notes}</dd>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Custom Fields */}
-      {site.customFields && site.customFields.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Champs personnalisés</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {site.customFields.map((cf) => (
-                <div key={cf.id}>
-                  <dt className="text-sm font-medium text-muted-foreground">{cf.label}</dt>
-                  <dd className="mt-1">{cf.value != null ? String(cf.value) : '—'}</dd>
-                </div>
-              ))}
-            </dl>
-          </CardContent>
-        </Card>
-      )}
+      {/* 5. Historique compact */}
+      <TimelineCompact
+        entityType="Site"
+        entityId={site.id}
+        onViewDetails={() => setTimelineOpen(true)}
+      />
 
-      {/* Notes */}
-      {site.notes && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Notes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="whitespace-pre-wrap text-sm">{site.notes}</p>
-          </CardContent>
-        </Card>
-      )}
+      {/* 6. Commentaires */}
+      <CommentSection entityType="Site" entityId={site.id} />
 
-      {/* Dialog suppression */}
+      {/* 7. Pièces jointes */}
+      <FileUploadZone entityType="Site" entityId={site.id} />
+
+      {/* 8. Dialogs */}
+      <TimelineFull
+        entityType="Site"
+        entityId={site.id}
+        entityLabel={`${site.reference} — ${site.subject}`}
+        open={timelineOpen}
+        onOpenChange={setTimelineOpen}
+      />
+
+      <MediaGallery
+        entityType="Site"
+        entityId={site.id}
+        open={galleryOpen}
+        onOpenChange={setGalleryOpen}
+      />
+
+      <EditChantierSheet
+        siteId={site.id}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        defaultValues={{
+          subject: site.subject,
+          siteAddress: site.siteAddress,
+          startDate: site.startDate ?? '',
+          endDate: site.endDate ?? '',
+          notes: site.notes ?? '',
+          customFields: site.customFields,
+        }}
+        onSuccess={() => {
+          setEditOpen(false)
+          refetch()
+        }}
+      />
+
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent>
           <DialogHeader>
@@ -193,5 +259,133 @@ export function ChantierDetailPage({ siteId: propSiteId, showBackButton = true }
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+// --- Edit Sheet ---
+
+interface EditChantierSheetProps {
+  siteId: number
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  defaultValues: {
+    subject: string
+    siteAddress: string
+    startDate: string
+    endDate: string
+    notes: string
+    customFields: UpdateSiteRequest['customFields']
+  }
+  onSuccess: () => void
+}
+
+function EditChantierSheet({ siteId, open, onOpenChange, defaultValues, onSuccess }: EditChantierSheetProps) {
+  const updateMutation = useUpdateSite(siteId)
+
+  const { data: definitions } = useQuery({
+    queryKey: ['custom-fields', 'sites'],
+    queryFn: () => getCustomFields({ appliesToSites: true }),
+    select: (fields) =>
+      [...fields].sort(
+        (a, b) => (a.displayOrderSites ?? 999) - (b.displayOrderSites ?? 999),
+      ),
+  })
+
+  const form = useForm<UpdateSiteRequest>({
+    defaultValues: {
+      subject: defaultValues.subject,
+      siteAddress: defaultValues.siteAddress,
+      startDate: defaultValues.startDate || undefined,
+      endDate: defaultValues.endDate || undefined,
+      notes: defaultValues.notes || undefined,
+    },
+  })
+
+  const cfDefs = definitions ?? []
+
+  // Set custom field values when definitions load
+  useEffect(() => {
+    if (defaultValues.customFields && cfDefs.length > 0) {
+      for (const cf of defaultValues.customFields) {
+        const fieldName = `customFields.${cf.id}` as any
+        if (form.getValues(fieldName) === undefined) {
+          form.setValue(fieldName, cf.value)
+        }
+      }
+    }
+  }, [cfDefs.length, defaultValues.customFields, form])
+
+  const onSubmit = async (data: UpdateSiteRequest) => {
+    const customFields = cfDefs.map((def) => ({
+      id: def.id,
+      label: def.label,
+      value: (data as any).customFields?.[def.id] ?? null,
+    })).filter((cf) => cf.value !== undefined)
+
+    try {
+      await updateMutation.mutateAsync({
+        subject: data.subject,
+        siteAddress: data.siteAddress,
+        startDate: data.startDate || null,
+        endDate: data.endDate || null,
+        notes: data.notes || null,
+        customFields: customFields.length > 0 ? customFields : null,
+      })
+      toast.success('Chantier modifié')
+      onSuccess()
+    } catch (err: unknown) {
+      const apiError = err as { message?: string }
+      toast.error(apiError?.message ?? 'Erreur lors de la modification')
+    }
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="overflow-y-auto sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle>Modifier le chantier</SheetTitle>
+        </SheetHeader>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="mt-6 space-y-4">
+          <div>
+            <Label htmlFor="subject">Objet *</Label>
+            <Input id="subject" {...form.register('subject', { required: true })} maxLength={500} />
+          </div>
+          <div>
+            <Label htmlFor="siteAddress">Adresse *</Label>
+            <Input id="siteAddress" {...form.register('siteAddress', { required: true })} maxLength={1000} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="startDate">Date de début</Label>
+              <Input id="startDate" type="date" {...form.register('startDate')} />
+            </div>
+            <div>
+              <Label htmlFor="endDate">Date de fin</Label>
+              <Input id="endDate" type="date" {...form.register('endDate')} />
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea id="notes" {...form.register('notes')} maxLength={5000} rows={4} />
+          </div>
+          {cfDefs.length > 0 && (
+            <DynamicCustomFields
+              definitions={cfDefs}
+              control={form.control}
+              mode="complet"
+              requiredLevel="RequiredForSiteConversion"
+            />
+          )}
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Annuler
+            </Button>
+            <Button type="submit" disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </div>
+        </form>
+      </SheetContent>
+    </Sheet>
   )
 }

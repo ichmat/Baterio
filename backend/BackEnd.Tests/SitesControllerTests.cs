@@ -6,6 +6,7 @@ using BackEnd.API.Data;
 using BackEnd.Shared.Entities;
 using BackEnd.Shared.Enums;
 using BackEnd.Shared.Models.Common;
+using BackEnd.Shared.Models.Quotes;
 using BackEnd.Shared.Models.Sites;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -176,5 +177,125 @@ public class SitesControllerTests : IClassFixture<CustomWebApplicationFactory>
         var body = await response.Content.ReadFromJsonAsync<ApiResponse<List<SiteSearchResult>>>(JsonOpts);
         Assert.NotNull(body);
         Assert.NotEmpty(body.Data);
+    }
+
+    // --- PATCH /api/sites/:id/status ---
+
+    [Fact]
+    public async Task UpdateStatus_ValidTransition_Returns200()
+    {
+        var (token, _, _, customerId) = await SetupAsync();
+
+        var createResp = await _client.SendAsync(CreateRequest(HttpMethod.Post, "/api/sites", token,
+            new CreateSiteRequest { CustomerId = customerId, Subject = "Chantier status", SiteAddress = "1 rue Status" }));
+        var created = await createResp.Content.ReadFromJsonAsync<ApiResponse<SiteResponse>>(JsonOpts);
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Patch,
+            $"/api/sites/{created!.Data.Id}/status", token,
+            new UpdateQuoteStatusRequest { Status = "InProgress" }));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<SiteResponse>>(JsonOpts);
+        Assert.Equal("InProgress", body!.Data.Status);
+    }
+
+    [Fact]
+    public async Task UpdateStatus_InvalidTransition_Returns400()
+    {
+        var (token, _, _, customerId) = await SetupAsync();
+
+        var createResp = await _client.SendAsync(CreateRequest(HttpMethod.Post, "/api/sites", token,
+            new CreateSiteRequest { CustomerId = customerId, Subject = "Chantier status invalid", SiteAddress = "1 rue Status" }));
+        var created = await createResp.Content.ReadFromJsonAsync<ApiResponse<SiteResponse>>(JsonOpts);
+
+        // Planned → Completed is invalid
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Patch,
+            $"/api/sites/{created!.Data.Id}/status", token,
+            new UpdateQuoteStatusRequest { Status = "Completed" }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // --- PUT /api/sites/:id ---
+
+    [Fact]
+    public async Task Update_ValidData_Returns200()
+    {
+        var (token, _, _, customerId) = await SetupAsync();
+
+        var createResp = await _client.SendAsync(CreateRequest(HttpMethod.Post, "/api/sites", token,
+            new CreateSiteRequest { CustomerId = customerId, Subject = "Chantier update", SiteAddress = "1 rue Update" }));
+        var created = await createResp.Content.ReadFromJsonAsync<ApiResponse<SiteResponse>>(JsonOpts);
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Put,
+            $"/api/sites/{created!.Data.Id}", token,
+            new UpdateSiteRequest { Subject = "Sujet modifié", SiteAddress = "2 rue Modifiée" }));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<SiteResponse>>(JsonOpts);
+        Assert.Equal("Sujet modifié", body!.Data.Subject);
+        Assert.Equal("2 rue Modifiée", body.Data.SiteAddress);
+    }
+
+    [Fact]
+    public async Task Update_ValidationError_Returns400()
+    {
+        var (token, _, _, customerId) = await SetupAsync();
+
+        var createResp = await _client.SendAsync(CreateRequest(HttpMethod.Post, "/api/sites", token,
+            new CreateSiteRequest { CustomerId = customerId, Subject = "Chantier validation", SiteAddress = "1 rue Valid" }));
+        var created = await createResp.Content.ReadFromJsonAsync<ApiResponse<SiteResponse>>(JsonOpts);
+
+        // Empty subject → validation error
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Put,
+            $"/api/sites/{created!.Data.Id}", token,
+            new UpdateSiteRequest { Subject = "", SiteAddress = "1 rue Valid" }));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    // --- GET /api/sites ---
+
+    [Fact]
+    public async Task GetAll_Returns200WithPagination()
+    {
+        var (token, _, _, customerId) = await SetupAsync();
+
+        // Create a site to ensure at least one result
+        await _client.SendAsync(CreateRequest(HttpMethod.Post, "/api/sites", token,
+            new CreateSiteRequest { CustomerId = customerId, Subject = "Chantier list", SiteAddress = "1 rue List" }));
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Get, "/api/sites?page=1&pageSize=10", token));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<ApiResponse<PaginatedResponse<SiteResponse>>>(JsonOpts);
+        Assert.NotNull(body?.Data);
+        Assert.NotEmpty(body.Data.Data);
+        Assert.True(body.Data.Pagination.TotalItems > 0);
+    }
+
+    [Fact]
+    public async Task GetAll_WithStatusFilter_Returns200()
+    {
+        var (token, _, _, customerId) = await SetupAsync();
+
+        await _client.SendAsync(CreateRequest(HttpMethod.Post, "/api/sites", token,
+            new CreateSiteRequest { CustomerId = customerId, Subject = "Chantier filtre", SiteAddress = "1 rue Filtre" }));
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Get, "/api/sites?status=Planned", token));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    // --- Authorization ---
+
+    [Fact]
+    public async Task Ouvrier_CannotAccessSites_Returns403()
+    {
+        var (token, _, _, _) = await SetupAsync(UserRole.Ouvrier, "ouvrier-site@test.fr");
+
+        var response = await _client.SendAsync(CreateRequest(HttpMethod.Get, "/api/sites?page=1", token));
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 }
