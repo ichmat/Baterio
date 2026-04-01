@@ -265,7 +265,7 @@ export function DevisFormFields({
               key={field.id}
               index={index}
               onRemove={() => remove(index)}
-              canRemove={fields.length > 1}
+              canRemove={fields.length > 0}
             />
           ))}
           <Button
