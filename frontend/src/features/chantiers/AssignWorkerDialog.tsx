@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { useUsers } from '@/features/admin/useUsers'
 import { useAssignmentPresets, useCreateBatchAssignment, useCheckConflicts } from './useSites'
 import type { CreateAssignmentRequest, AssignmentConflict } from './types'
+import { readErrorOrDefault } from '../error/utils'
 
 interface AssignWorkerDialogProps {
   siteId: number
@@ -184,8 +185,9 @@ export function AssignWorkerDialog({ siteId, open, onOpenChange }: AssignWorkerD
       await batchMutation.mutateAsync({ assignments: requests })
       toast.success('Équipe attribuée')
       resetAndClose()
-    } catch {
-      toast.error("Erreur lors de l'attribution")
+    } catch (e) {
+      console.log(e);
+      toast.error(readErrorOrDefault(e, "Erreur lors de l'attribution"))
     }
   }
 
