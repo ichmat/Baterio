@@ -1,4 +1,5 @@
 using BackEnd.Shared.Models.CustomFields;
+using BackEnd.Shared.Models.SiteAssignments;
 
 namespace BackEnd.Shared.Models.Sites;
 
@@ -21,4 +22,6 @@ public class SiteResponse
     public string CreatedByName { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
+    public AssignedWorkersInfo? AssignedWorkers { get; set; }
+    public List<ProposedAdjustment>? ProposedAdjustments { get; set; }
 }

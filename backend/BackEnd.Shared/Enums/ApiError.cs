@@ -384,4 +384,33 @@ public enum ApiError
     /// </summary>
     [ApiErrorInfo(400, "Impossible de supprimer ce devis : un chantier y est lié. Supprimez d'abord le chantier.")]
     QuoteHasLinkedSite,
+
+    // Site Assignments
+
+    [ApiErrorInfo(404, "Ouvrier introuvable pour cette attribution")]
+    AssignmentWorkerNotFound,
+
+    [ApiErrorInfo(404, "Chantier introuvable pour cette attribution")]
+    AssignmentSiteNotFound,
+
+    [ApiErrorInfo(404, "Attribution introuvable")]
+    AssignmentNotFound,
+
+    [ApiErrorInfo(400, "La date de fin doit être après la date de début pour l'attribution")]
+    AssignmentInvalidDateRange,
+
+    [ApiErrorInfo(400, "Mode d'attribution invalide (valeurs acceptées : full_duration, date_preset, range_preset, free)")]
+    AssignmentInvalidMode,
+
+    [ApiErrorInfo(400, "Les dates de l'attribution sont en dehors de la plage du chantier ({0} - {1})")]
+    AssignmentOutsideSiteDateRange,
+
+    [ApiErrorInfo(400, "Le libellé du preset est obligatoire")]
+    AssignmentPresetLabelRequired,
+
+    [ApiErrorInfo(400, "Les heures du preset sont invalides (format HH:mm, début < fin)")]
+    AssignmentPresetInvalidTime,
+
+    [ApiErrorInfo(400, "L'utilisateur doit avoir le rôle Ouvrier")]
+    AssignmentWorkerRoleRequired,
 }

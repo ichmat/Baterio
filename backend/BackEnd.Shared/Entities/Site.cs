@@ -25,4 +25,5 @@ public class Site
     public Customer Customer { get; set; } = null!;
     public User CreatedByUser { get; set; } = null!;
     public Quote? Quote { get; set; }
+    public ICollection<SiteAssignment> Assignments { get; set; } = new List<SiteAssignment>();
 }

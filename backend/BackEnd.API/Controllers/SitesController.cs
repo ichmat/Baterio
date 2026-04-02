@@ -4,6 +4,7 @@ using BackEnd.Shared.Exceptions;
 using BackEnd.Shared.Interfaces;
 using BackEnd.Shared.Models.Common;
 using BackEnd.Shared.Models.Quotes;
+using BackEnd.Shared.Models.SiteAssignments;
 using BackEnd.Shared.Models.Sites;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,10 +18,12 @@ namespace BackEnd.API.Controllers;
 public class SitesController : ControllerBase
 {
     private readonly ISiteService _siteService;
+    private readonly ISiteAssignmentService _assignmentService;
 
-    public SitesController(ISiteService siteService)
+    public SitesController(ISiteService siteService, ISiteAssignmentService assignmentService)
     {
         _siteService = siteService;
+        _assignmentService = assignmentService;
     }
 
     [HttpPost]
@@ -86,5 +89,56 @@ public class SitesController : ControllerBase
     {
         await _siteService.DeleteAsync(id);
         return NoContent();
+    }
+
+    // --- Site Assignments ---
+
+    [HttpPost("{id}/assignments")]
+    public async Task<IActionResult> CreateAssignment(int id, [FromBody] CreateAssignmentRequest request)
+    {
+        var result = await _assignmentService.CreateAsync(id, request);
+        return Ok(new ApiResponse<List<SiteAssignmentResponse>>(result));
+    }
+
+    [HttpPost("{id}/assignments/batch")]
+    public async Task<IActionResult> CreateBatchAssignment(int id, [FromBody] CreateBatchAssignmentRequest request)
+    {
+        var result = await _assignmentService.CreateBatchAsync(id, request);
+        return Ok(new ApiResponse<List<SiteAssignmentResponse>>(result));
+    }
+
+    [HttpGet("{id}/assignments")]
+    public async Task<IActionResult> GetSiteAssignments(int id)
+    {
+        var result = await _assignmentService.GetBySiteAsync(id);
+        return Ok(new ApiResponse<List<SiteAssignmentResponse>>(result));
+    }
+
+    [HttpPatch("{id}/assignments/{assignmentId}")]
+    public async Task<IActionResult> UpdateAssignment(int id, int assignmentId, [FromBody] UpdateAssignmentRequest request)
+    {
+        var result = await _assignmentService.UpdateAsync(id, assignmentId, request);
+        return Ok(new ApiResponse<SiteAssignmentResponse>(result));
+    }
+
+    [HttpDelete("{id}/assignments/{assignmentId}")]
+    public async Task<IActionResult> DeleteAssignment(int id, int assignmentId)
+    {
+        await _assignmentService.DeleteAsync(id, assignmentId);
+        return NoContent();
+    }
+
+    [HttpPost("{id}/assignments/check-conflicts")]
+    public async Task<IActionResult> CheckConflicts(int id, [FromBody] CheckConflictsRequest request)
+    {
+        var result = await _assignmentService.CheckConflictsAsync(request.UserId, request.StartDatetime, request.EndDatetime, request.ExcludeAssignmentId);
+        return Ok(new ApiResponse<List<ConflictWarning>>(result));
+    }
+
+    [HttpPost("{id}/assignments/adjust")]
+    public async Task<IActionResult> ConfirmAdjustments(int id, [FromBody] List<AssignmentAdjustment> adjustments)
+    {
+        var result = await _assignmentService.ApplyAdjustmentsAsync(id, adjustments);
+        return Ok(new ApiResponse<List<SiteAssignmentResponse>>(result));
     }
 }

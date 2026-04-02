@@ -29,6 +29,8 @@ export interface SiteResponse {
   createdByName: string
   createdAt: string
   updatedAt: string | null
+  assignedWorkers: AssignedWorkersInfo | null
+  proposedAdjustments: ProposedAdjustment[] | null
 }
 
 export interface SiteSearchResult {
@@ -55,4 +57,74 @@ export interface SiteListFilters {
   search?: string
   sortBy?: string
   sortDirection?: 'asc' | 'desc'
+}
+
+// Site Assignments
+
+export interface SiteAssignment {
+  id: number
+  siteId: number
+  userId: number
+  userFullName: string
+  userAvatarUrl: string | null
+  startDatetime: string | null
+  endDatetime: string | null
+  createdAt: string
+}
+
+export interface CreateAssignmentRequest {
+  userId: number
+  mode: 'full_duration' | 'date_preset' | 'range_preset' | 'free'
+  date?: string
+  startDate?: string
+  endDate?: string
+  presetStartTime?: string
+  presetEndTime?: string
+  startDatetime?: string
+  endDatetime?: string
+}
+
+export interface CreateBatchAssignmentRequest {
+  assignments: CreateAssignmentRequest[]
+}
+
+export interface UpdateAssignmentRequest {
+  startDatetime?: string | null
+  endDatetime?: string | null
+}
+
+export interface AssignmentConflict {
+  type: 'info' | 'conflict'
+  message: string
+  conflictingSiteId: number | null
+  conflictingSiteName: string | null
+  existingStart: string | null
+  existingEnd: string | null
+}
+
+export interface AssignmentPreset {
+  label: string
+  startTime: string
+  endTime: string
+  order: number
+}
+
+export interface AssignmentAdjustment {
+  assignmentId: number
+  newStartDatetime: string | null
+  newEndDatetime: string | null
+}
+
+export interface ProposedAdjustment {
+  assignmentId: number
+  userFullName: string
+  oldStartDatetime: string | null
+  oldEndDatetime: string | null
+  newStartDatetime: string | null
+  newEndDatetime: string | null
+}
+
+export interface AssignedWorkersInfo {
+  count: number
+  names: string[]
 }

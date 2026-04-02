@@ -5,6 +5,7 @@ using BackEnd.Shared.Exceptions;
 using BackEnd.Shared.Interfaces;
 using BackEnd.Shared.Models.Common;
 using BackEnd.Shared.Models.CustomFields;
+using BackEnd.Shared.Models.SiteAssignments;
 using BackEnd.Shared.Models.Sites;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -246,6 +247,7 @@ public class SiteService : ISiteService
             .Include(s => s.Customer)
             .Include(s => s.CreatedByUser)
             .Include(s => s.Quote)
+            .Include(s => s.Assignments).ThenInclude(a => a.User)
             .AsNoTracking()
             .AsQueryable();
 
@@ -411,7 +413,65 @@ public class SiteService : ISiteService
 
         _logger.LogInformation("Site {SiteId} updated for tenant {TenantId}", id, _tenantContext.TenantId);
 
-        return MapToResponse(site);
+        var response = MapToResponse(site);
+
+        // Detect assignment adjustments needed when dates change
+        if (site.StartDate != oldStartDate || site.EndDate != oldEndDate)
+        {
+            var proposedAdjustments = await DetectAssignmentAdjustmentsAsync(site);
+            if (proposedAdjustments.Count > 0)
+                response.ProposedAdjustments = proposedAdjustments;
+        }
+
+        return response;
+    }
+
+    private async Task<List<ProposedAdjustment>> DetectAssignmentAdjustmentsAsync(Site site)
+    {
+        var adjustments = new List<ProposedAdjustment>();
+
+        // Only check precise assignments (non null/null)
+        var assignments = await _db.SiteAssignments
+            .Include(a => a.User)
+            .Where(a => a.SiteId == site.Id && a.StartDatetime != null && a.EndDatetime != null)
+            .ToListAsync();
+
+        var siteStart = site.StartDate?.ToDateTime(TimeOnly.MinValue);
+        var siteEnd = site.EndDate?.ToDateTime(TimeOnly.MaxValue);
+
+        foreach (var a in assignments)
+        {
+            DateTime? newStart = a.StartDatetime;
+            DateTime? newEnd = a.EndDatetime;
+            bool needsAdjustment = false;
+
+            if (siteStart.HasValue && a.StartDatetime < siteStart)
+            {
+                newStart = siteStart;
+                needsAdjustment = true;
+            }
+
+            if (siteEnd.HasValue && a.EndDatetime > siteEnd)
+            {
+                newEnd = siteEnd;
+                needsAdjustment = true;
+            }
+
+            if (needsAdjustment)
+            {
+                adjustments.Add(new ProposedAdjustment
+                {
+                    AssignmentId = a.Id,
+                    UserFullName = $"{a.User.LastName} {a.User.FirstName}".Trim(),
+                    OldStartDatetime = a.StartDatetime,
+                    OldEndDatetime = a.EndDatetime,
+                    NewStartDatetime = newStart,
+                    NewEndDatetime = newEnd
+                });
+            }
+        }
+
+        return adjustments;
     }
 
     private static Dictionary<int, (string? Label, string? RawValue)> NormalizeCustomFieldsForDiff(
@@ -581,7 +641,7 @@ public class SiteService : ISiteService
             if (entries.Count > 0) customFieldEntries = entries;
         }
 
-        return new SiteResponse
+        var response = new SiteResponse
         {
             Id = site.Id,
             Reference = site.Reference,
@@ -601,5 +661,22 @@ public class SiteService : ISiteService
             CreatedAt = site.CreatedAt,
             UpdatedAt = site.UpdatedAt
         };
+
+        // Populate assigned workers when Assignments collection is loaded
+        if (site.Assignments != null)
+        {
+            var distinctUsers = site.Assignments
+                .Select(a => $"{a.User.LastName} {a.User.FirstName}".Trim())
+                .Distinct()
+                .ToList();
+
+            response.AssignedWorkers = new AssignedWorkersInfo
+            {
+                Count = distinctUsers.Count,
+                Names = distinctUsers
+            };
+        }
+
+        return response;
     }
 }

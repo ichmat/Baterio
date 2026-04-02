@@ -44,6 +44,8 @@ const mockSite: SiteResponse = {
   createdByName: 'Martin Sophie',
   createdAt: '2026-03-31T10:00:00Z',
   updatedAt: null,
+  assignedWorkers: null,
+  proposedAdjustments: null,
 }
 
 const emptyCommentsPage = {
@@ -62,6 +64,8 @@ beforeEach(() => {
   vi.mocked(commentsApi.getComments).mockResolvedValue(emptyCommentsPage)
   vi.mocked(auditApi.getAuditEvents).mockResolvedValue(emptyAuditPage)
   vi.mocked(adminApi.getCustomFields).mockResolvedValue([])
+  vi.mocked(sitesApi.getSiteAssignments).mockResolvedValue([])
+  vi.mocked(sitesApi.getAssignmentPresets).mockResolvedValue([])
 })
 
 function renderPage(siteId = '1') {

@@ -1,5 +1,9 @@
 import { apiClient } from '@/lib/api-client'
-import type { CreateSiteRequest, UpdateSiteRequest, SiteResponse, SiteSearchResult, SiteListFilters } from './types'
+import type {
+  CreateSiteRequest, UpdateSiteRequest, SiteResponse, SiteSearchResult, SiteListFilters,
+  SiteAssignment, CreateAssignmentRequest, CreateBatchAssignmentRequest,
+  UpdateAssignmentRequest, AssignmentConflict, AssignmentPreset, AssignmentAdjustment,
+} from './types'
 
 interface ApiResponse<T> {
   data: T
@@ -74,4 +78,68 @@ export async function getSites(page: number, pageSize: number, filters?: SiteLis
 
   const response = await apiClient<ApiResponse<SitesPage>>(`/sites?${params}`)
   return response.data
+}
+
+// --- Site Assignments ---
+
+export async function getSiteAssignments(siteId: number): Promise<SiteAssignment[]> {
+  const res = await apiClient<ApiResponse<SiteAssignment[]>>(`/sites/${siteId}/assignments`)
+  return res.data
+}
+
+export async function createAssignment(siteId: number, data: CreateAssignmentRequest): Promise<SiteAssignment[]> {
+  const res = await apiClient<ApiResponse<SiteAssignment[]>>(`/sites/${siteId}/assignments`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+  return res.data
+}
+
+export async function createBatchAssignment(siteId: number, data: CreateBatchAssignmentRequest): Promise<SiteAssignment[]> {
+  const res = await apiClient<ApiResponse<SiteAssignment[]>>(`/sites/${siteId}/assignments/batch`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+  return res.data
+}
+
+export async function updateAssignment(siteId: number, assignmentId: number, data: UpdateAssignmentRequest): Promise<SiteAssignment> {
+  const res = await apiClient<ApiResponse<SiteAssignment>>(`/sites/${siteId}/assignments/${assignmentId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+  return res.data
+}
+
+export async function deleteAssignment(siteId: number, assignmentId: number): Promise<void> {
+  await apiClient<void>(`/sites/${siteId}/assignments/${assignmentId}`, { method: 'DELETE' })
+}
+
+export async function checkConflicts(siteId: number, data: { userId: number; startDatetime?: string | null; endDatetime?: string | null; excludeAssignmentId?: number }): Promise<AssignmentConflict[]> {
+  const res = await apiClient<ApiResponse<AssignmentConflict[]>>(`/sites/${siteId}/assignments/check-conflicts`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+  return res.data
+}
+
+export async function confirmAdjustments(siteId: number, adjustments: AssignmentAdjustment[]): Promise<SiteAssignment[]> {
+  const res = await apiClient<ApiResponse<SiteAssignment[]>>(`/sites/${siteId}/assignments/adjust`, {
+    method: 'POST',
+    body: JSON.stringify(adjustments),
+  })
+  return res.data
+}
+
+export async function getAssignmentPresets(): Promise<AssignmentPreset[]> {
+  const res = await apiClient<ApiResponse<AssignmentPreset[]>>('/company/assignment-presets')
+  return res.data
+}
+
+export async function updateAssignmentPresets(presets: AssignmentPreset[]): Promise<AssignmentPreset[]> {
+  const res = await apiClient<ApiResponse<AssignmentPreset[]>>('/company/assignment-presets', {
+    method: 'PUT',
+    body: JSON.stringify(presets),
+  })
+  return res.data
 }

@@ -22,6 +22,7 @@ public class CompanyInfoConfiguration : IEntityTypeConfiguration<CompanyInfo>
         builder.Property(c => c.InsuranceProvider).HasColumnName("insurance_provider").HasMaxLength(255);
         builder.Property(c => c.InsuranceCoverage).HasColumnName("insurance_coverage").HasMaxLength(255);
         builder.Property(c => c.DefaultPaymentTerms).HasColumnName("default_payment_terms").HasMaxLength(500);
+        builder.Property(c => c.AssignmentPresets).HasColumnName("assignment_presets").HasColumnType("json");
         builder.Property(c => c.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(c => c.UpdatedAt).HasColumnName("updated_at");
 

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm, FormProvider } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,7 +9,8 @@ import { useQuery } from '@tanstack/react-query'
 import { getCustomFields } from '@/features/admin/api'
 import { DynamicCustomFields } from '@/features/devis/DynamicCustomFields'
 import { useUpdateSite } from './useSites'
-import type { SiteResponse, UpdateSiteRequest } from './types'
+import { AdjustmentConfirmDialog } from './AdjustmentConfirmDialog'
+import type { SiteResponse, UpdateSiteRequest, ProposedAdjustment } from './types'
 
 interface EditChantierFormProps {
   site: SiteResponse
@@ -18,6 +19,7 @@ interface EditChantierFormProps {
 
 export function EditChantierForm({ site, onSuccess }: EditChantierFormProps) {
   const updateMutation = useUpdateSite(site.id)
+  const [pendingAdjustments, setPendingAdjustments] = useState<ProposedAdjustment[] | null>(null)
 
   const { data: definitions } = useQuery({
     queryKey: ['custom-fields', 'sites'],
@@ -59,7 +61,7 @@ export function EditChantierForm({ site, onSuccess }: EditChantierFormProps) {
     })).filter((cf) => cf.value !== undefined)
 
     try {
-      await updateMutation.mutateAsync({
+      const response = await updateMutation.mutateAsync({
         subject: data.subject,
         siteAddress: data.siteAddress,
         startDate: data.startDate || null,
@@ -68,7 +70,11 @@ export function EditChantierForm({ site, onSuccess }: EditChantierFormProps) {
         customFields: customFields.length > 0 ? customFields : null,
       })
       toast.success('Chantier modifié')
-      onSuccess()
+      if (response.proposedAdjustments && response.proposedAdjustments.length > 0) {
+        setPendingAdjustments(response.proposedAdjustments)
+      } else {
+        onSuccess()
+      }
     } catch (err: unknown) {
       const apiError = err as { message?: string }
       toast.error(apiError?.message ?? 'Erreur lors de la modification')
@@ -119,6 +125,17 @@ export function EditChantierForm({ site, onSuccess }: EditChantierFormProps) {
           </Button>
         </div>
       </form>
+
+      {pendingAdjustments && (
+        <AdjustmentConfirmDialog
+          siteId={site.id}
+          adjustments={pendingAdjustments}
+          open={!!pendingAdjustments}
+          onOpenChange={(open) => { if (!open) { setPendingAdjustments(null); onSuccess() } }}
+          onConfirmed={() => { setPendingAdjustments(null); onSuccess() }}
+          onCancel={() => { setPendingAdjustments(null); onSuccess() }}
+        />
+      )}
     </FormProvider>
   )
 }

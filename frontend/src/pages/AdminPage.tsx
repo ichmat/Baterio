@@ -3,6 +3,7 @@ import { UserManagement } from '@/features/admin/UserManagement'
 import { CompanySettings } from '@/features/admin/CompanySettings'
 import { SubscriptionInfo } from '@/features/admin/SubscriptionInfo'
 import { CustomFieldsConfig } from '@/features/admin/CustomFieldsConfig'
+import { AssignmentPresetsSettings } from '@/features/admin/AssignmentPresetsSettings'
 
 export function AdminPage() {
   return (
@@ -19,6 +20,7 @@ export function AdminPage() {
         <TabsContent value="company" className="space-y-6">
           <SubscriptionInfo />
           <CompanySettings />
+          <AssignmentPresetsSettings />
         </TabsContent>
         <TabsContent value="custom-fields">
           <CustomFieldsConfig />

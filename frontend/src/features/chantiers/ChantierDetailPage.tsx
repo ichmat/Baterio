@@ -19,6 +19,7 @@ import { useSite, useDeleteSite } from './useSites'
 import { SITE_STATUS_CONFIG, SITE_PIPELINE_CONFIG } from './status-config'
 import { SiteStatusActions } from './SiteStatusActions'
 import { EditChantierForm } from './EditChantierForm'
+import { ChantierEquipe } from './ChantierEquipe'
 
 interface ChantierDetailPageProps {
   siteId?: number
@@ -180,7 +181,10 @@ export function ChantierDetailPage({ siteId: propSiteId, showBackButton = true }
         </CardContent>
       </Card>
 
-      {/* 5. Historique compact */}
+      {/* 5. Équipe */}
+      <ChantierEquipe siteId={site.id} />
+
+      {/* 6. Historique compact */}
       <TimelineCompact
         entityType="Site"
         entityId={site.id}

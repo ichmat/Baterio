@@ -92,7 +92,7 @@ describe('CreateChantierForm', () => {
       createdBy: 1,
       createdByName: 'Chef Test',
       createdAt: '2026-03-31T10:00:00Z',
-      updatedAt: null,
+      updatedAt: null, assignedWorkers: null, proposedAdjustments: null,
     })
 
     renderForm()
@@ -180,7 +180,7 @@ describe('CreateChantierForm', () => {
       createdBy: 1,
       createdByName: 'Chef Test',
       createdAt: '2026-03-31T10:00:00Z',
-      updatedAt: null,
+      updatedAt: null, assignedWorkers: null, proposedAdjustments: null,
       lines: [],
     })
 
@@ -222,7 +222,7 @@ describe('CreateChantierForm', () => {
       createdBy: 1,
       createdByName: 'Chef Test',
       createdAt: '2026-03-31T10:00:00Z',
-      updatedAt: null,
+      updatedAt: null, assignedWorkers: null, proposedAdjustments: null,
       lines: [],
     })
     vi.mocked(sitesApi.createSite).mockResolvedValue({
@@ -242,7 +242,7 @@ describe('CreateChantierForm', () => {
       createdBy: 1,
       createdByName: 'Chef Test',
       createdAt: '2026-03-31T10:00:00Z',
-      updatedAt: null,
+      updatedAt: null, assignedWorkers: null, proposedAdjustments: null,
     })
 
     renderForm()

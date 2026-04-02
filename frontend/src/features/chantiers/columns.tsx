@@ -36,7 +36,16 @@ export const siteColumns: ColumnDef<SiteResponse, unknown>[] = [
   {
     id: 'workers',
     header: 'Ouvriers',
-    cell: () => <span className="text-muted-foreground">-</span>,
+    cell: ({ row }) => {
+      const info = row.original.assignedWorkers
+      if (!info) return <span className="text-muted-foreground">-</span>
+      if (info.count === 0) return <span className="text-muted-foreground">0 ouvrier</span>
+      return (
+        <span title={info.names.join(', ')} className="text-sm">
+          {info.count} ouvrier{info.count > 1 ? 's' : ''}
+        </span>
+      )
+    },
     enableSorting: false,
   },
   {

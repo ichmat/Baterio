@@ -34,6 +34,8 @@ function makeSite(overrides: Partial<SiteResponse> = {}): SiteResponse {
     createdByName: 'Martin Sophie',
     createdAt: '2026-03-31T10:00:00Z',
     updatedAt: null,
+    assignedWorkers: { count: 0, names: [] },
+    proposedAdjustments: null,
     ...overrides,
   }
 }
@@ -107,7 +109,7 @@ describe('ChantiersPage', () => {
     expect(screen.getByText('Terminé')).toBeInTheDocument()
   })
 
-  it('colonne Ouvriers affiche "-" (placeholder story 4.3)', async () => {
+  it('colonne Ouvriers affiche "0 ouvrier" quand aucun ouvrier attribué', async () => {
     vi.mocked(sitesApi.getSites).mockResolvedValue(mockSitesPage)
 
     renderPage()
@@ -116,9 +118,23 @@ describe('ChantiersPage', () => {
       expect(screen.getByText('Client')).toBeInTheDocument()
     })
 
-    // Workers column shows "-" for all rows
-    const dashes = screen.getAllByText('-')
-    expect(dashes.length).toBeGreaterThanOrEqual(3)
+    // Workers column shows "0 ouvrier" for all rows
+    const zeroCells = screen.getAllByText('0 ouvrier')
+    expect(zeroCells.length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('colonne Ouvriers affiche le count quand des ouvriers sont attribués', async () => {
+    const sitesWithWorkers = {
+      data: [makeSite({ id: 1, assignedWorkers: { count: 2, names: ['Martin Pierre', 'Dupont Jean'] } })],
+      pagination: { page: 1, pageSize: 500, totalItems: 1, totalPages: 1 },
+    }
+    vi.mocked(sitesApi.getSites).mockResolvedValue(sitesWithWorkers)
+
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('2 ouvriers')).toBeInTheDocument()
+    })
   })
 
   it('DataTable dispose de la selection de lignes (enableRowSelection)', async () => {

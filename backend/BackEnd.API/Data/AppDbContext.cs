@@ -20,6 +20,7 @@ public class AppDbContext : DbContext
     public DbSet<QuoteLine> QuoteLines => Set<QuoteLine>();
     public DbSet<Comment> Comments => Set<Comment>();
     public DbSet<Site> Sites => Set<Site>();
+    public DbSet<SiteAssignment> SiteAssignments => Set<SiteAssignment>();
 
     // Safe accessor for the query filter — returns 0 when no tenant context
     private int CurrentTenantId => _tenantContext?.TenantId ?? 0;
@@ -47,5 +48,6 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Quote>().HasQueryFilter(e => e.TenantId == CurrentTenantId);
         modelBuilder.Entity<Comment>().HasQueryFilter(e => e.TenantId == CurrentTenantId);
         modelBuilder.Entity<Site>().HasQueryFilter(e => e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<SiteAssignment>().HasQueryFilter(e => e.TenantId == CurrentTenantId);
     }
 }
