@@ -243,4 +243,35 @@ describe('ChantierDetailPage', () => {
     const { toast } = await import('sonner')
     expect(toast.success).toHaveBeenCalledWith('Chantier supprimé')
   })
+
+  // --- H12: Section Équipe rendue dans la page détail ---
+
+  it('affiche la section Équipe avec le bouton Attribuer l\'équipe', async () => {
+    vi.mocked(sitesApi.getSiteById).mockResolvedValue(mockSite)
+    vi.mocked(sitesApi.getSiteAssignments).mockResolvedValue([])
+    vi.mocked(adminApi.getUsers).mockResolvedValue([])
+
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Équipe')).toBeInTheDocument()
+    })
+
+    expect(screen.getByRole('button', { name: /attribuer l'équipe/i })).toBeInTheDocument()
+  })
+
+  it('affiche les ouvriers attribués dans la section Équipe', async () => {
+    vi.mocked(sitesApi.getSiteById).mockResolvedValue(mockSite)
+    vi.mocked(sitesApi.getSiteAssignments).mockResolvedValue([
+      { id: 1, siteId: 1, userId: 100, userFullName: 'Martin Pierre', userAvatarUrl: null, startDatetime: null, endDatetime: null, createdAt: '2026-04-01T08:00:00Z' },
+    ])
+    vi.mocked(adminApi.getUsers).mockResolvedValue([])
+
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Martin Pierre')).toBeInTheDocument()
+      expect(screen.getByText('Toute la durée')).toBeInTheDocument()
+    })
+  })
 })

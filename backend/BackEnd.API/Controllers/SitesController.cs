@@ -131,7 +131,7 @@ public class SitesController : ControllerBase
     [HttpPost("{id}/assignments/check-conflicts")]
     public async Task<IActionResult> CheckConflicts(int id, [FromBody] CheckConflictsRequest request)
     {
-        var result = await _assignmentService.CheckConflictsAsync(request.UserId, request.StartDatetime, request.EndDatetime, request.ExcludeAssignmentId);
+        var result = await _assignmentService.CheckConflictsAsync(id, request.UserId, request.StartDatetime, request.EndDatetime, request.ExcludeAssignmentId);
         return Ok(new ApiResponse<List<ConflictWarning>>(result));
     }
 

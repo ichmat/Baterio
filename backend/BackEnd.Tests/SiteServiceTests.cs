@@ -430,6 +430,161 @@ public class SiteServiceTests : IDisposable
         Assert.Equal("Rénovation cuisine", results[0].Subject);
     }
 
+    // --- C4: DetectAssignmentAdjustmentsAsync (triggered via UpdateAsync) ---
+
+    [Fact]
+    public async Task UpdateAsync_ReducedEndDate_ProposesAdjustmentsForPreciseAssignments()
+    {
+        // Create site with wide date range
+        var site = await _service.CreateAsync(new CreateSiteRequest
+        {
+            CustomerId = _customerId, Subject = "Chantier ajustement",
+            SiteAddress = "1 rue test", StartDate = "2026-04-01", EndDate = "2026-04-30"
+        });
+
+        // Seed an ouvrier for assignments
+        var ouvrier = new User
+        {
+            TenantId = _tenantId, Email = "ouv-adj@test.fr", PasswordHash = "hash",
+            FirstName = "Paul", LastName = "Adjuster", Role = UserRole.Ouvrier, IsActive = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.Users.Add(ouvrier);
+        await _db.SaveChangesAsync();
+
+        // Add a precise assignment that goes beyond the new end date
+        _db.SiteAssignments.Add(new SiteAssignment
+        {
+            TenantId = _tenantId, SiteId = site.Id, UserId = ouvrier.Id,
+            StartDatetime = new DateTime(2026, 4, 20, 8, 0, 0),
+            EndDatetime = new DateTime(2026, 4, 25, 17, 0, 0),
+            CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        // Reduce end date to April 22 — assignment ends Apr 25, should be proposed for adjustment
+        var result = await _service.UpdateAsync(site.Id, new UpdateSiteRequest
+        {
+            Subject = "Chantier ajustement", SiteAddress = "1 rue test",
+            StartDate = "2026-04-01", EndDate = "2026-04-22"
+        });
+
+        Assert.NotNull(result.ProposedAdjustments);
+        Assert.Single(result.ProposedAdjustments);
+        Assert.Equal(ouvrier.Id, result.ProposedAdjustments[0].AssignmentId > 0 ? _db.SiteAssignments.First(a => a.UserId == ouvrier.Id).UserId : 0);
+        Assert.Equal("Adjuster Paul", result.ProposedAdjustments[0].UserFullName);
+        Assert.Equal(new DateTime(2026, 4, 25, 17, 0, 0), result.ProposedAdjustments[0].OldEndDatetime);
+        // New end should be clamped to site end date (22 April 23:59:59.9999999)
+        Assert.True(result.ProposedAdjustments[0].NewEndDatetime <= new DateTime(2026, 4, 23, 0, 0, 0));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ReducedDates_FullDurationNotImpacted()
+    {
+        var site = await _service.CreateAsync(new CreateSiteRequest
+        {
+            CustomerId = _customerId, Subject = "Chantier full",
+            SiteAddress = "2 rue test", StartDate = "2026-04-01", EndDate = "2026-04-30"
+        });
+
+        var ouvrier = new User
+        {
+            TenantId = _tenantId, Email = "ouv-full@test.fr", PasswordHash = "hash",
+            FirstName = "Luc", LastName = "Full", Role = UserRole.Ouvrier, IsActive = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.Users.Add(ouvrier);
+        await _db.SaveChangesAsync();
+
+        // Full duration assignment (null/null) — should NOT be impacted
+        _db.SiteAssignments.Add(new SiteAssignment
+        {
+            TenantId = _tenantId, SiteId = site.Id, UserId = ouvrier.Id,
+            StartDatetime = null, EndDatetime = null, CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        var result = await _service.UpdateAsync(site.Id, new UpdateSiteRequest
+        {
+            Subject = "Chantier full", SiteAddress = "2 rue test",
+            StartDate = "2026-04-05", EndDate = "2026-04-20"
+        });
+
+        Assert.Null(result.ProposedAdjustments);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_NoDatesChange_NoAdjustmentsProposed()
+    {
+        var site = await _service.CreateAsync(new CreateSiteRequest
+        {
+            CustomerId = _customerId, Subject = "Chantier stable",
+            SiteAddress = "3 rue test", StartDate = "2026-04-01", EndDate = "2026-04-30"
+        });
+
+        var ouvrier = new User
+        {
+            TenantId = _tenantId, Email = "ouv-stable@test.fr", PasswordHash = "hash",
+            FirstName = "Marc", LastName = "Stable", Role = UserRole.Ouvrier, IsActive = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.Users.Add(ouvrier);
+        await _db.SaveChangesAsync();
+
+        _db.SiteAssignments.Add(new SiteAssignment
+        {
+            TenantId = _tenantId, SiteId = site.Id, UserId = ouvrier.Id,
+            StartDatetime = new DateTime(2026, 4, 10, 8, 0, 0),
+            EndDatetime = new DateTime(2026, 4, 10, 12, 0, 0),
+            CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        // Only change subject, not dates
+        var result = await _service.UpdateAsync(site.Id, new UpdateSiteRequest
+        {
+            Subject = "Chantier renommé", SiteAddress = "3 rue test",
+            StartDate = "2026-04-01", EndDate = "2026-04-30"
+        });
+
+        Assert.Null(result.ProposedAdjustments);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_ReducedStartDate_ProposesAdjustmentForEarlyAssignment()
+    {
+        var site = await _service.CreateAsync(new CreateSiteRequest
+        {
+            CustomerId = _customerId, Subject = "Chantier start",
+            SiteAddress = "4 rue test", StartDate = "2026-04-01", EndDate = "2026-04-30"
+        });
+
+        var ouvrier = new User
+        {
+            TenantId = _tenantId, Email = "ouv-early@test.fr", PasswordHash = "hash",
+            FirstName = "Léo", LastName = "Early", Role = UserRole.Ouvrier, IsActive = true, CreatedAt = DateTime.UtcNow
+        };
+        _db.Users.Add(ouvrier);
+        await _db.SaveChangesAsync();
+
+        // Assignment starts on April 2 — if we push start to April 5, it needs adjustment
+        _db.SiteAssignments.Add(new SiteAssignment
+        {
+            TenantId = _tenantId, SiteId = site.Id, UserId = ouvrier.Id,
+            StartDatetime = new DateTime(2026, 4, 2, 8, 0, 0),
+            EndDatetime = new DateTime(2026, 4, 2, 17, 0, 0),
+            CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        var result = await _service.UpdateAsync(site.Id, new UpdateSiteRequest
+        {
+            Subject = "Chantier start", SiteAddress = "4 rue test",
+            StartDate = "2026-04-05", EndDate = "2026-04-30"
+        });
+
+        // Assignment (April 2, 8h-17h) is entirely before new site start (April 5)
+        // Clamp would produce newStart > newEnd → skipped (no valid adjustment possible)
+        Assert.Null(result.ProposedAdjustments);
+    }
+
     private class TestTenantContext : ITenantContext
     {
         public int TenantId { get; set; }

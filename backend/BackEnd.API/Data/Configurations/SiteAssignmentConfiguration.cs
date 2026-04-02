@@ -19,9 +19,6 @@ public class SiteAssignmentConfiguration : IEntityTypeConfiguration<SiteAssignme
         builder.Property(e => e.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(e => e.UpdatedAt).HasColumnName("updated_at");
 
-        builder.HasIndex(e => e.TenantId);
-        builder.HasIndex(e => e.SiteId);
-        builder.HasIndex(e => e.UserId);
         builder.HasIndex(e => new { e.TenantId, e.SiteId });
         builder.HasIndex(e => new { e.TenantId, e.UserId });
 

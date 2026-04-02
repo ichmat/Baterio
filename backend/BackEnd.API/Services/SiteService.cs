@@ -138,6 +138,7 @@ public class SiteService : ISiteService
             .Include(s => s.Customer)
             .Include(s => s.CreatedByUser)
             .Include(s => s.Quote)
+            .Include(s => s.Assignments).ThenInclude(a => a.User)
             .FirstOrDefaultAsync(s => s.Id == id);
 
         if (site == null)
@@ -209,6 +210,10 @@ public class SiteService : ISiteService
         var site = await _db.Sites.FirstOrDefaultAsync(s => s.Id == id)
             ?? throw new ApiErrorException(ApiError.SiteNotFound);
 
+        var hasAssignments = await _db.SiteAssignments.AnyAsync(a => a.SiteId == id);
+        if (hasAssignments)
+            throw new ApiErrorException(ApiError.SiteHasAssignments);
+
         _db.Sites.Remove(site);
         await _db.SaveChangesAsync();
 
@@ -248,6 +253,7 @@ public class SiteService : ISiteService
             .Include(s => s.CreatedByUser)
             .Include(s => s.Quote)
             .Include(s => s.Assignments).ThenInclude(a => a.User)
+            .AsSplitQuery()
             .AsNoTracking()
             .AsQueryable();
 
@@ -306,6 +312,7 @@ public class SiteService : ISiteService
             .Include(s => s.Customer)
             .Include(s => s.CreatedByUser)
             .Include(s => s.Quote)
+            .Include(s => s.Assignments).ThenInclude(a => a.User)
             .FirstOrDefaultAsync(s => s.Id == id);
 
         if (site == null)
@@ -335,6 +342,7 @@ public class SiteService : ISiteService
             .Include(s => s.Customer)
             .Include(s => s.CreatedByUser)
             .Include(s => s.Quote)
+            .Include(s => s.Assignments).ThenInclude(a => a.User)
             .FirstOrDefaultAsync(s => s.Id == id);
 
         if (site == null)
@@ -459,6 +467,10 @@ public class SiteService : ISiteService
 
             if (needsAdjustment)
             {
+                // Skip if clamp results in invalid range (assignment entirely outside new site dates)
+                if (newStart.HasValue && newEnd.HasValue && newStart >= newEnd)
+                    continue;
+
                 adjustments.Add(new ProposedAdjustment
                 {
                     AssignmentId = a.Id,

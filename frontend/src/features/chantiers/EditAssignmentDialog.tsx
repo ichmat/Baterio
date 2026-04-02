@@ -33,6 +33,14 @@ export function EditAssignmentDialog({ siteId, assignment, open, onOpenChange }:
   const isFullDuration = !assignment.startDatetime && !assignment.endDatetime
 
   const handleSave = async () => {
+    if (startDatetime && endDatetime && endDatetime <= startDatetime) {
+      toast.error('La date de fin doit être après la date de début')
+      return
+    }
+    if ((startDatetime && !endDatetime) || (!startDatetime && endDatetime)) {
+      toast.error('Les deux dates doivent être renseignées ou les deux vides')
+      return
+    }
     try {
       await updateMutation.mutateAsync({
         assignmentId: assignment.id,

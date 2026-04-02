@@ -35,6 +35,14 @@ public class SiteAssignmentService : ISiteAssignmentService
         if (user.Role != UserRole.Ouvrier)
             throw new ApiErrorException(ApiError.AssignmentWorkerRoleRequired);
 
+        if (request.Mode == "full_duration")
+        {
+            var alreadyExists = await _db.SiteAssignments.AnyAsync(a =>
+                a.SiteId == siteId && a.UserId == request.UserId && a.StartDatetime == null && a.EndDatetime == null);
+            if (alreadyExists)
+                throw new ApiErrorException(ApiError.AssignmentDuplicateFullDuration);
+        }
+
         var assignments = BuildAssignments(site, request);
         _db.SiteAssignments.AddRange(assignments);
         await _db.SaveChangesAsync();
@@ -50,6 +58,9 @@ public class SiteAssignmentService : ISiteAssignmentService
 
     public async Task<List<SiteAssignmentResponse>> CreateBatchAsync(int siteId, CreateBatchAssignmentRequest request)
     {
+        if (request.Assignments == null || request.Assignments.Count == 0)
+            throw new ApiErrorException(ApiError.AssignmentBatchEmpty);
+
         var site = await _db.Sites.FirstOrDefaultAsync(s => s.Id == siteId)
             ?? throw new ApiErrorException(ApiError.AssignmentSiteNotFound);
 
@@ -65,6 +76,14 @@ public class SiteAssignmentService : ISiteAssignmentService
                 if (user.Role != UserRole.Ouvrier)
                     throw new ApiErrorException(ApiError.AssignmentWorkerRoleRequired);
                 userCache[single.UserId] = user;
+            }
+
+            if (single.Mode == "full_duration")
+            {
+                var alreadyExists = await _db.SiteAssignments.AnyAsync(a =>
+                    a.SiteId == siteId && a.UserId == single.UserId && a.StartDatetime == null && a.EndDatetime == null);
+                if (alreadyExists)
+                    throw new ApiErrorException(ApiError.AssignmentDuplicateFullDuration);
             }
 
             allAssignments.AddRange(BuildAssignments(site, single));
@@ -98,6 +117,15 @@ public class SiteAssignmentService : ISiteAssignmentService
 
         if (hasStart && hasEnd && request.EndDatetime <= request.StartDatetime)
             throw new ApiErrorException(ApiError.AssignmentInvalidDateRange);
+
+        // Validate dates within site range
+        if (hasStart && hasEnd)
+        {
+            var site = await _db.Sites.FirstOrDefaultAsync(s => s.Id == siteId)
+                ?? throw new ApiErrorException(ApiError.AssignmentSiteNotFound);
+            var tempAssignment = new SiteAssignment { StartDatetime = request.StartDatetime, EndDatetime = request.EndDatetime };
+            ValidateAssignmentsWithinSiteDates([tempAssignment], site);
+        }
 
         var oldStart = assignment.StartDatetime;
         var oldEnd = assignment.EndDatetime;
@@ -147,14 +175,20 @@ public class SiteAssignmentService : ISiteAssignmentService
         return assignments.Select(a => MapToResponse(a, a.User)).ToList();
     }
 
-    public async Task<List<ConflictWarning>> CheckConflictsAsync(int userId, DateTime? newStart, DateTime? newEnd, int? excludeAssignmentId = null)
+    public async Task<List<ConflictWarning>> CheckConflictsAsync(int siteId, int userId, DateTime? newStart, DateTime? newEnd, int? excludeAssignmentId = null)
     {
+        // Validate site exists
+        var siteExists = await _db.Sites.AnyAsync(s => s.Id == siteId);
+        if (!siteExists)
+            throw new ApiErrorException(ApiError.AssignmentSiteNotFound);
+
         var warnings = new List<ConflictWarning>();
 
+        // Exclude assignments on the same site (no self-conflict)
         var existingAssignments = await _db.SiteAssignments
             .Include(a => a.Site)
             .AsNoTracking()
-            .Where(a => a.UserId == userId && (excludeAssignmentId == null || a.Id != excludeAssignmentId))
+            .Where(a => a.UserId == userId && a.SiteId != siteId && (excludeAssignmentId == null || a.Id != excludeAssignmentId))
             .ToListAsync();
 
         var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
@@ -212,6 +246,9 @@ public class SiteAssignmentService : ISiteAssignmentService
 
     public async Task<List<SiteAssignmentResponse>> ApplyAdjustmentsAsync(int siteId, List<AssignmentAdjustment> adjustments)
     {
+        var site = await _db.Sites.FirstOrDefaultAsync(s => s.Id == siteId)
+            ?? throw new ApiErrorException(ApiError.AssignmentSiteNotFound);
+
         var auditEntries = new List<(int Id, DateTime? OldStart, DateTime? OldEnd, DateTime? NewStart, DateTime? NewEnd)>();
         var assignmentIds = adjustments.Select(a => a.AssignmentId).ToList();
 
@@ -225,6 +262,14 @@ public class SiteAssignmentService : ISiteAssignmentService
 
         foreach (var adj in adjustments)
         {
+            // Validate: both provided or both null, and start < end
+            var hasStart = adj.NewStartDatetime.HasValue;
+            var hasEnd = adj.NewEndDatetime.HasValue;
+            if (hasStart != hasEnd)
+                throw new ApiErrorException(ApiError.AssignmentInvalidDateRange);
+            if (hasStart && hasEnd && adj.NewEndDatetime <= adj.NewStartDatetime)
+                throw new ApiErrorException(ApiError.AssignmentInvalidDateRange);
+
             var assignment = assignments.First(a => a.Id == adj.AssignmentId);
             auditEntries.Add((assignment.Id, assignment.StartDatetime, assignment.EndDatetime, adj.NewStartDatetime, adj.NewEndDatetime));
 
@@ -232,6 +277,11 @@ public class SiteAssignmentService : ISiteAssignmentService
             assignment.EndDatetime = adj.NewEndDatetime;
             assignment.UpdatedAt = DateTime.UtcNow;
         }
+
+        // Validate adjusted assignments are within site date range
+        var preciseAssignments = assignments.Where(a => a.StartDatetime.HasValue && a.EndDatetime.HasValue).ToList();
+        if (preciseAssignments.Count > 0)
+            ValidateAssignmentsWithinSiteDates(preciseAssignments, site);
 
         await _db.SaveChangesAsync();
 
@@ -324,6 +374,9 @@ public class SiteAssignmentService : ISiteAssignmentService
             !DateOnly.TryParse(request.EndDate, out var rangeEnd) ||
             rangeEnd < rangeStart)
             throw new ApiErrorException(ApiError.AssignmentInvalidDateRange);
+
+        if (rangeEnd.DayNumber - rangeStart.DayNumber > 365)
+            throw new ApiErrorException(ApiError.AssignmentRangeTooLarge);
 
         var (startTime, endTime) = ParsePresetTimes(request.PresetStartTime, request.PresetEndTime);
 

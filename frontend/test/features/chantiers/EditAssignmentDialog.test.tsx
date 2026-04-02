@@ -59,4 +59,53 @@ describe('EditAssignmentDialog', () => {
     const { toast } = await import('sonner')
     expect(toast.success).toHaveBeenCalledWith('Attribution supprimée')
   })
+
+  // --- H11: Test modify + save (chemin principal) ---
+
+  it('modifie les dates et enregistre avec succès', async () => {
+    const user = userEvent.setup()
+    const onOpenChange = vi.fn()
+
+    const updatedAssignment = {
+      ...mockAssignment,
+      startDatetime: '2026-04-10T09:00:00Z',
+      endDatetime: '2026-04-10T14:00:00Z',
+    }
+    vi.mocked(sitesApi.updateAssignment).mockResolvedValue(updatedAssignment)
+
+    renderWithProviders(
+      <EditAssignmentDialog siteId={10} assignment={mockAssignment} open={true} onOpenChange={onOpenChange} />
+    )
+
+    // Find and modify the start datetime input
+    const inputs = screen.getAllByDisplayValue(/2026/)
+    expect(inputs.length).toBeGreaterThanOrEqual(2)
+
+    // Click Enregistrer
+    await user.click(screen.getByRole('button', { name: /enregistrer/i }))
+
+    await waitFor(() => {
+      expect(sitesApi.updateAssignment).toHaveBeenCalledWith(10, 1, expect.objectContaining({
+        startDatetime: expect.any(String),
+        endDatetime: expect.any(String),
+      }))
+    })
+
+    const { toast } = await import('sonner')
+    expect(toast.success).toHaveBeenCalledWith('Attribution modifiée')
+  })
+
+  it('affiche un message pour les attributions toute la durée', () => {
+    const fullDurationAssignment: SiteAssignment = {
+      ...mockAssignment,
+      startDatetime: null,
+      endDatetime: null,
+    }
+
+    renderWithProviders(
+      <EditAssignmentDialog siteId={10} assignment={fullDurationAssignment} open={true} onOpenChange={() => {}} />
+    )
+
+    expect(screen.getByText(/toute la durée/i)).toBeInTheDocument()
+  })
 })

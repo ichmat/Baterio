@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { AlertTriangle, UserPlus } from 'lucide-react'
+import { AlertTriangle, Loader2, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useUsers } from '@/features/admin/useUsers'
 import { useAssignmentPresets, useCreateBatchAssignment, useCheckConflicts } from './useSites'
@@ -40,8 +40,30 @@ export function AssignWorkerDialog({ siteId, open, onOpenChange }: AssignWorkerD
   const [conflicts, setConflicts] = useState<AssignmentConflict[]>([])
   const [showConflictDialog, setShowConflictDialog] = useState(false)
   const [pendingSubmit, setPendingSubmit] = useState<CreateAssignmentRequest[] | null>(null)
+  const [checkingConflicts, setCheckingConflicts] = useState(false)
 
   const workers = users?.filter(u => u.role === 'Ouvrier' && u.isActive) ?? []
+
+  const resetState = () => {
+    setSelectedUserIds([])
+    setConfigs({})
+    setConflicts([])
+    setShowConflictDialog(false)
+    setPendingSubmit(null)
+    setCheckingConflicts(false)
+  }
+
+  const resetAndClose = () => {
+    resetState()
+    onOpenChange(false)
+  }
+
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen) {
+      resetState()
+    }
+    onOpenChange(newOpen)
+  }
 
   const toggleWorker = (userId: number) => {
     setSelectedUserIds(prev => {
@@ -62,6 +84,20 @@ export function AssignWorkerDialog({ siteId, open, onOpenChange }: AssignWorkerD
 
   const applyPreset = (userId: number, startTime: string, endTime: string) => {
     updateConfig(userId, { presetStartTime: startTime, presetEndTime: endTime })
+  }
+
+  const validateConfig = (cfg: WorkerConfig): string | null => {
+    if (cfg.mode === 'date_preset') {
+      if (!cfg.date) return 'La date est requise'
+      if (!cfg.presetStartTime || !cfg.presetEndTime) return 'Sélectionnez un preset horaire'
+    } else if (cfg.mode === 'range_preset') {
+      if (!cfg.startDate || !cfg.endDate) return 'Les dates de début et fin sont requises'
+      if (!cfg.presetStartTime || !cfg.presetEndTime) return 'Sélectionnez un preset horaire'
+    } else if (cfg.mode === 'free') {
+      if (!cfg.startDatetime || !cfg.endDatetime) return 'Les dates/heures sont requises'
+      if (cfg.endDatetime <= cfg.startDatetime) return 'La date de fin doit être après la date de début'
+    }
+    return null
   }
 
   const buildRequests = (): CreateAssignmentRequest[] => {
@@ -98,28 +134,46 @@ export function AssignWorkerDialog({ siteId, open, onOpenChange }: AssignWorkerD
   }
 
   const handleSubmit = async () => {
+    // Validate all configs
+    for (const userId of selectedUserIds) {
+      const cfg = configs[userId]
+      const error = validateConfig(cfg)
+      if (error) {
+        const worker = workers.find(w => w.id === userId)
+        toast.error(`${worker?.lastName ?? 'Ouvrier'} : ${error}`)
+        return
+      }
+    }
+
     const requests = buildRequests()
 
-    // Check conflicts for each worker with effective datetimes
-    const allConflicts: AssignmentConflict[] = []
-    for (const req of requests) {
-      const cfg = configs[req.userId]
-      const { start, end } = computeEffectiveDatetimes(req, cfg)
-      try {
-        const result = await conflictCheck.mutateAsync({
+    // Check conflicts for all workers in parallel
+    setCheckingConflicts(true)
+    try {
+      const conflictPromises = requests.map(async (req) => {
+        const cfg = configs[req.userId]
+        const { start, end } = computeEffectiveDatetimes(req, cfg)
+        return conflictCheck.mutateAsync({
           userId: req.userId,
           startDatetime: start,
           endDatetime: end,
         })
-        allConflicts.push(...result)
-      } catch { /* ignore */ }
-    }
+      })
 
-    if (allConflicts.length > 0) {
-      setConflicts(allConflicts)
-      setPendingSubmit(requests)
-      setShowConflictDialog(true)
+      const results = await Promise.all(conflictPromises)
+      const allConflicts = results.flat()
+
+      if (allConflicts.length > 0) {
+        setConflicts(allConflicts)
+        setPendingSubmit(requests)
+        setShowConflictDialog(true)
+        return
+      }
+    } catch {
+      toast.error('Erreur lors de la vérification des conflits')
       return
+    } finally {
+      setCheckingConflicts(false)
     }
 
     await doSubmit(requests)
@@ -135,18 +189,9 @@ export function AssignWorkerDialog({ siteId, open, onOpenChange }: AssignWorkerD
     }
   }
 
-  const resetAndClose = () => {
-    setSelectedUserIds([])
-    setConfigs({})
-    setConflicts([])
-    setShowConflictDialog(false)
-    setPendingSubmit(null)
-    onOpenChange(false)
-  }
-
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -247,8 +292,10 @@ export function AssignWorkerDialog({ siteId, open, onOpenChange }: AssignWorkerD
 
           <DialogFooter>
             <Button variant="outline" onClick={resetAndClose}>Annuler</Button>
-            <Button onClick={handleSubmit} disabled={selectedUserIds.length === 0 || batchMutation.isPending}>
-              {batchMutation.isPending ? 'Attribution...' : `Attribuer (${selectedUserIds.length})`}
+            <Button onClick={handleSubmit} disabled={selectedUserIds.length === 0 || batchMutation.isPending || checkingConflicts}>
+              {checkingConflicts ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Vérification...</>
+              ) : batchMutation.isPending ? 'Attribution...' : `Attribuer (${selectedUserIds.length})`}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -260,7 +307,7 @@ export function AssignWorkerDialog({ siteId, open, onOpenChange }: AssignWorkerD
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-amber-600">
               <AlertTriangle className="h-5 w-5" />
-              Conflits détectés
+              {conflicts.some(c => c.type === 'conflict') ? 'Conflits détectés' : 'Informations'}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-2">

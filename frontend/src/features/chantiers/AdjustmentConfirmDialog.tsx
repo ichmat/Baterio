@@ -49,7 +49,7 @@ export function AdjustmentConfirmDialog({ siteId, adjustments, open, onOpenChang
           </DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Les dates du chantier ont été modifiées. Les attributions suivantes seront ajustées :
+          Les dates du chantier ont été enregistrées. Les attributions suivantes dépassent les nouvelles dates et doivent être ajustées :
         </p>
         <div className="space-y-2">
           {adjustments.map(a => (
@@ -63,7 +63,7 @@ export function AdjustmentConfirmDialog({ siteId, adjustments, open, onOpenChang
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => { onCancel(); onOpenChange(false) }}>
-            Annuler les modifications
+            Ignorer les ajustements
           </Button>
           <Button onClick={handleConfirm} disabled={confirmMutation.isPending}>
             {confirmMutation.isPending ? 'Ajustement...' : 'Confirmer les ajustements'}

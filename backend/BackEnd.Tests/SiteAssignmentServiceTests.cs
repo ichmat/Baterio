@@ -247,7 +247,7 @@ public class SiteAssignmentServiceTests : IDisposable
         await _db.SaveChangesAsync();
 
         var warnings = await _service.CheckConflictsAsync(
-            _ouvrierId,
+            _siteId, _ouvrierId,
             new DateTime(2026, 4, 10, 10, 0, 0),
             new DateTime(2026, 4, 10, 14, 0, 0));
 
@@ -267,7 +267,7 @@ public class SiteAssignmentServiceTests : IDisposable
         await _db.SaveChangesAsync();
 
         var warnings = await _service.CheckConflictsAsync(
-            _ouvrierId,
+            _siteId, _ouvrierId,
             new DateTime(2026, 4, 10, 8, 0, 0),
             new DateTime(2026, 4, 10, 12, 0, 0));
 
@@ -289,7 +289,7 @@ public class SiteAssignmentServiceTests : IDisposable
         await _db.SaveChangesAsync();
 
         var warnings = await _service.CheckConflictsAsync(
-            _ouvrierId,
+            _siteId, _ouvrierId,
             new DateTime(2026, 4, 10, 13, 0, 0),
             new DateTime(2026, 4, 10, 17, 0, 0));
 
@@ -422,7 +422,7 @@ public class SiteAssignmentServiceTests : IDisposable
     // --- Batch Creation Test ---
 
     [Fact]
-    public async Task CreateBatchAsync_CreatesMultipleAssignments()
+    public async Task CreateBatchAsync_CreatesMultipleAssignments_WithCorrectProperties()
     {
         var result = await _service.CreateBatchAsync(_siteId, new CreateBatchAssignmentRequest
         {
@@ -434,6 +434,23 @@ public class SiteAssignmentServiceTests : IDisposable
         });
 
         Assert.Equal(2, result.Count);
+
+        // Verify full_duration assignment properties
+        var fullDuration = result.First(r => r.UserId == _ouvrierId);
+        Assert.Null(fullDuration.StartDatetime);
+        Assert.Null(fullDuration.EndDatetime);
+        Assert.Equal("Martin Pierre", fullDuration.UserFullName);
+        Assert.Equal(_siteId, fullDuration.SiteId);
+
+        // Verify date_preset assignment properties
+        var datePreset = result.First(r => r.UserId == _ouvrier2Id);
+        Assert.Equal(new DateTime(2026, 4, 10, 8, 0, 0), datePreset.StartDatetime);
+        Assert.Equal(new DateTime(2026, 4, 10, 12, 0, 0), datePreset.EndDatetime);
+        Assert.Equal("Dupont Jean", datePreset.UserFullName);
+        Assert.Equal(_siteId, datePreset.SiteId);
+
+        // Verify audit logged for each assignment
+        _auditServiceMock.Verify(a => a.LogEventAsync("SiteAssignment", It.IsAny<int>(), AuditAction.Created, It.IsAny<object>()), Times.Exactly(2));
     }
 
     // --- Review Fix Validation Tests ---
@@ -511,6 +528,197 @@ public class SiteAssignmentServiceTests : IDisposable
 
         var ex = await Assert.ThrowsAsync<ApiErrorException>(() =>
             _service.DeleteAsync(_site2Id, assignment.Id));
+        Assert.Equal(ApiError.AssignmentNotFound, ex.Code);
+    }
+
+    // --- H9: Missing validation tests ---
+
+    [Fact]
+    public async Task CreateAsync_PresetInvalidTime_EndBeforeStart_ThrowsPresetInvalidTime()
+    {
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(() =>
+            _service.CreateAsync(_siteId, new CreateAssignmentRequest
+            {
+                UserId = _ouvrierId, Mode = "date_preset",
+                Date = "2026-04-10", PresetStartTime = "17:00", PresetEndTime = "08:00"
+            }));
+        Assert.Equal(ApiError.AssignmentPresetInvalidTime, ex.Code);
+    }
+
+    [Fact]
+    public async Task CreateAsync_PresetInvalidTime_BadFormat_ThrowsPresetInvalidTime()
+    {
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(() =>
+            _service.CreateAsync(_siteId, new CreateAssignmentRequest
+            {
+                UserId = _ouvrierId, Mode = "date_preset",
+                Date = "2026-04-10", PresetStartTime = "invalid", PresetEndTime = "12:00"
+            }));
+        Assert.Equal(ApiError.AssignmentPresetInvalidTime, ex.Code);
+    }
+
+    [Fact]
+    public async Task CreateAsync_RangePreset_EndBeforeStart_ThrowsInvalidDateRange()
+    {
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(() =>
+            _service.CreateAsync(_siteId, new CreateAssignmentRequest
+            {
+                UserId = _ouvrierId, Mode = "range_preset",
+                StartDate = "2026-04-15", EndDate = "2026-04-10", // reversed
+                PresetStartTime = "08:00", PresetEndTime = "12:00"
+            }));
+        Assert.Equal(ApiError.AssignmentInvalidDateRange, ex.Code);
+    }
+
+    [Fact]
+    public async Task CreateAsync_RangePreset_TooLarge_ThrowsRangeTooLarge()
+    {
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(() =>
+            _service.CreateAsync(_siteId, new CreateAssignmentRequest
+            {
+                UserId = _ouvrierId, Mode = "range_preset",
+                StartDate = "2026-04-01", EndDate = "2028-04-01", // > 365 days
+                PresetStartTime = "08:00", PresetEndTime = "12:00"
+            }));
+        Assert.Equal(ApiError.AssignmentRangeTooLarge, ex.Code);
+    }
+
+    [Fact]
+    public async Task CheckConflicts_WithExcludeId_DoesNotReportExcludedAssignment()
+    {
+        var assignment = new SiteAssignment
+        {
+            TenantId = _tenantId, SiteId = _site2Id, UserId = _ouvrierId,
+            StartDatetime = new DateTime(2026, 4, 10, 8, 0, 0),
+            EndDatetime = new DateTime(2026, 4, 10, 12, 0, 0),
+            CreatedAt = DateTime.UtcNow
+        };
+        _db.SiteAssignments.Add(assignment);
+        await _db.SaveChangesAsync();
+
+        // Check conflicts for the same time window but exclude the existing assignment
+        var warnings = await _service.CheckConflictsAsync(
+            _siteId, _ouvrierId,
+            new DateTime(2026, 4, 10, 8, 0, 0),
+            new DateTime(2026, 4, 10, 12, 0, 0),
+            excludeAssignmentId: assignment.Id);
+
+        Assert.Empty(warnings);
+    }
+
+    [Fact]
+    public async Task CheckConflicts_NewFullDuration_ReturnsInfoForExistingPrecise()
+    {
+        _db.SiteAssignments.Add(new SiteAssignment
+        {
+            TenantId = _tenantId, SiteId = _site2Id, UserId = _ouvrierId,
+            StartDatetime = new DateTime(2026, 4, 10, 8, 0, 0),
+            EndDatetime = new DateTime(2026, 4, 10, 12, 0, 0),
+            CreatedAt = DateTime.UtcNow
+        });
+        await _db.SaveChangesAsync();
+
+        // New assignment is full_duration (null/null)
+        var warnings = await _service.CheckConflictsAsync(_siteId, _ouvrierId, null, null);
+
+        Assert.Single(warnings);
+        Assert.Equal("info", warnings[0].Type);
+        Assert.Contains("créneaux précis", warnings[0].Message);
+    }
+
+    // --- M12: Missing audit tests for DatePreset and RangePreset ---
+
+    [Fact]
+    public async Task CreateAsync_DatePreset_LogsAuditEvent()
+    {
+        await _service.CreateAsync(_siteId, new CreateAssignmentRequest
+        {
+            UserId = _ouvrierId, Mode = "date_preset",
+            Date = "2026-04-10", PresetStartTime = "08:00", PresetEndTime = "12:00"
+        });
+
+        _auditServiceMock.Verify(a => a.LogEventAsync("SiteAssignment", It.IsAny<int>(), AuditAction.Created, It.IsAny<object>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateAsync_RangePreset_LogsAuditForEachDay()
+    {
+        await _service.CreateAsync(_siteId, new CreateAssignmentRequest
+        {
+            UserId = _ouvrierId, Mode = "range_preset",
+            StartDate = "2026-04-10", EndDate = "2026-04-12",
+            PresetStartTime = "08:00", PresetEndTime = "17:00"
+        });
+
+        // 3 days = 3 assignments = 3 audit events
+        _auditServiceMock.Verify(a => a.LogEventAsync("SiteAssignment", It.IsAny<int>(), AuditAction.Created, It.IsAny<object>()), Times.Exactly(3));
+    }
+
+    // --- M11: Audit for ApplyAdjustments + null/null not impacted ---
+
+    [Fact]
+    public async Task ApplyAdjustmentsAsync_LogsAuditWithAdjustmentReason()
+    {
+        var assignment = new SiteAssignment
+        {
+            TenantId = _tenantId, SiteId = _siteId, UserId = _ouvrierId,
+            StartDatetime = new DateTime(2026, 4, 10, 8, 0, 0),
+            EndDatetime = new DateTime(2026, 4, 10, 16, 0, 0),
+            CreatedAt = DateTime.UtcNow
+        };
+        _db.SiteAssignments.Add(assignment);
+        await _db.SaveChangesAsync();
+
+        await _service.ApplyAdjustmentsAsync(_siteId, new List<AssignmentAdjustment>
+        {
+            new() { AssignmentId = assignment.Id, NewStartDatetime = new DateTime(2026, 4, 10, 8, 0, 0), NewEndDatetime = new DateTime(2026, 4, 10, 12, 0, 0) }
+        });
+
+        _auditServiceMock.Verify(a => a.LogEventAsync(
+            "SiteAssignment",
+            assignment.Id,
+            AuditAction.Updated,
+            It.Is<object>(o => o.ToString()!.Contains("AdjustmentAfterSiteDateChange"))),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task ApplyAdjustmentsAsync_MultipleAdjustments_LogsAuditForEach()
+    {
+        var a1 = new SiteAssignment
+        {
+            TenantId = _tenantId, SiteId = _siteId, UserId = _ouvrierId,
+            StartDatetime = new DateTime(2026, 4, 10, 8, 0, 0),
+            EndDatetime = new DateTime(2026, 4, 10, 16, 0, 0),
+            CreatedAt = DateTime.UtcNow
+        };
+        var a2 = new SiteAssignment
+        {
+            TenantId = _tenantId, SiteId = _siteId, UserId = _ouvrier2Id,
+            StartDatetime = new DateTime(2026, 4, 11, 8, 0, 0),
+            EndDatetime = new DateTime(2026, 4, 11, 16, 0, 0),
+            CreatedAt = DateTime.UtcNow
+        };
+        _db.SiteAssignments.AddRange(a1, a2);
+        await _db.SaveChangesAsync();
+
+        await _service.ApplyAdjustmentsAsync(_siteId, new List<AssignmentAdjustment>
+        {
+            new() { AssignmentId = a1.Id, NewStartDatetime = new DateTime(2026, 4, 10, 8, 0, 0), NewEndDatetime = new DateTime(2026, 4, 10, 12, 0, 0) },
+            new() { AssignmentId = a2.Id, NewStartDatetime = new DateTime(2026, 4, 11, 8, 0, 0), NewEndDatetime = new DateTime(2026, 4, 11, 12, 0, 0) }
+        });
+
+        _auditServiceMock.Verify(a => a.LogEventAsync("SiteAssignment", It.IsAny<int>(), AuditAction.Updated, It.IsAny<object>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task ApplyAdjustmentsAsync_AssignmentNotFound_Throws()
+    {
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(() =>
+            _service.ApplyAdjustmentsAsync(_siteId, new List<AssignmentAdjustment>
+            {
+                new() { AssignmentId = 9999, NewStartDatetime = DateTime.UtcNow, NewEndDatetime = DateTime.UtcNow.AddHours(1) }
+            }));
         Assert.Equal(ApiError.AssignmentNotFound, ex.Code);
     }
 

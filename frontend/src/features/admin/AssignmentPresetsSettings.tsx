@@ -40,6 +40,16 @@ export function AssignmentPresetsSettings() {
   }
 
   const handleSave = async () => {
+    for (const p of presets) {
+      if (!p.label.trim()) {
+        toast.error('Le libellé de chaque preset est obligatoire')
+        return
+      }
+      if (!p.startTime || !p.endTime || p.endTime <= p.startTime) {
+        toast.error(`Preset « ${p.label || '?'} » : l'heure de fin doit être après l'heure de début`)
+        return
+      }
+    }
     try {
       await updateMutation.mutateAsync(presets)
       toast.success('Presets enregistrés')
@@ -61,7 +71,7 @@ export function AssignmentPresetsSettings() {
       </CardHeader>
       <CardContent className="space-y-3">
         {presets.map((preset, index) => (
-          <div key={index} className="flex items-end gap-2">
+          <div key={`${preset.order}-${preset.label}`} className="flex items-end gap-2">
             <div className="flex-1 space-y-1">
               <Label>Libellé</Label>
               <Input value={preset.label} onChange={e => updatePreset(index, { label: e.target.value })} placeholder="Ex: Matin" />

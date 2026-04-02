@@ -413,4 +413,16 @@ public enum ApiError
 
     [ApiErrorInfo(400, "L'utilisateur doit avoir le rôle Ouvrier")]
     AssignmentWorkerRoleRequired,
+
+    [ApiErrorInfo(400, "La plage de dates ne peut pas dépasser 365 jours")]
+    AssignmentRangeTooLarge,
+
+    [ApiErrorInfo(400, "Impossible de supprimer ce chantier : des ouvriers y sont attribués. Supprimez d'abord les attributions.")]
+    SiteHasAssignments,
+
+    [ApiErrorInfo(400, "Attribution en doublon : cet ouvrier est déjà attribué pour toute la durée de ce chantier")]
+    AssignmentDuplicateFullDuration,
+
+    [ApiErrorInfo(400, "La liste d'attributions est vide")]
+    AssignmentBatchEmpty,
 }

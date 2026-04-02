@@ -70,4 +70,46 @@ describe('ChantierEquipe', () => {
       expect(screen.getByRole('button', { name: /attribuer l'équipe/i })).toBeInTheDocument()
     })
   })
+
+  // --- H12: Test clic sur bouton édition d'une attribution ---
+
+  it('clic sur le bouton édition ouvre le dialog de modification', async () => {
+    const user = userEvent.setup()
+    vi.mocked(sitesApi.getSiteAssignments).mockResolvedValue(mockAssignments)
+    vi.mocked(sitesApi.updateAssignment).mockResolvedValue(mockAssignments[1])
+    vi.mocked(sitesApi.deleteAssignment).mockResolvedValue(undefined)
+
+    renderWithProviders(<ChantierEquipe siteId={10} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Martin Pierre')).toBeInTheDocument()
+    })
+
+    // Find the edit buttons (Edit2 icons)
+    const editButtons = screen.getAllByRole('button').filter(
+      btn => btn.querySelector('svg') && !btn.textContent?.includes('Attribuer')
+    )
+    expect(editButtons.length).toBeGreaterThanOrEqual(1)
+
+    // Click the first edit button
+    await user.click(editButtons[0])
+
+    await waitFor(() => {
+      expect(screen.getByText("Modifier l'attribution")).toBeInTheDocument()
+    })
+  })
+
+  it('affiche le créneau formaté pour une attribution précise', async () => {
+    vi.mocked(sitesApi.getSiteAssignments).mockResolvedValue(mockAssignments)
+
+    renderWithProviders(<ChantierEquipe siteId={10} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Dupont Jean')).toBeInTheDocument()
+    })
+
+    // Check that a formatted time slot is displayed for the precise assignment
+    // Format is "DD/MM HH:mm-HH:mm" for same-day
+    expect(screen.getByText(/10\/04/)).toBeInTheDocument()
+  })
 })

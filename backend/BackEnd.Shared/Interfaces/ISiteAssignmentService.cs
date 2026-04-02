@@ -9,6 +9,6 @@ public interface ISiteAssignmentService
     Task<SiteAssignmentResponse> UpdateAsync(int siteId, int assignmentId, UpdateAssignmentRequest request);
     Task DeleteAsync(int siteId, int assignmentId);
     Task<List<SiteAssignmentResponse>> GetBySiteAsync(int siteId);
-    Task<List<ConflictWarning>> CheckConflictsAsync(int userId, DateTime? start, DateTime? end, int? excludeAssignmentId = null);
+    Task<List<ConflictWarning>> CheckConflictsAsync(int siteId, int userId, DateTime? start, DateTime? end, int? excludeAssignmentId = null);
     Task<List<SiteAssignmentResponse>> ApplyAdjustmentsAsync(int siteId, List<AssignmentAdjustment> adjustments);
 }

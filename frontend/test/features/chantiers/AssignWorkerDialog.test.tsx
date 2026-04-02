@@ -105,4 +105,146 @@ describe('AssignWorkerDialog', () => {
     const { toast } = await import('sonner')
     expect(toast.success).toHaveBeenCalledWith('Équipe attribuée')
   })
+
+  // --- H10: Tests dialog de conflits ---
+
+  it('affiche le dialog de conflits quand checkConflicts retourne des résultats', async () => {
+    const user = userEvent.setup()
+    vi.mocked(sitesApi.checkConflicts).mockResolvedValue([
+      { type: 'conflict', message: 'Pierre a un créneau en conflit sur « Chantier B »', conflictingSiteId: 20, conflictingSiteName: 'Chantier B', existingStart: '2026-04-10T08:00:00Z', existingEnd: '2026-04-10T12:00:00Z' },
+    ])
+
+    renderWithProviders(<AssignWorkerDialog siteId={10} open={true} onOpenChange={() => {}} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Martin Pierre')).toBeInTheDocument()
+    })
+
+    const checkboxes = screen.getAllByRole('checkbox')
+    await user.click(checkboxes[0])
+    await user.click(screen.getByText(/attribuer \(1\)/i))
+
+    await waitFor(() => {
+      expect(screen.getByText('Conflits détectés')).toBeInTheDocument()
+      expect(screen.getByText(/Chantier B/)).toBeInTheDocument()
+    })
+
+    expect(screen.getByRole('button', { name: /confirmer malgré les conflits/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /annuler/i })).toBeInTheDocument()
+  })
+
+  it('soumet malgré conflits quand l\'utilisateur confirme', async () => {
+    const user = userEvent.setup()
+    vi.mocked(sitesApi.checkConflicts).mockResolvedValue([
+      { type: 'info', message: 'Pierre est attribué pour toute la durée sur « Chantier B »', conflictingSiteId: 20, conflictingSiteName: 'Chantier B', existingStart: null, existingEnd: null },
+    ])
+
+    renderWithProviders(<AssignWorkerDialog siteId={10} open={true} onOpenChange={() => {}} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Martin Pierre')).toBeInTheDocument()
+    })
+
+    const checkboxes = screen.getAllByRole('checkbox')
+    await user.click(checkboxes[0])
+    await user.click(screen.getByText(/attribuer \(1\)/i))
+
+    await waitFor(() => {
+      expect(screen.getByText('Informations')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: /confirmer malgré les conflits/i }))
+
+    await waitFor(() => {
+      expect(sitesApi.createBatchAssignment).toHaveBeenCalledWith(10, {
+        assignments: [expect.objectContaining({ userId: 100, mode: 'full_duration' })],
+      })
+    })
+  })
+
+  // --- M13: Tests modes range_preset, free, multi-sélection, erreurs API ---
+
+  it('mode range_preset affiche les champs de plage de dates', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<AssignWorkerDialog siteId={10} open={true} onOpenChange={() => {}} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Martin Pierre')).toBeInTheDocument()
+    })
+
+    const checkboxes = screen.getAllByRole('checkbox')
+    await user.click(checkboxes[0])
+    await user.click(screen.getByText('Plage + preset'))
+
+    // Should show 2 date inputs for start/end range
+    const dateInputs = screen.getAllByDisplayValue('')
+    const rangeInputs = dateInputs.filter(i => i.getAttribute('type') === 'date')
+    expect(rangeInputs.length).toBeGreaterThanOrEqual(2)
+
+    // Presets should be visible
+    expect(screen.getByText(/Matin/)).toBeInTheDocument()
+  })
+
+  it('mode free affiche les champs datetime-local', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<AssignWorkerDialog siteId={10} open={true} onOpenChange={() => {}} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Martin Pierre')).toBeInTheDocument()
+    })
+
+    const checkboxes = screen.getAllByRole('checkbox')
+    await user.click(checkboxes[0])
+    await user.click(screen.getByText('Datetime libre'))
+
+    const datetimeInputs = screen.getAllByDisplayValue('').filter(i => i.getAttribute('type') === 'datetime-local')
+    expect(datetimeInputs.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('multi-sélection affiche le compteur correct et soumet pour chaque ouvrier', async () => {
+    const user = userEvent.setup()
+    renderWithProviders(<AssignWorkerDialog siteId={10} open={true} onOpenChange={() => {}} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Martin Pierre')).toBeInTheDocument()
+      expect(screen.getByText('Dupont Jean')).toBeInTheDocument()
+    })
+
+    const checkboxes = screen.getAllByRole('checkbox')
+    await user.click(checkboxes[0])
+    await user.click(checkboxes[1])
+
+    expect(screen.getByText(/attribuer \(2\)/i)).toBeInTheDocument()
+
+    await user.click(screen.getByText(/attribuer \(2\)/i))
+
+    await waitFor(() => {
+      expect(sitesApi.createBatchAssignment).toHaveBeenCalledWith(10, {
+        assignments: expect.arrayContaining([
+          expect.objectContaining({ userId: 100, mode: 'full_duration' }),
+          expect.objectContaining({ userId: 101, mode: 'full_duration' }),
+        ]),
+      })
+    })
+  })
+
+  it('affiche toast erreur quand la soumission échoue', async () => {
+    const user = userEvent.setup()
+    vi.mocked(sitesApi.createBatchAssignment).mockRejectedValue(new Error('Server error'))
+
+    renderWithProviders(<AssignWorkerDialog siteId={10} open={true} onOpenChange={() => {}} />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Martin Pierre')).toBeInTheDocument()
+    })
+
+    const checkboxes = screen.getAllByRole('checkbox')
+    await user.click(checkboxes[0])
+    await user.click(screen.getByText(/attribuer \(1\)/i))
+
+    await waitFor(async () => {
+      const { toast } = await import('sonner')
+      expect(toast.error).toHaveBeenCalledWith("Erreur lors de l'attribution")
+    })
+  })
 })

@@ -49,7 +49,7 @@ export function ChantierEquipe({ siteId }: ChantierEquipeProps) {
                 <div key={a.id} className="flex items-center justify-between rounded-md border p-3">
                   <div className="flex items-center gap-3">
                     <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium">
-                      {a.userFullName.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                      {(a.userFullName || '?').split(' ').map(n => n[0]).filter(Boolean).join('').slice(0, 2) || '?'}
                     </div>
                     <div>
                       <p className="font-medium text-sm">{a.userFullName}</p>
@@ -75,6 +75,7 @@ export function ChantierEquipe({ siteId }: ChantierEquipeProps) {
 
       {editingAssignment && (
         <EditAssignmentDialog
+          key={editingAssignment.id}
           siteId={siteId}
           assignment={editingAssignment}
           open={!!editingAssignment}
