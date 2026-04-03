@@ -35,6 +35,7 @@ export function useUpdateQuote() {
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['quotes'] })
       queryClient.invalidateQueries({ queryKey: ['quotes', id] })
+      queryClient.invalidateQueries({ queryKey: ['audit-events', 'Quote', id] })
     },
   })
 }
@@ -57,6 +58,7 @@ export function useUpdateQuoteStatus() {
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['quotes'] })
       queryClient.invalidateQueries({ queryKey: ['quotes', id] })
+      queryClient.invalidateQueries({ queryKey: ['audit-events', 'Quote', id] })
     },
   })
 }

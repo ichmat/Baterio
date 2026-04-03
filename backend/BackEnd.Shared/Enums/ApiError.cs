@@ -425,4 +425,7 @@ public enum ApiError
 
     [ApiErrorInfo(400, "La liste d'attributions est vide")]
     AssignmentBatchEmpty,
+
+    [ApiErrorInfo(400, "Le chantier n'a pas de dates définies. Seul le mode 'Toute la durée' est autorisé.")]
+    AssignmentSiteDatesRequired,
 }

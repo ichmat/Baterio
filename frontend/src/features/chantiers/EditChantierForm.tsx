@@ -58,7 +58,7 @@ export function EditChantierForm({ site, onSuccess }: EditChantierFormProps) {
       id: def.id,
       label: def.label,
       value: (data as any).customFields?.[def.id] ?? null,
-    })).filter((cf) => cf.value !== undefined)
+    })).filter((cf) => cf.value !== undefined && cf.value !== null && cf.value !== '')
 
     try {
       const response = await updateMutation.mutateAsync({

@@ -3,10 +3,10 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Trash2 } from 'lucide-react'
+import { AlertTriangle, Loader2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useUpdateAssignment, useDeleteAssignment } from './useSites'
-import type { SiteAssignment } from './types'
+import { useUpdateAssignment, useDeleteAssignment, useCheckConflicts } from './useSites'
+import type { SiteAssignment, AssignmentConflict } from './types'
 
 interface EditAssignmentDialogProps {
   siteId: number
@@ -26,21 +26,17 @@ function toLocalDatetimeStr(iso: string | null): string {
 export function EditAssignmentDialog({ siteId, assignment, open, onOpenChange }: EditAssignmentDialogProps) {
   const updateMutation = useUpdateAssignment(siteId)
   const deleteMutation = useDeleteAssignment(siteId)
+  const conflictCheck = useCheckConflicts(siteId)
   const [startDatetime, setStartDatetime] = useState(toLocalDatetimeStr(assignment.startDatetime))
   const [endDatetime, setEndDatetime] = useState(toLocalDatetimeStr(assignment.endDatetime))
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [checkingConflicts, setCheckingConflicts] = useState(false)
+  const [conflicts, setConflicts] = useState<AssignmentConflict[]>([])
+  const [showConflictDialog, setShowConflictDialog] = useState(false)
 
   const isFullDuration = !assignment.startDatetime && !assignment.endDatetime
 
-  const handleSave = async () => {
-    if (startDatetime && endDatetime && endDatetime <= startDatetime) {
-      toast.error('La date de fin doit être après la date de début')
-      return
-    }
-    if ((startDatetime && !endDatetime) || (!startDatetime && endDatetime)) {
-      toast.error('Les deux dates doivent être renseignées ou les deux vides')
-      return
-    }
+  const doSave = async () => {
     try {
       await updateMutation.mutateAsync({
         assignmentId: assignment.id,
@@ -56,6 +52,42 @@ export function EditAssignmentDialog({ siteId, assignment, open, onOpenChange }:
     }
   }
 
+  const handleSave = async () => {
+    if (startDatetime && endDatetime && endDatetime <= startDatetime) {
+      toast.error('La date de fin doit être après la date de début')
+      return
+    }
+    if ((startDatetime && !endDatetime) || (!startDatetime && endDatetime)) {
+      toast.error('Les deux dates doivent être renseignées ou les deux vides')
+      return
+    }
+
+    // Check conflicts if dates are set
+    if (startDatetime && endDatetime) {
+      setCheckingConflicts(true)
+      try {
+        const found = await conflictCheck.mutateAsync({
+          userId: assignment.userId,
+          startDatetime,
+          endDatetime,
+          excludeAssignmentId: assignment.id,
+        })
+        if (found.length > 0) {
+          setConflicts(found)
+          setShowConflictDialog(true)
+          return
+        }
+      } catch {
+        toast.error('Erreur lors de la vérification des conflits')
+        return
+      } finally {
+        setCheckingConflicts(false)
+      }
+    }
+
+    await doSave()
+  }
+
   const handleDelete = async () => {
     try {
       await deleteMutation.mutateAsync(assignment.id)
@@ -67,6 +99,7 @@ export function EditAssignmentDialog({ siteId, assignment, open, onOpenChange }:
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
@@ -108,12 +141,43 @@ export function EditAssignmentDialog({ siteId, assignment, open, onOpenChange }:
           )}
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Annuler</Button>
-            <Button onClick={handleSave} disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+            <Button onClick={handleSave} disabled={updateMutation.isPending || checkingConflicts}>
+              {checkingConflicts ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Vérification...</>
+              ) : updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
             </Button>
           </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    {/* Conflict warning dialog */}
+    <Dialog open={showConflictDialog} onOpenChange={setShowConflictDialog}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-amber-600">
+            <AlertTriangle className="h-5 w-5" />
+            {conflicts.some(c => c.type === 'conflict') ? 'Conflits détectés' : 'Informations'}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-2">
+          {conflicts.map((c, i) => (
+            <div key={i} className={`rounded-md p-3 text-sm ${c.type === 'conflict' ? 'bg-red-50 border-red-200 border' : 'bg-amber-50 border-amber-200 border'}`}>
+              {c.message}
+            </div>
+          ))}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowConflictDialog(false)}>Annuler</Button>
+          <Button onClick={async () => {
+            setShowConflictDialog(false)
+            await doSave()
+          }}>
+            Confirmer malgré les conflits
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   )
 }

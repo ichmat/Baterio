@@ -60,6 +60,7 @@ export function useUpdateSite(id: number) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sites', id] })
       queryClient.invalidateQueries({ queryKey: ['sites'] })
+      queryClient.invalidateQueries({ queryKey: ['audit-events', 'Site', id] })
     },
   })
 }
@@ -71,6 +72,7 @@ export function useUpdateSiteStatus(id: number) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['sites', id] })
       queryClient.invalidateQueries({ queryKey: ['sites'] })
+      queryClient.invalidateQueries({ queryKey: ['audit-events', 'Site', id] })
     },
   })
 }

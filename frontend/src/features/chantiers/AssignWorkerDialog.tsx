@@ -12,6 +12,8 @@ import { readErrorOrDefault } from '../error/utils'
 
 interface AssignWorkerDialogProps {
   siteId: number
+  siteStartDate: string | null
+  siteEndDate: string | null
   open: boolean
   onOpenChange: (open: boolean) => void
 }
@@ -30,7 +32,8 @@ interface WorkerConfig {
   endDatetime: string
 }
 
-export function AssignWorkerDialog({ siteId, open, onOpenChange }: AssignWorkerDialogProps) {
+export function AssignWorkerDialog({ siteId, siteStartDate, siteEndDate, open, onOpenChange }: AssignWorkerDialogProps) {
+  const siteHasDates = siteStartDate != null || siteEndDate != null
   const { data: users } = useUsers()
   const { data: presets } = useAssignmentPresets()
   const batchMutation = useCreateBatchAssignment(siteId)
@@ -88,6 +91,9 @@ export function AssignWorkerDialog({ siteId, open, onOpenChange }: AssignWorkerD
   }
 
   const validateConfig = (cfg: WorkerConfig): string | null => {
+    if (!siteHasDates && cfg.mode !== 'full_duration') {
+      return "Le chantier n'a pas de dates définies. Seul le mode 'Toute la durée' est autorisé."
+    }
     if (cfg.mode === 'date_preset') {
       if (!cfg.date) return 'La date est requise'
       if (!cfg.presetStartTime || !cfg.presetEndTime) return 'Sélectionnez un preset horaire'
@@ -237,6 +243,7 @@ export function AssignWorkerDialog({ siteId, open, onOpenChange }: AssignWorkerD
                             size="sm"
                             variant={configs[worker.id].mode === mode ? 'default' : 'outline'}
                             onClick={() => updateConfig(worker.id, { mode })}
+                            disabled={!siteHasDates && mode !== 'full_duration'}
                           >
                             {mode === 'full_duration' && 'Toute la durée'}
                             {mode === 'date_preset' && 'Date + preset'}

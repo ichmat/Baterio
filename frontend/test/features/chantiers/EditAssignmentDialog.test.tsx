@@ -24,6 +24,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(sitesApi.updateAssignment).mockResolvedValue(mockAssignment)
   vi.mocked(sitesApi.deleteAssignment).mockResolvedValue(undefined)
+  vi.mocked(sitesApi.checkConflicts).mockResolvedValue([])
 })
 
 describe('EditAssignmentDialog', () => {

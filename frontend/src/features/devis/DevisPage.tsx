@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -29,8 +29,16 @@ function loadColumnVisibility(): VisibilityState {
 
 export function DevisPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { data, isLoading } = useQuotes(1, MAX_QUOTES_LOAD)
-  const [selectedQuoteId, setSelectedQuoteId] = useState<number | null>(null)
+  const selectedQuoteId = searchParams.get('selected') ? Number(searchParams.get('selected')) : null
+  const setSelectedQuoteId = useCallback((id: number | null) => {
+    if (id) {
+      setSearchParams({ selected: String(id) }, { replace: true })
+    } else {
+      setSearchParams({}, { replace: true })
+    }
+  }, [setSearchParams])
   const isDesktop = useMediaQuery('(min-width: 1024px)')
 
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(loadColumnVisibility)

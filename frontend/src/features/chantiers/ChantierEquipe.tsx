@@ -9,6 +9,8 @@ import type { SiteAssignment } from './types'
 
 interface ChantierEquipeProps {
   siteId: number
+  siteStartDate: string | null
+  siteEndDate: string | null
 }
 
 function formatSlot(start: string | null, end: string | null): string {
@@ -23,7 +25,7 @@ function formatSlot(start: string | null, end: string | null): string {
   return '—'
 }
 
-export function ChantierEquipe({ siteId }: ChantierEquipeProps) {
+export function ChantierEquipe({ siteId, siteStartDate, siteEndDate }: ChantierEquipeProps) {
   const { data: assignments, isLoading } = useSiteAssignments(siteId)
   const [assignOpen, setAssignOpen] = useState(false)
   const [editingAssignment, setEditingAssignment] = useState<SiteAssignment | null>(null)
@@ -71,7 +73,7 @@ export function ChantierEquipe({ siteId }: ChantierEquipeProps) {
         </CardContent>
       </Card>
 
-      <AssignWorkerDialog siteId={siteId} open={assignOpen} onOpenChange={setAssignOpen} />
+      <AssignWorkerDialog siteId={siteId} siteStartDate={siteStartDate} siteEndDate={siteEndDate} open={assignOpen} onOpenChange={setAssignOpen} />
 
       {editingAssignment && (
         <EditAssignmentDialog

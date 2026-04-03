@@ -41,7 +41,7 @@ describe('ChantierEquipe', () => {
   it('affiche la liste des ouvriers attribués', async () => {
     vi.mocked(sitesApi.getSiteAssignments).mockResolvedValue(mockAssignments)
 
-    renderWithProviders(<ChantierEquipe siteId={10} />)
+    renderWithProviders(<ChantierEquipe siteId={10} siteStartDate="2026-04-01" siteEndDate="2026-06-30" />)
 
     await waitFor(() => {
       expect(screen.getByText('Martin Pierre')).toBeInTheDocument()
@@ -54,7 +54,7 @@ describe('ChantierEquipe', () => {
   it('affiche un message quand aucun ouvrier attribué', async () => {
     vi.mocked(sitesApi.getSiteAssignments).mockResolvedValue([])
 
-    renderWithProviders(<ChantierEquipe siteId={10} />)
+    renderWithProviders(<ChantierEquipe siteId={10} siteStartDate="2026-04-01" siteEndDate="2026-06-30" />)
 
     await waitFor(() => {
       expect(screen.getByText('Aucun ouvrier attribué')).toBeInTheDocument()
@@ -64,7 +64,7 @@ describe('ChantierEquipe', () => {
   it('affiche le bouton Attribuer l\'équipe', async () => {
     vi.mocked(sitesApi.getSiteAssignments).mockResolvedValue([])
 
-    renderWithProviders(<ChantierEquipe siteId={10} />)
+    renderWithProviders(<ChantierEquipe siteId={10} siteStartDate="2026-04-01" siteEndDate="2026-06-30" />)
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /attribuer l'équipe/i })).toBeInTheDocument()
@@ -79,7 +79,7 @@ describe('ChantierEquipe', () => {
     vi.mocked(sitesApi.updateAssignment).mockResolvedValue(mockAssignments[1])
     vi.mocked(sitesApi.deleteAssignment).mockResolvedValue(undefined)
 
-    renderWithProviders(<ChantierEquipe siteId={10} />)
+    renderWithProviders(<ChantierEquipe siteId={10} siteStartDate="2026-04-01" siteEndDate="2026-06-30" />)
 
     await waitFor(() => {
       expect(screen.getByText('Martin Pierre')).toBeInTheDocument()
@@ -102,7 +102,7 @@ describe('ChantierEquipe', () => {
   it('affiche le créneau formaté pour une attribution précise', async () => {
     vi.mocked(sitesApi.getSiteAssignments).mockResolvedValue(mockAssignments)
 
-    renderWithProviders(<ChantierEquipe siteId={10} />)
+    renderWithProviders(<ChantierEquipe siteId={10} siteStartDate="2026-04-01" siteEndDate="2026-06-30" />)
 
     await waitFor(() => {
       expect(screen.getByText('Dupont Jean')).toBeInTheDocument()

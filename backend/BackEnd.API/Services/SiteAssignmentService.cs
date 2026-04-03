@@ -35,6 +35,9 @@ public class SiteAssignmentService : ISiteAssignmentService
         if (user.Role != UserRole.Ouvrier)
             throw new ApiErrorException(ApiError.AssignmentWorkerRoleRequired);
 
+        if (site.StartDate == null && site.EndDate == null && request.Mode != "full_duration")
+            throw new ApiErrorException(ApiError.AssignmentSiteDatesRequired);
+
         if (request.Mode == "full_duration")
         {
             var alreadyExists = await _db.SiteAssignments.AnyAsync(a =>
@@ -77,6 +80,9 @@ public class SiteAssignmentService : ISiteAssignmentService
                     throw new ApiErrorException(ApiError.AssignmentWorkerRoleRequired);
                 userCache[single.UserId] = user;
             }
+
+            if (site.StartDate == null && site.EndDate == null && single.Mode != "full_duration")
+                throw new ApiErrorException(ApiError.AssignmentSiteDatesRequired);
 
             if (single.Mode == "full_duration")
             {

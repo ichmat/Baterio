@@ -5,6 +5,11 @@ import { formatDate } from '@/lib/format-date'
 
 export const siteColumns: ColumnDef<SiteResponse, unknown>[] = [
   {
+    accessorKey: 'reference',
+    header: 'Référence',
+    enableSorting: true,
+  },
+  {
     accessorKey: 'customerName',
     header: 'Client',
     enableSorting: true,
@@ -47,6 +52,24 @@ export const siteColumns: ColumnDef<SiteResponse, unknown>[] = [
       )
     },
     enableSorting: false,
+  },
+  {
+    accessorKey: 'startDate',
+    header: 'Date de début',
+    enableSorting: true,
+    cell: ({ getValue }) => {
+      const v = getValue()
+      return v ? formatDate(String(v)) : <span className="text-muted-foreground">—</span>
+    },
+  },
+  {
+    accessorKey: 'endDate',
+    header: 'Date de fin prévue',
+    enableSorting: true,
+    cell: ({ getValue }) => {
+      const v = getValue()
+      return v ? formatDate(String(v)) : <span className="text-muted-foreground">—</span>
+    },
   },
   {
     accessorKey: 'createdAt',

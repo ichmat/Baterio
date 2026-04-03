@@ -182,7 +182,7 @@ export function ChantierDetailPage({ siteId: propSiteId, showBackButton = true }
       </Card>
 
       {/* 5. Équipe */}
-      <ChantierEquipe siteId={site.id} />
+      <ChantierEquipe siteId={site.id} siteStartDate={site.startDate ?? null} siteEndDate={site.endDate ?? null} />
 
       {/* 6. Historique compact */}
       <TimelineCompact
