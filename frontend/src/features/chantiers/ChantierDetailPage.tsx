@@ -52,7 +52,7 @@ export function ChantierDetailPage({ siteId: propSiteId, showBackButton = true }
     return (
       <div className="mx-auto max-w-4xl p-6">
         <p className="text-destructive">Chantier introuvable</p>
-        <Button variant="outline" className="mt-4" onClick={() => navigate('/chantiers')}>
+        <Button variant="outline" className="mt-4" onClick={() => navigate(-1)}>
           Retour aux chantiers
         </Button>
       </div>
@@ -82,7 +82,7 @@ export function ChantierDetailPage({ siteId: propSiteId, showBackButton = true }
       {/* 1. Header */}
       <div className="flex items-center gap-4">
         {showBackButton && (
-          <Button variant="ghost" size="icon" onClick={() => navigate('/chantiers')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
         )}

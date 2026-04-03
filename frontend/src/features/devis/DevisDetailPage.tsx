@@ -55,7 +55,7 @@ export function DevisDetailPage({ quoteId: propQuoteId, showBackButton = true }:
       <div className="mx-auto max-w-4xl space-y-4 p-6">
         <p className="text-destructive">Devis introuvable</p>
         {showBackButton && (
-          <Button variant="outline" onClick={() => navigate('/devis')}>
+          <Button variant="outline" onClick={() => navigate(-1)}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Retour aux devis
           </Button>
@@ -85,7 +85,7 @@ export function DevisDetailPage({ quoteId: propQuoteId, showBackButton = true }:
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3">
           {showBackButton && (
-            <Button variant="ghost" size="icon" onClick={() => navigate('/devis')}>
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
           )}
