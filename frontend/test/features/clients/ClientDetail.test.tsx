@@ -6,6 +6,7 @@ import { ClientDetail } from '@/features/clients/ClientDetail'
 import * as clientApi from '@/features/clients/api'
 import * as auditApi from '@/features/audit/api'
 import * as devisApi from '@/features/devis/api'
+import * as chantiersApi from '@/features/chantiers/api'
 import type { CustomerResponse } from '@/features/clients/types'
 import type { AuditEventsPage } from '@/features/audit/types'
 import { renderWithProviders } from '../../test-utils'
@@ -13,6 +14,7 @@ import { renderWithProviders } from '../../test-utils'
 vi.mock('@/features/clients/api')
 vi.mock('@/features/audit/api')
 vi.mock('@/features/devis/api')
+vi.mock('@/features/chantiers/api')
 vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
@@ -62,6 +64,7 @@ beforeEach(() => {
     data: [],
     pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 },
   })
+  vi.mocked(chantiersApi.getSitesByCustomer).mockResolvedValue([])
 })
 
 function renderDetail(props: { customerId?: number; showBackButton?: boolean; onBack?: () => void } = {}) {
@@ -102,7 +105,7 @@ describe('ClientDetail', () => {
     await waitFor(() => {
       expect(screen.getByText('Chantiers associés')).toBeInTheDocument()
     })
-    expect(screen.getByText('Aucun chantier pour ce client — les chantiers seront disponibles prochainement')).toBeInTheDocument()
+    expect(screen.getByText('Aucun chantier pour ce client')).toBeInTheDocument()
   })
 
   it('affiche la section historique (TimelineCompact)', async () => {

@@ -60,6 +60,20 @@ const fieldLabelsRegistry: Record<string, Record<string, string>> = {
     LegalMentions: 'mentions légales',
     legalMentions: 'mentions légales',
   },
+  Site: {
+    Subject: 'objet',
+    subject: 'objet',
+    Status: 'statut',
+    status: 'statut',
+    SiteAddress: 'adresse chantier',
+    siteAddress: 'adresse chantier',
+    StartDate: 'date de début',
+    startDate: 'date de début',
+    EndDate: 'date de fin',
+    endDate: 'date de fin',
+    Notes: 'notes',
+    notes: 'notes',
+  },
   CompanyInfo: {
     CompanyName: 'raison sociale',
     Address: 'adresse',
@@ -94,7 +108,7 @@ function isDiffValue(val: unknown): val is { Old: unknown; New: unknown } {
 
 export function formatDiffValue(value: unknown): ReactNode {
   if (value === null || value === undefined) {
-    return <em className="text-muted-foreground italic">vide</em>
+    return <em className="text-muted-foreground font-light italic">vide</em>
   }
   return String(value)
 }
@@ -434,6 +448,13 @@ const STATUS_LABELS: Record<string, string> = {
   Refused: 'Refusé',
 }
 
+const SITE_STATUS_LABELS: Record<string, string> = {
+  Planned: 'Planifié',
+  InProgress: 'En cours',
+  Paused: 'Pause',
+  Completed: 'Terminé',
+}
+
 const PRIORITY_LABELS: Record<string, string> = {
   Low: 'Basse',
   Normal: 'Normale',
@@ -502,6 +523,24 @@ entityRenderers['Quote'] = (payload, action, compact) => {
           )
         })}
         {linesDiff}
+      </div>
+    )
+  }
+  return null
+}
+
+entityRenderers['Site'] = (payload, action, compact) => {
+  if (action === 'StatusChanged') {
+    const old = SITE_STATUS_LABELS[String(payload.Old)] ?? formatDiffValue(payload.Old)
+    const nw = SITE_STATUS_LABELS[String(payload.New)] ?? formatDiffValue(payload.New)
+    return (
+      <div className={`flex items-center gap-1 text-xs ${compact ? '' : 'mt-2 '}`}>
+        <span className="text-muted-foreground">statut :</span>
+        <Badge variant="outline" className="line-through text-muted-foreground">
+          {old}
+        </Badge>
+        <span className="text-muted-foreground">→</span>
+        <Badge variant="secondary">{nw}</Badge>
       </div>
     )
   }

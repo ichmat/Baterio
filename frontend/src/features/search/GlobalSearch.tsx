@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router'
-import { Users, FileText } from 'lucide-react'
+import { Users, FileText, Building2 } from 'lucide-react'
 import {
   CommandDialog,
   CommandInput,
@@ -13,6 +13,8 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { useCustomerSearch } from '@/features/clients/useCustomerSearch'
 import { useQuoteSearch } from '@/features/devis/useQuoteSearch'
 import { STATUS_CONFIG } from '@/features/devis/status-config'
+import { useSiteSearch } from '@/features/chantiers/useSites'
+import { SITE_STATUS_CONFIG } from '@/features/chantiers/status-config'
 
 interface GlobalSearchProps {
   open: boolean
@@ -24,6 +26,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
   const debouncedQuery = useDebounce(query, 300)
   const { data: customers, isLoading } = useCustomerSearch(debouncedQuery, 5)
   const { data: quotes, isLoading: quotesLoading } = useQuoteSearch(debouncedQuery, 5)
+  const { data: sites, isLoading: sitesLoading } = useSiteSearch(debouncedQuery, 5)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -63,7 +66,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
       />
       <CommandList>
         <CommandEmpty>
-          {(isLoading || quotesLoading) && debouncedQuery.length >= 2
+          {(isLoading || quotesLoading || sitesLoading) && debouncedQuery.length >= 2
             ? 'Recherche en cours...'
             : 'Aucun résultat'}
         </CommandEmpty>
@@ -104,6 +107,33 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
                   <FileText className="mr-2 h-4 w-4" />
                   <span>{q.reference}</span>
                   <span className="ml-1 text-muted-foreground">{q.customerName} — {q.subject}</span>
+                  <span className={`ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${statusCfg.color}`}>
+                    <StatusIcon className="h-3 w-3" />
+                    {statusCfg.label}
+                  </span>
+                </CommandItem>
+              )
+            })}
+          </CommandGroup>
+        )}
+        {sites && sites.length > 0 && (
+          <CommandGroup heading="Chantiers">
+            {sites.map((s) => {
+              const statusCfg = SITE_STATUS_CONFIG[s.status] ?? SITE_STATUS_CONFIG.Planned
+              const StatusIcon = statusCfg.icon
+              return (
+                <CommandItem
+                  key={s.id}
+                  value={`site-${s.id}`}
+                  onSelect={() => {
+                    navigate(`/chantiers/${s.id}`)
+                    onOpenChange(false)
+                    setQuery('')
+                  }}
+                >
+                  <Building2 className="mr-2 h-4 w-4" />
+                  <span>{s.reference}</span>
+                  <span className="ml-1 text-muted-foreground">{s.customerName} — {s.siteAddress}</span>
                   <span className={`ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs ${statusCfg.color}`}>
                     <StatusIcon className="h-3 w-3" />
                     {statusCfg.label}

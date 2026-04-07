@@ -336,5 +336,102 @@ public enum ApiError
     /// Identifiant de ligne de devis en double
     /// </summary>
     [ApiErrorInfo(400, "Identifiant de ligne de devis en double")]
-    QuoteLineDuplicateId
+    QuoteLineDuplicateId,
+
+    // Sites
+
+    [ApiErrorInfo(404, "Chantier introuvable")]
+    SiteNotFound,
+
+    [ApiErrorInfo(400, "Le client est obligatoire")]
+    SiteCustomerRequired,
+
+    [ApiErrorInfo(400, "L'objet du chantier est obligatoire")]
+    SiteSubjectRequired,
+
+    [ApiErrorInfo(400, "L'adresse du chantier est obligatoire")]
+    SiteAddressRequired,
+
+    [ApiErrorInfo(400, "Client introuvable pour ce chantier")]
+    SiteCustomerNotFound,
+
+    [ApiErrorInfo(400, "Devis introuvable")]
+    SiteQuoteNotFound,
+
+    [ApiErrorInfo(400, "Le devis doit être en statut Validé pour créer un chantier")]
+    SiteQuoteNotAccepted,
+
+    [ApiErrorInfo(400, "Champ obligatoire manquant pour le chantier : {0}")]
+    SiteCustomFieldRequired,
+
+    [ApiErrorInfo(400, "L'objet du chantier ne peut pas dépasser 500 caractères")]
+    SiteSubjectTooLong,
+
+    [ApiErrorInfo(400, "L'adresse du chantier ne peut pas dépasser 1000 caractères")]
+    SiteAddressTooLong,
+
+    [ApiErrorInfo(400, "Les notes ne peuvent pas dépasser 5000 caractères")]
+    SiteNotesTooLong,
+
+    [ApiErrorInfo(400, "La date de fin doit être après la date de début")]
+    SiteEndDateBeforeStartDate,
+
+    [ApiErrorInfo(400, "Transition de statut non autorisée pour le chantier")]
+    SiteInvalidStatusTransition,
+
+    /// <summary>
+    /// Impossible de supprimer ce devis : un chantier y est lié
+    /// </summary>
+    [ApiErrorInfo(400, "Impossible de supprimer ce devis : un chantier y est lié. Supprimez d'abord le chantier.")]
+    QuoteHasLinkedSite,
+
+    // Site Assignments
+
+    [ApiErrorInfo(404, "Ouvrier introuvable pour cette attribution")]
+    AssignmentWorkerNotFound,
+
+    [ApiErrorInfo(404, "Chantier introuvable pour cette attribution")]
+    AssignmentSiteNotFound,
+
+    [ApiErrorInfo(404, "Attribution introuvable")]
+    AssignmentNotFound,
+
+    [ApiErrorInfo(400, "La date de fin doit être après la date de début pour l'attribution")]
+    AssignmentInvalidDateRange,
+
+    [ApiErrorInfo(400, "Mode d'attribution invalide (valeurs acceptées : full_duration, date_preset, range_preset, free)")]
+    AssignmentInvalidMode,
+
+    [ApiErrorInfo(400, "Les dates de l'attribution sont en dehors de la plage du chantier ({0} - {1})")]
+    AssignmentOutsideSiteDateRange,
+
+    [ApiErrorInfo(400, "Le libellé du preset est obligatoire")]
+    AssignmentPresetLabelRequired,
+
+    [ApiErrorInfo(400, "Les heures du preset sont invalides (format HH:mm, début < fin)")]
+    AssignmentPresetInvalidTime,
+
+    [ApiErrorInfo(400, "L'utilisateur doit avoir le rôle Ouvrier")]
+    AssignmentWorkerRoleRequired,
+
+    [ApiErrorInfo(400, "La plage de dates ne peut pas dépasser 365 jours")]
+    AssignmentRangeTooLarge,
+
+    [ApiErrorInfo(400, "Impossible de supprimer ce chantier : des ouvriers y sont attribués. Supprimez d'abord les attributions.")]
+    SiteHasAssignments,
+
+    [ApiErrorInfo(400, "Attribution en doublon : cet ouvrier est déjà attribué pour toute la durée de ce chantier")]
+    AssignmentDuplicateFullDuration,
+
+    [ApiErrorInfo(400, "La liste d'attributions est vide")]
+    AssignmentBatchEmpty,
+
+    [ApiErrorInfo(400, "Le chantier n'a pas de dates définies. Seul le mode 'Toute la durée' est autorisé.")]
+    AssignmentSiteDatesRequired,
+
+    [ApiErrorInfo(400, "La liste des presets ne peut pas être vide.")]
+    AssignmentPresetsListEmpty,
+
+    [ApiErrorInfo(400, "Les dates de début et de fin doivent être renseignées ensemble ou toutes les deux vides.")]
+    SiteDatesPairRequired,
 }

@@ -12,7 +12,8 @@ import { useImageUrl } from '@/features/files/useImageUrl'
 import type { AttachmentResponse } from '@/features/files/types'
 
 interface MediaGalleryProps {
-  quoteId: number
+  entityType: string
+  entityId: number
   open: boolean
   onOpenChange: (open: boolean) => void
 }
@@ -61,8 +62,8 @@ function GalleryThumbnail({
   )
 }
 
-export function MediaGallery({ quoteId, open, onOpenChange }: MediaGalleryProps) {
-  const { data: attachments } = useAttachments('Quote', quoteId)
+export function MediaGallery({ entityType, entityId, open, onOpenChange }: MediaGalleryProps) {
+  const { data: attachments } = useAttachments(entityType, entityId)
   const [lightboxItem, setLightboxItem] = useState<AttachmentResponse | null>(null)
   const lightboxUrlRef = useRef<string | null>(null)
 

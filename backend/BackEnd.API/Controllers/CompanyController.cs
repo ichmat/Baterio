@@ -41,4 +41,5 @@ public class CompanyController : ControllerBase
         var result = await _companyService.GetSubscriptionInfoAsync();
         return Ok(new ApiResponse<SubscriptionInfoResponse> { Data = result });
     }
+
 }

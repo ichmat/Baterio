@@ -65,6 +65,8 @@ export interface QuoteResponse {
   createdAt: string
   updatedAt: string | null
   lines: QuoteLineResponse[]
+  siteId?: number
+  siteReference?: string
 }
 
 export interface QuoteListResponse {

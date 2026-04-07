@@ -36,15 +36,20 @@ public class CommentService : ICommentService
         if (trimmed.Length > 2000)
             throw new ApiErrorException(ApiError.CommentContentTooLong);
 
-        // Verify entity type is supported
-        if (entityType != "Quote")
-            throw new ApiErrorException(ApiError.CommentEntityTypeNotSupported);
-
-        // Verify target entity exists
-        var entityExists = await _db.Quotes.AnyAsync(q => q.Id == entityId);
-
-        if (!entityExists)
-            throw new ApiErrorException(ApiError.QuoteNotFound);
+        // Verify entity type is supported and target entity exists
+        switch (entityType)
+        {
+            case "Quote":
+                if (!await _db.Quotes.AnyAsync(q => q.Id == entityId))
+                    throw new ApiErrorException(ApiError.QuoteNotFound);
+                break;
+            case "Site":
+                if (!await _db.Sites.AnyAsync(s => s.Id == entityId))
+                    throw new ApiErrorException(ApiError.SiteNotFound);
+                break;
+            default:
+                throw new ApiErrorException(ApiError.CommentEntityTypeNotSupported);
+        }
 
         var userIdClaim = _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.NameIdentifier);
         var userId = userIdClaim != null ? int.Parse(userIdClaim.Value) : 0;

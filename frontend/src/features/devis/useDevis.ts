@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getQuotes, getQuoteById, createQuote, updateQuote, updateQuoteStatus } from './api'
+import { getQuotes, getQuoteById, createQuote, updateQuote, updateQuoteStatus, deleteQuote } from './api'
 import type { UpdateQuoteRequest, UpdateQuoteStatusRequest } from './types'
 
 export function useQuotes(page = 1, pageSize = 20) {
@@ -35,6 +35,17 @@ export function useUpdateQuote() {
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['quotes'] })
       queryClient.invalidateQueries({ queryKey: ['quotes', id] })
+      queryClient.invalidateQueries({ queryKey: ['audit-events', 'Quote', id] })
+    },
+  })
+}
+
+export function useDeleteQuote() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => deleteQuote(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quotes'] })
     },
   })
 }
@@ -47,6 +58,7 @@ export function useUpdateQuoteStatus() {
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['quotes'] })
       queryClient.invalidateQueries({ queryKey: ['quotes', id] })
+      queryClient.invalidateQueries({ queryKey: ['audit-events', 'Quote', id] })
     },
   })
 }

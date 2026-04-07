@@ -63,6 +63,12 @@ public static class SeedData
             InsuranceProvider = "AXA Assurances",
             InsuranceCoverage = "France metropolitaine",
             DefaultPaymentTerms = "Paiement a 30 jours",
+            AssignmentPresets = JsonSerializer.Serialize(new[]
+            {
+                new { label = "Matin", startTime = "08:00", endTime = "12:00", order = 0 },
+                new { label = "Après-midi", startTime = "12:00", endTime = "17:00", order = 1 },
+                new { label = "Journée complète", startTime = "08:00", endTime = "17:00", order = 2 }
+            }),
             CreatedAt = DateTime.UtcNow
         };
         db.CompanyInfos.Add(companyInfo);

@@ -3,6 +3,7 @@ using BackEnd.Shared.Enums;
 using BackEnd.Shared.Exceptions;
 using BackEnd.Shared.Interfaces;
 using BackEnd.Shared.Models.Common;
+using BackEnd.Shared.Models.Planning;
 using BackEnd.Shared.Models.Quotes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,6 +21,19 @@ public class QuotesController : ControllerBase
     public QuotesController(IQuoteService quoteService)
     {
         _quoteService = quoteService;
+    }
+
+    [HttpGet("reminders")]
+    public async Task<IActionResult> GetReminders([FromQuery] string start, [FromQuery] string end)
+    {
+        if (!DateOnly.TryParse(start, out var startDate) || !DateOnly.TryParse(end, out var endDate))
+            return BadRequest(new { message = "Les paramètres start et end doivent être au format yyyy-MM-dd" });
+
+        if (startDate > endDate)
+            return BadRequest(new { message = "Le paramètre start doit être antérieur ou égal à end" });
+
+        var result = await _quoteService.GetRemindersAsync(startDate, endDate);
+        return Ok(new ApiResponse<List<QuoteReminderResponse>>(result));
     }
 
     [HttpGet]
@@ -65,5 +79,12 @@ public class QuotesController : ControllerBase
     {
         var result = await _quoteService.UpdateStatusAsync(id, request);
         return Ok(new ApiResponse<QuoteResponse>(result));
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        await _quoteService.DeleteAsync(id);
+        return NoContent();
     }
 }

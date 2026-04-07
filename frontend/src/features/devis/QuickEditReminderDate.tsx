@@ -65,7 +65,7 @@ export function QuickEditReminderDate({ quote, onUpdate }: QuickEditReminderDate
           {quote.reminderDate ? formatDate(quote.reminderDate) : 'Ajouter une relance'}
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-60 p-3">
+      <PopoverContent className="p-3">
         <div className="flex flex-col gap-3">
           <label className="text-sm font-medium">Date de relance</label>
           <Input

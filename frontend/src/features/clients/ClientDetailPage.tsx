@@ -10,7 +10,7 @@ export function ClientDetailPage() {
       <ClientDetail
         customerId={Number(id)}
         showBackButton={true}
-        onBack={() => navigate('/clients')}
+        onBack={() => navigate(-1)}
       />
     </div>
   )

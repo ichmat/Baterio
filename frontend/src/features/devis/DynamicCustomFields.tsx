@@ -11,6 +11,7 @@ interface DynamicCustomFieldsProps {
   definitions: CustomFieldResponse[]
   control: Control<any>
   mode: FormMode
+  requiredLevel?: 'RequiredAtCreation' | 'RequiredForSiteConversion'
 }
 
 function ObligationHint({ level }: { level: string }) {
@@ -39,7 +40,7 @@ const OBLIGATION_ORDER: Record<string, number> = {
   Never: 2,
 }
 
-export function DynamicCustomFields({ definitions, control, mode }: DynamicCustomFieldsProps) {
+export function DynamicCustomFields({ definitions, control, mode, requiredLevel = 'RequiredAtCreation' }: DynamicCustomFieldsProps) {
   // Rapide → RequiredAtCreation seuls ; Libre/Complet → tout
   const visibleFields = definitions
     .filter((f) => {
@@ -54,7 +55,10 @@ export function DynamicCustomFields({ definitions, control, mode }: DynamicCusto
     <div className="space-y-4">
       <h3 className="text-sm font-medium">Champs personnalisés</h3>
       {visibleFields.map((field) => {
-        const isRequired = field.obligationLevel === 'RequiredAtCreation'
+        
+        const isRequired =
+          field.obligationLevel === requiredLevel ||
+          (field.obligationLevel === 'RequiredAtCreation' && requiredLevel === 'RequiredForSiteConversion')
         const fieldName = `customFields.${field.id}`
 
         return (
@@ -109,7 +113,7 @@ export function DynamicCustomFields({ definitions, control, mode }: DynamicCusto
                 rules={{ required: isRequired ? 'Ce champ est obligatoire' : false }}
                 render={({ field: f, fieldState }) => (
                   <>
-                    <Select value={f.value ?? ''} onValueChange={f.onChange}>
+                    <Select key={f.value ?? ''} value={f.value || undefined} onValueChange={f.onChange}>
                       <SelectTrigger id={fieldName}>
                         <SelectValue placeholder="Sélectionner..." />
                       </SelectTrigger>

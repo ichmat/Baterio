@@ -48,7 +48,7 @@ describe('MediaGallery', () => {
   it('affiche la grille avec miniatures', async () => {
     vi.mocked(filesApi.getAttachments).mockResolvedValue(mockAttachments)
     renderWithProviders(
-      <MediaGallery quoteId={1} open={true} onOpenChange={() => {}} />
+      <MediaGallery entityType="Quote" entityId={1} open={true} onOpenChange={() => {}} />
     )
 
     await waitFor(() => {
@@ -59,7 +59,7 @@ describe('MediaGallery', () => {
   it('fichier non-image affiché avec nom de fichier', async () => {
     vi.mocked(filesApi.getAttachments).mockResolvedValue(mockAttachments)
     renderWithProviders(
-      <MediaGallery quoteId={1} open={true} onOpenChange={() => {}} />
+      <MediaGallery entityType="Quote" entityId={1} open={true} onOpenChange={() => {}} />
     )
 
     await waitFor(() => {
@@ -75,7 +75,7 @@ describe('MediaGallery', () => {
   it('Dialog a role="grid"', async () => {
     vi.mocked(filesApi.getAttachments).mockResolvedValue(mockAttachments)
     renderWithProviders(
-      <MediaGallery quoteId={1} open={true} onOpenChange={() => {}} />
+      <MediaGallery entityType="Quote" entityId={1} open={true} onOpenChange={() => {}} />
     )
 
     await waitFor(() => {
@@ -86,7 +86,7 @@ describe('MediaGallery', () => {
   it('miniatures sont cliquables', async () => {
     vi.mocked(filesApi.getAttachments).mockResolvedValue(mockAttachments)
     renderWithProviders(
-      <MediaGallery quoteId={1} open={true} onOpenChange={() => {}} />
+      <MediaGallery entityType="Quote" entityId={1} open={true} onOpenChange={() => {}} />
     )
 
     await waitFor(() => {
@@ -104,7 +104,7 @@ describe('MediaGallery', () => {
     vi.mocked(filesApi.getAttachments).mockResolvedValue(mockAttachments)
     const user = userEvent.setup()
     renderWithProviders(
-      <MediaGallery quoteId={1} open={true} onOpenChange={() => {}} />
+      <MediaGallery entityType="Quote" entityId={1} open={true} onOpenChange={() => {}} />
     )
 
     await waitFor(() => {
@@ -144,7 +144,7 @@ describe('MediaGallery', () => {
     vi.mocked(filesApi.getAttachments).mockResolvedValue(manyAttachments)
     const user = userEvent.setup()
     renderWithProviders(
-      <MediaGallery quoteId={1} open={true} onOpenChange={() => {}} />
+      <MediaGallery entityType="Quote" entityId={1} open={true} onOpenChange={() => {}} />
     )
 
     await waitFor(() => {

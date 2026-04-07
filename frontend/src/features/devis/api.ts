@@ -57,6 +57,10 @@ export async function searchQuotes(query: string, limit = 10): Promise<QuoteSear
   return res.data
 }
 
+export async function deleteQuote(id: number): Promise<void> {
+  await apiClient<void>(`/quotes/${id}`, { method: 'DELETE' })
+}
+
 export async function updateQuoteStatus(
   id: number,
   data: UpdateQuoteStatusRequest,

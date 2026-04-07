@@ -9,6 +9,8 @@ import { TimelineCompact } from '@/features/audit/TimelineCompact'
 import { TimelineFull } from '@/features/audit/TimelineFull'
 import { useQuotes } from '@/features/devis/useDevis'
 import { STATUS_CONFIG } from '@/features/devis/status-config'
+import { useSitesByCustomer } from '@/features/chantiers/useSites'
+import { SITE_STATUS_CONFIG } from '@/features/chantiers/status-config'
 import { formatMontant } from '@/lib/format-montant'
 import { useCustomer } from './useCustomers'
 import { EditClientDialog } from './EditClientDialog'
@@ -28,6 +30,7 @@ export function ClientDetail({ customerId, showBackButton = false, onBack }: Cli
 
   const customerName = customer ? `${customer.lastName} ${customer.firstName}`.trim() : ''
   const customerQuotes = quotesData?.data.filter((q) => q.customerName === customerName) ?? []
+  const { data: customerSites } = useSitesByCustomer(customerId)
 
   if (isLoading) {
     return (
@@ -169,9 +172,42 @@ export function ClientDetail({ customerId, showBackButton = false, onBack }: Cli
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Aucun chantier pour ce client — les chantiers seront disponibles prochainement
-              </p>
+              {!customerSites || customerSites.length === 0 ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Aucun chantier pour ce client</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate('/chantiers/new')}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Créer un chantier
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {customerSites.map((s) => {
+                    const statusCfg = SITE_STATUS_CONFIG[s.status] ?? SITE_STATUS_CONFIG.Planned
+                    const StatusIcon = statusCfg.icon
+                    return (
+                      <div
+                        key={s.id}
+                        className="flex cursor-pointer items-center justify-between rounded-md border p-2 text-sm hover:bg-accent/50"
+                        onClick={() => navigate(`/chantiers/${s.id}`)}
+                      >
+                        <div>
+                          <span className="font-medium">{s.reference}</span>
+                          <span className="ml-2 text-muted-foreground">{s.subject}</span>
+                        </div>
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${statusCfg.color}`}>
+                          <StatusIcon className="h-3 w-3" />
+                          {statusCfg.label}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
 

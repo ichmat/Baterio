@@ -29,6 +29,9 @@ vi.mock('@/features/audit/api', () => ({
     pagination: { page: 1, pageSize: 5, totalItems: 1, totalPages: 1 },
   }),
 }))
+vi.mock('@/features/auth/useAuth', () => ({
+  useAuth: () => ({ user: { id: 1 } }),
+}))
 vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
@@ -203,7 +206,7 @@ describe('DevisDetailPage', () => {
     })
   })
 
-  it('bouton "Créer le chantier" visible et désactivé si Accepted', async () => {
+  it('bouton "Créer le chantier" visible et cliquable si Accepted sans siteId', async () => {
     vi.mocked(devisApi.getQuoteById).mockResolvedValue({
       ...mockQuote,
       status: 'Accepted',
@@ -213,7 +216,7 @@ describe('DevisDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Créer le chantier')).toBeInTheDocument()
     })
-    expect(screen.getByText('Créer le chantier').closest('button')).toBeDisabled()
+    expect(screen.getByText('Créer le chantier').closest('button')).not.toBeDisabled()
   })
 
   it('bouton "Créer le chantier" non visible pour Draft', async () => {
@@ -315,5 +318,58 @@ describe('DevisDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Galerie médias')).toBeInTheDocument()
     })
+  })
+
+  it('bouton Supprimer présent', async () => {
+    vi.mocked(devisApi.getQuoteById).mockResolvedValue(mockQuote)
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Supprimer')).toBeInTheDocument()
+    })
+  })
+
+  it('clic Supprimer ouvre le dialog de confirmation', async () => {
+    vi.mocked(devisApi.getQuoteById).mockResolvedValue(mockQuote)
+    const user = userEvent.setup()
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Supprimer')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByText('Supprimer'))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Supprimer le devis DEV-2026-0001/)).toBeInTheDocument()
+    })
+    expect(screen.getByText('Annuler')).toBeInTheDocument()
+  })
+
+  it('confirmation suppression appelle deleteQuote + toast', async () => {
+    vi.mocked(devisApi.getQuoteById).mockResolvedValue(mockQuote)
+    vi.mocked(devisApi.deleteQuote).mockResolvedValue(undefined)
+    const user = userEvent.setup()
+    renderPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('Supprimer')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByText('Supprimer'))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Supprimer le devis/)).toBeInTheDocument()
+    })
+
+    const buttons = screen.getAllByText('Supprimer')
+    await user.click(buttons[buttons.length - 1])
+
+    await waitFor(() => {
+      expect(devisApi.deleteQuote).toHaveBeenCalledWith(1)
+    })
+
+    const { toast } = await import('sonner')
+    expect(toast.success).toHaveBeenCalledWith('Devis supprimé')
   })
 })

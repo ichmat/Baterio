@@ -13,6 +13,7 @@ public class CompanyInfo
     public string? InsuranceProvider { get; set; }
     public string? InsuranceCoverage { get; set; }
     public string? DefaultPaymentTerms { get; set; }
+    public string? AssignmentPresets { get; set; }  // JSON
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getComments, addComment } from './api'
+import { getComments, addComment, deleteComment } from './api'
 
 export function useComments(entityType: string, entityId: number, page = 1, pageSize = 50) {
   return useQuery({
@@ -16,6 +16,16 @@ export function useAddComment(entityType: string, entityId: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['comments', entityType, entityId] })
       qc.invalidateQueries({ queryKey: ['audit-events', entityType, entityId] })
+    },
+  })
+}
+
+export function useDeleteComment(entityType: string, entityId: number) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (commentId: number) => deleteComment(commentId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['comments', entityType, entityId] })
     },
   })
 }

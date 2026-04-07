@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router'
-import { ArrowLeft, Edit2, Users, ImageIcon } from 'lucide-react'
+import { ArrowLeft, Edit2, Users, ImageIcon, Building2, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { EntityLinksBar } from '@/components/EntityLinksBar'
+import { toast } from 'sonner'
 import { formatMontant } from '@/lib/format-montant'
-import { useQuote } from './useDevis'
+import { useQuote, useDeleteQuote } from './useDevis'
 import { STATUS_CONFIG } from './status-config'
 import { EditDevisForm } from './EditDevisForm'
 import { StatusPipeline } from './StatusPipeline'
@@ -34,6 +36,8 @@ export function DevisDetailPage({ quoteId: propQuoteId, showBackButton = true }:
   const [isEditing, setIsEditing] = useState(false)
   const [galleryOpen, setGalleryOpen] = useState(false)
   const [timelineOpen, setTimelineOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const deleteMutation = useDeleteQuote()
   const { data: attachments } = useAttachments('Quote', quoteId)
 
   if (isLoading) {
@@ -51,7 +55,7 @@ export function DevisDetailPage({ quoteId: propQuoteId, showBackButton = true }:
       <div className="mx-auto max-w-4xl space-y-4 p-6">
         <p className="text-destructive">Devis introuvable</p>
         {showBackButton && (
-          <Button variant="outline" onClick={() => navigate('/devis')}>
+          <Button variant="outline" onClick={() => navigate(-1)}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Retour aux devis
           </Button>
@@ -78,10 +82,10 @@ export function DevisDetailPage({ quoteId: propQuoteId, showBackButton = true }:
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4">
       {/* Header */}
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           {showBackButton && (
-            <Button variant="ghost" size="icon" onClick={() => navigate('/devis')}>
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
           )}
@@ -107,6 +111,10 @@ export function DevisDetailPage({ quoteId: propQuoteId, showBackButton = true }:
             <Edit2 className="mr-2 h-4 w-4" />
             Modifier
           </Button>
+          <Button size="sm" variant="destructive" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="mr-2 h-4 w-4" />
+            Supprimer
+          </Button>
         </div>
       </div>
 
@@ -115,9 +123,14 @@ export function DevisDetailPage({ quoteId: propQuoteId, showBackButton = true }:
         <StatusPipeline currentStatus={quote.status} />
         <div className="flex items-center gap-2">
           <StatusActions quoteId={quote.id} currentStatus={quote.status} onStatusChange={() => refetch()} />
-          {quote.status === 'Accepted' && (
-            <Button disabled title="Disponible prochainement">
+          {quote.status === 'Accepted' && !quote.siteId && (
+            <Button onClick={() => navigate(`/chantiers/new?quoteId=${quote.id}`)}>
               Créer le chantier
+            </Button>
+          )}
+          {quote.siteId && (
+            <Button variant="outline" onClick={() => navigate(`/chantiers/${quote.siteId}`)}>
+              Voir le chantier
             </Button>
           )}
         </div>
@@ -132,6 +145,7 @@ export function DevisDetailPage({ quoteId: propQuoteId, showBackButton = true }:
       <EntityLinksBar
         links={[
           { label: 'Voir le client', href: `/clients/${quote.customerId}`, icon: Users },
+          ...(quote.siteId ? [{ label: 'Voir le chantier', href: `/chantiers/${quote.siteId}`, icon: Building2 }] : []),
         ]}
       />
 
@@ -172,12 +186,19 @@ export function DevisDetailPage({ quoteId: propQuoteId, showBackButton = true }:
                 <dd>{quote.siteAddress}</dd>
               </div>
             )}
+            {quote.customFields && quote.customFields.map((field, index) => (
+              <div key={index}>
+                <dt className="text-muted-foreground">{field.label}</dt>
+                <dd>{field.value}</dd>
+              </div>
+            ))}
             {quote.notes && (
               <div className="sm:col-span-2">
                 <dt className="text-muted-foreground">Notes</dt>
                 <dd className="whitespace-pre-wrap">{quote.notes}</dd>
               </div>
             )}
+            
           </dl>
         </CardContent>
       </Card>
@@ -230,13 +251,13 @@ export function DevisDetailPage({ quoteId: propQuoteId, showBackButton = true }:
       )}
 
       {/* Commentaires */}
-      <CommentSection quoteId={quote.id} />
+      <CommentSection entityType="Quote" entityId={quote.id} />
 
       {/* Pièces jointes */}
-      <FileUploadZone quoteId={quote.id} />
+      <FileUploadZone entityType="Quote" entityId={quote.id} />
 
       {/* Galerie médias */}
-      <MediaGallery quoteId={quote.id} open={galleryOpen} onOpenChange={setGalleryOpen} />
+      <MediaGallery entityType="Quote" entityId={quote.id} open={galleryOpen} onOpenChange={setGalleryOpen} />
 
       {/* Historique */}
       <TimelineCompact
@@ -268,6 +289,39 @@ export function DevisDetailPage({ quoteId: propQuoteId, showBackButton = true }:
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog suppression */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Supprimer le devis {quote.reference} ?</DialogTitle>
+            <DialogDescription>
+              Cette action est irréversible. Le devis et toutes ses lignes seront définitivement supprimés.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={deleteMutation.isPending}>
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={async () => {
+                try {
+                  await deleteMutation.mutateAsync(quoteId)
+                  toast.success('Devis supprimé')
+                  navigate('/devis')
+                } catch (err: unknown) {
+                  const apiError = err as { message?: string }
+                  toast.error(apiError?.message ?? 'Erreur lors de la suppression')
+                }
+              }}
+            >
+              {deleteMutation.isPending ? 'Suppression...' : 'Supprimer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -8,6 +8,8 @@ public class Tenant
     public string? Configuration { get; set; }
     public int QuoteRefYear { get; set; }
     public int QuoteRefSequence { get; set; }
+    public int SiteRefYear { get; set; }
+    public int SiteRefSequence { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 
