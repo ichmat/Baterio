@@ -180,4 +180,13 @@ describe('PlanningCalendar', () => {
     expect(await screen.findByText('Semaine')).toBeInTheDocument()
     expect(screen.getByText('Mois')).toBeInTheDocument()
   })
+
+  it('should show error state when API fails', async () => {
+    mockedGetCalendarSites.mockRejectedValue(new Error('Network error'))
+    mockedGetQuoteReminders.mockResolvedValue([])
+
+    renderCalendar()
+
+    expect(await screen.findByText(/erreur lors du chargement/i)).toBeInTheDocument()
+  })
 })
