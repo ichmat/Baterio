@@ -29,6 +29,9 @@ public class QuotesController : ControllerBase
         if (!DateOnly.TryParse(start, out var startDate) || !DateOnly.TryParse(end, out var endDate))
             return BadRequest(new { message = "Les paramètres start et end doivent être au format yyyy-MM-dd" });
 
+        if (startDate > endDate)
+            return BadRequest(new { message = "Le paramètre start doit être antérieur ou égal à end" });
+
         var result = await _quoteService.GetRemindersAsync(startDate, endDate);
         return Ok(new ApiResponse<List<QuoteReminderResponse>>(result));
     }

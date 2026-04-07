@@ -11,7 +11,7 @@ import {
   parseISO,
 } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { Calendar as CalendarIcon } from 'lucide-react'
+import { AlertTriangle, Calendar as CalendarIcon } from 'lucide-react'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useCalendarSites, useQuoteReminders } from './usePlanning'
 import { CalendarHeader, type CalendarViewMode } from './CalendarHeader'
@@ -80,10 +80,11 @@ export function PlanningCalendar({ filters }: PlanningCalendarProps) {
     }
   }, [currentDate, viewMode, isMobile])
 
-  const { data: sites, isLoading: sitesLoading } = useCalendarSites(dateRange.start, dateRange.end)
-  const { data: reminders, isLoading: remindersLoading } = useQuoteReminders(dateRange.start, dateRange.end)
+  const { data: sites, isLoading: sitesLoading, isError: sitesError } = useCalendarSites(dateRange.start, dateRange.end)
+  const { data: reminders, isLoading: remindersLoading, isError: remindersError } = useQuoteReminders(dateRange.start, dateRange.end)
 
   const isLoading = sitesLoading || remindersLoading
+  const isError = sitesError || remindersError
 
   // Transform & filter events
   const events = useMemo(() => {
@@ -151,6 +152,11 @@ export function PlanningCalendar({ filters }: PlanningCalendarProps) {
         <div className="space-y-2">
           <Skeleton className="h-8 w-full" />
           <Skeleton className="h-40 w-full" />
+        </div>
+      ) : isError ? (
+        <div className="flex flex-col items-center justify-center gap-2 py-16 text-destructive">
+          <AlertTriangle className="h-12 w-12" />
+          <p>Erreur lors du chargement du planning</p>
         </div>
       ) : events.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">

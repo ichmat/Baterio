@@ -40,6 +40,9 @@ public class SitesController : ControllerBase
         if (!DateOnly.TryParse(start, out var startDate) || !DateOnly.TryParse(end, out var endDate))
             return BadRequest(new { message = "Les paramètres start et end doivent être au format yyyy-MM-dd" });
 
+        if (startDate > endDate)
+            return BadRequest(new { message = "Le paramètre start doit être antérieur ou égal à end" });
+
         var result = await _siteService.GetCalendarSitesAsync(startDate, endDate);
         return Ok(new ApiResponse<List<SiteCalendarResponse>>(result));
     }

@@ -14,9 +14,8 @@ interface MonthViewProps {
 const MAX_EVENTS_PER_CELL = 3
 
 export function MonthView({ currentDate, events, onEventClick }: MonthViewProps) {
-  const grid = getMonthGrid(currentDate)
+  const grid = useMemo(() => getMonthGrid(currentDate), [currentDate])
 
-  // Pre-compute events per day via Map for O(days) instead of O(days × events)
   const eventsByDay = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>()
     const allDays = grid.flat()

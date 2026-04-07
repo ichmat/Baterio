@@ -90,16 +90,16 @@ describe('CalendarEventComponent', () => {
     expect(screen.getByText('+2')).toBeInTheDocument()
   })
 
-  it('should render popover trigger with event data', () => {
+  it('should render hover card trigger with event data', () => {
     const onClick = vi.fn()
     const assignments = [makeAssignment(1, 'Martin Pierre')]
     render(<CalendarEventComponent event={makeEvent(assignments)} onClick={onClick} />)
 
-    // The popover trigger is a button containing the event title and worker initials
+    // The hover card trigger is a button containing the event title and worker initials
     const trigger = screen.getByText('Test Chantier')
     expect(trigger).toBeInTheDocument()
     expect(screen.getByTitle('Martin Pierre')).toBeInTheDocument()
-    // Note: PopoverContent is portal-rendered and only visible after user interaction,
+    // Note: HoverCardContent is portal-rendered and only visible on hover,
     // which cannot be fully tested in happy-dom environment
   })
 })

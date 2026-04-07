@@ -2,6 +2,7 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { BellRing, Building2 } from 'lucide-react'
 import { getWeekDays, getEventDayIndicator } from './calendar-utils'
+import { UserAvatarStack } from './user-avatar'
 import type { CalendarEvent } from './types'
 
 interface ListDayViewProps {
@@ -70,29 +71,7 @@ export function ListDayView({ currentDate, events, onEventClick }: ListDayViewPr
                         {event.siteAddress && ` — ${event.siteAddress}`}
                       </p>
                     </div>
-                    {event.assignments && event.assignments.length > 0 && (
-                      <div className="flex -space-x-1">
-                        {event.assignments.slice(0, 3).map((a) => (
-                          <div
-                            key={a.userId}
-                            className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground"
-                            title={a.userFullName}
-                          >
-                            {a.userFullName
-                              .split(' ')
-                              .map((n) => n[0])
-                              .join('')
-                              .toUpperCase()
-                              .slice(0, 2)}
-                          </div>
-                        ))}
-                        {event.assignments.length > 3 && (
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-[10px]">
-                            +{event.assignments.length - 3}
-                          </span>
-                        )}
-                      </div>
-                    )}
+                    <UserAvatarStack assignments={event.assignments ?? []} max={3} size="md" />
                   </button>
                 )
               })}

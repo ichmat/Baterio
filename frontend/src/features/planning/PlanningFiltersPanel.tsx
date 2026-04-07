@@ -65,15 +65,16 @@ export function PlanningFiltersPanel({ filters, onFiltersChange }: PlanningFilte
           </div>
 
           <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">Statuts chantier</p>
+            <p className={`text-xs font-medium text-muted-foreground ${!filters.showSites ? 'opacity-50' : ''}`}>Statuts chantier</p>
             {SITE_STATUSES.map((s) => (
               <div key={s.key} className="flex items-center gap-2">
                 <Checkbox
                   id={`status-${s.key}`}
                   checked={filters.siteStatuses.includes(s.key)}
                   onCheckedChange={() => toggleStatus(s.key)}
+                  disabled={!filters.showSites}
                 />
-                <Label htmlFor={`status-${s.key}`} className="text-sm">
+                <Label htmlFor={`status-${s.key}`} className={`text-sm ${!filters.showSites ? 'opacity-50' : ''}`}>
                   {s.label}
                 </Label>
               </div>

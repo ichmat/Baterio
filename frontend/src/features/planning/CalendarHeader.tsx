@@ -39,10 +39,10 @@ export function CalendarHeader({
   return (
     <div className="flex items-center justify-between gap-2">
       <div className="flex items-center gap-1">
-        <Button variant="outline" size="icon" onClick={onPrev}>
+        <Button variant="outline" size="icon" onClick={onPrev} aria-label="Période précédente">
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <Button variant="outline" size="icon" onClick={onNext}>
+        <Button variant="outline" size="icon" onClick={onNext} aria-label="Période suivante">
           <ChevronRight className="h-4 w-4" />
         </Button>
         <Button variant="outline" size="sm" onClick={onToday}>
