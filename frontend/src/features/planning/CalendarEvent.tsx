@@ -1,18 +1,12 @@
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
 import { SITE_STATUS_CONFIG } from '@/features/chantiers/status-config'
+import { STATUS_COLORS } from './status-colors'
 import type { CalendarEvent as CalendarEventType } from './types'
 
 interface CalendarEventProps {
   event: CalendarEventType
   onClick: (event: CalendarEventType) => void
   compact?: boolean
-}
-
-const STATUS_COLORS: Record<string, { bg: string; border: string }> = {
-  Planned: { bg: 'bg-blue-100 dark:bg-blue-900/40', border: 'border-l-blue-500' },
-  InProgress: { bg: 'bg-yellow-100 dark:bg-yellow-900/40', border: 'border-l-yellow-500' },
-  Paused: { bg: 'bg-gray-100 dark:bg-gray-800', border: 'border-l-gray-400' },
-  Completed: { bg: 'bg-green-100 dark:bg-green-900/40', border: 'border-l-green-500' },
 }
 
 function getInitials(fullName: string): string {
@@ -39,8 +33,8 @@ export function CalendarEventComponent({ event, onClick, compact }: CalendarEven
   }
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
+    <HoverCard openDelay={200} closeDelay={100}>
+      <HoverCardTrigger asChild>
         <button
           onClick={() => onClick(event)}
           className={`flex w-full items-center gap-1 overflow-hidden rounded border-l-3 px-1.5 py-0.5 cursor-pointer ${colors.bg} ${colors.border}`}
@@ -73,8 +67,8 @@ export function CalendarEventComponent({ event, onClick, compact }: CalendarEven
             </div>
           )}
         </button>
-      </PopoverTrigger>
-      <PopoverContent className="w-64 text-sm" side="top">
+      </HoverCardTrigger>
+      <HoverCardContent className="w-64 text-sm" side="top">
         <p className="font-medium">{event.customerName}</p>
         {event.siteAddress && (
           <p className="text-muted-foreground">{event.siteAddress}</p>
@@ -94,7 +88,7 @@ export function CalendarEventComponent({ event, onClick, compact }: CalendarEven
             </ul>
           </div>
         )}
-      </PopoverContent>
-    </Popover>
+      </HoverCardContent>
+    </HoverCard>
   )
 }

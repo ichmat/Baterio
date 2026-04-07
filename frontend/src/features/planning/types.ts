@@ -36,8 +36,6 @@ export interface CalendarEvent {
   title: string
   start: Date
   end: Date
-  color: string
-  borderColor: string
   siteId?: number
   quoteId?: number
   status?: string

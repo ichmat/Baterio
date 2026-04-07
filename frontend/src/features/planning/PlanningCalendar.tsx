@@ -21,13 +21,6 @@ import { ListDayView } from './ListDayView'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { CalendarEvent, PlanningFilters, SiteCalendarEvent, QuoteReminderEvent } from './types'
 
-const STATUS_COLORS: Record<string, { bg: string; border: string }> = {
-  Planned: { bg: 'bg-blue-100', border: 'border-l-blue-500' },
-  InProgress: { bg: 'bg-yellow-100', border: 'border-l-yellow-500' },
-  Paused: { bg: 'bg-gray-100', border: 'border-l-gray-400' },
-  Completed: { bg: 'bg-green-100', border: 'border-l-green-500' },
-}
-
 function transformSiteToEvent(site: SiteCalendarEvent): CalendarEvent {
   return {
     id: `site-${site.id}`,
@@ -35,8 +28,6 @@ function transformSiteToEvent(site: SiteCalendarEvent): CalendarEvent {
     title: site.subject,
     start: parseISO(site.startDate),
     end: parseISO(site.endDate),
-    color: STATUS_COLORS[site.status]?.bg ?? STATUS_COLORS.Planned.bg,
-    borderColor: STATUS_COLORS[site.status]?.border ?? STATUS_COLORS.Planned.border,
     siteId: site.id,
     status: site.status,
     customerName: site.customerName,
@@ -53,8 +44,6 @@ function transformReminderToEvent(quote: QuoteReminderEvent): CalendarEvent {
     title: `${quote.customerName} — ${quote.subject}`,
     start: parseISO(quote.reminderDate),
     end: parseISO(quote.reminderDate),
-    color: 'bg-amber-50',
-    borderColor: 'border-l-amber-500',
     quoteId: quote.id,
     customerName: quote.customerName,
     reference: quote.reference,

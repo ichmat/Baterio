@@ -20,8 +20,6 @@ function makeEvent(
     title: `Event ${id}`,
     start: new Date(startStr),
     end: new Date(endStr),
-    color: '',
-    borderColor: '',
     customerName: 'Test',
   }
 }

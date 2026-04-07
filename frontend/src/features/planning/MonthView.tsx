@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { format, isSameMonth, isToday } from 'date-fns'
 import { getMonthGrid } from './calendar-utils'
 import { CalendarEventComponent } from './CalendarEvent'
@@ -15,9 +16,19 @@ const MAX_EVENTS_PER_CELL = 3
 export function MonthView({ currentDate, events, onEventClick }: MonthViewProps) {
   const grid = getMonthGrid(currentDate)
 
-  function getEventsForDay(day: Date): CalendarEvent[] {
-    return events.filter((e) => e.start <= day && e.end >= day)
-  }
+  // Pre-compute events per day via Map for O(days) instead of O(days × events)
+  const eventsByDay = useMemo(() => {
+    const map = new Map<string, CalendarEvent[]>()
+    const allDays = grid.flat()
+    for (const day of allDays) {
+      const key = format(day, 'yyyy-MM-dd')
+      const dayEvents = events.filter((e) => e.start <= day && e.end >= day)
+      if (dayEvents.length > 0) {
+        map.set(key, dayEvents)
+      }
+    }
+    return map
+  }, [grid, events])
 
   return (
     <div>
@@ -34,7 +45,8 @@ export function MonthView({ currentDate, events, onEventClick }: MonthViewProps)
       {grid.map((week, weekIndex) => (
         <div key={weekIndex} className="grid grid-cols-7 border-b">
           {week.map((day) => {
-            const dayEvents = getEventsForDay(day)
+            const key = format(day, 'yyyy-MM-dd')
+            const dayEvents = eventsByDay.get(key) ?? []
             const visibleEvents = dayEvents.slice(0, MAX_EVENTS_PER_CELL)
             const overflow = dayEvents.length - MAX_EVENTS_PER_CELL
 

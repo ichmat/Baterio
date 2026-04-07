@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, startOfWeek, endOfWeek, isSameMonth } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { Button } from '@/components/ui/button'
 
@@ -24,10 +24,17 @@ export function CalendarHeader({
   onViewChange,
   showViewSwitch = true,
 }: CalendarHeaderProps) {
-  const title =
-    viewMode === 'week'
-      ? `Semaine du ${format(currentDate, 'd MMMM yyyy', { locale: fr })}`
-      : format(currentDate, 'MMMM yyyy', { locale: fr })
+  const title = (() => {
+    if (viewMode === 'week') {
+      const ws = startOfWeek(currentDate, { locale: fr, weekStartsOn: 1 })
+      const we = endOfWeek(currentDate, { locale: fr, weekStartsOn: 1 })
+      if (isSameMonth(ws, we)) {
+        return `${format(ws, 'd', { locale: fr })} - ${format(we, 'd MMMM yyyy', { locale: fr })}`
+      }
+      return `${format(ws, 'd MMM', { locale: fr })} - ${format(we, 'd MMM yyyy', { locale: fr })}`
+    }
+    return format(currentDate, 'MMMM yyyy', { locale: fr })
+  })()
 
   return (
     <div className="flex items-center justify-between gap-2">

@@ -18,13 +18,14 @@ export function ListDayView({ currentDate, events, onEventClick }: ListDayViewPr
       {days.map((day) => {
         const dayEvents = events.filter((e) => e.start <= day && e.end >= day)
 
-        if (dayEvents.length === 0) return null
-
         return (
           <div key={day.toISOString()}>
             <h3 className="sticky top-0 bg-background px-2 py-1 text-sm font-semibold capitalize border-b">
               {format(day, 'EEEE d MMMM', { locale: fr })}
             </h3>
+            {dayEvents.length === 0 ? (
+              <p className="px-2 py-3 text-sm text-muted-foreground">Aucun événement</p>
+            ) : (
             <div className="space-y-1 p-2">
               {dayEvents.map((event) => {
                 if (event.type === 'reminder') {
@@ -96,6 +97,7 @@ export function ListDayView({ currentDate, events, onEventClick }: ListDayViewPr
                 )
               })}
             </div>
+            )}
           </div>
         )
       })}
