@@ -5,6 +5,7 @@ using BackEnd.Shared.Exceptions;
 using BackEnd.Shared.Interfaces;
 using BackEnd.Shared.Models.Common;
 using BackEnd.Shared.Models.CustomFields;
+using BackEnd.Shared.Models.Planning;
 using BackEnd.Shared.Models.SiteAssignments;
 using BackEnd.Shared.Models.Sites;
 using Microsoft.EntityFrameworkCore;
@@ -37,6 +38,42 @@ public class SiteService : ISiteService
         _auditService = auditService;
         _httpContextAccessor = httpContextAccessor;
         _logger = logger;
+    }
+
+    public async Task<List<SiteCalendarResponse>> GetCalendarSitesAsync(DateOnly start, DateOnly end)
+    {
+        var sites = await _db.Sites
+            .AsNoTracking()
+            .Include(s => s.Customer)
+            .Include(s => s.Assignments).ThenInclude(a => a.User)
+            .AsSplitQuery()
+            .Where(s => s.StartDate != null && s.EndDate != null
+                && s.StartDate <= end && s.EndDate >= start)
+            .OrderBy(s => s.StartDate)
+            .ToListAsync();
+
+        return sites.Select(s => new SiteCalendarResponse
+        {
+            Id = s.Id,
+            Reference = s.Reference,
+            Subject = s.Subject,
+            Status = s.Status.ToString(),
+            SiteAddress = s.SiteAddress,
+            StartDate = s.StartDate!.Value.ToString("yyyy-MM-dd"),
+            EndDate = s.EndDate!.Value.ToString("yyyy-MM-dd"),
+            CustomerName = $"{s.Customer.LastName} {s.Customer.FirstName}".Trim(),
+            Assignments = s.Assignments.Select(a => new SiteAssignmentResponse
+            {
+                Id = a.Id,
+                SiteId = a.SiteId,
+                UserId = a.UserId,
+                UserFullName = $"{a.User.LastName} {a.User.FirstName}".Trim(),
+                UserAvatarUrl = null,
+                StartDatetime = a.StartDatetime,
+                EndDatetime = a.EndDatetime,
+                CreatedAt = a.CreatedAt
+            }).ToList()
+        }).ToList();
     }
 
     public async Task<SiteResponse> CreateAsync(CreateSiteRequest request)

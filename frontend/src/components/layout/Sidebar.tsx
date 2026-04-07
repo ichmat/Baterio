@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import { Users, FileText, Building2 } from 'lucide-react'
+import { Users, FileText, Building2, Calendar } from 'lucide-react'
 import { useAuth } from '@/features/auth/useAuth'
 
 export function Sidebar() {
@@ -34,6 +34,15 @@ export function Sidebar() {
           >
             <Building2 className="h-4 w-4" />
             Chantiers
+          </Link>
+        )}
+        {(role === 'Admin' || role === 'Chef' || role === 'Secretaire') && (
+          <Link
+            to="/planning"
+            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+          >
+            <Calendar className="h-4 w-4" />
+            Planning
           </Link>
         )}
         {role === 'Admin' && (

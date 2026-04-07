@@ -1,10 +1,12 @@
 using BackEnd.Shared.Models.Common;
+using BackEnd.Shared.Models.Planning;
 using BackEnd.Shared.Models.Sites;
 
 namespace BackEnd.Shared.Interfaces;
 
 public interface ISiteService
 {
+    Task<List<SiteCalendarResponse>> GetCalendarSitesAsync(DateOnly start, DateOnly end);
     Task<SiteResponse?> GetByIdAsync(int id);
     Task<SiteResponse> CreateAsync(CreateSiteRequest request);
     Task<List<SiteSearchResult>> SearchAsync(string query, int limit = 10);

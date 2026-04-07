@@ -13,6 +13,7 @@ import { DevisDetailPage } from '@/features/devis/DevisDetailPage'
 import { ChantiersPage } from '@/pages/ChantiersPage'
 import { CreateChantierForm } from '@/features/chantiers/CreateChantierForm'
 import { ChantierDetailPage } from '@/features/chantiers/ChantierDetailPage'
+import { PlanningPage } from '@/pages/PlanningPage'
 import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/sonner'
 
@@ -111,6 +112,18 @@ export default function App() {
                 <RoleRoute roles={['Admin', 'Chef', 'Secretaire']}>
                   <AppLayout>
                     <DevisDetailPage />
+                  </AppLayout>
+                </RoleRoute>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/planning"
+            element={
+              <ProtectedRoute>
+                <RoleRoute roles={['Admin', 'Chef', 'Secretaire']}>
+                  <AppLayout>
+                    <PlanningPage />
                   </AppLayout>
                 </RoleRoute>
               </ProtectedRoute>

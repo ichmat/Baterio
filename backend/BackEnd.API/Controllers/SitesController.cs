@@ -5,6 +5,7 @@ using BackEnd.Shared.Enums;
 using BackEnd.Shared.Exceptions;
 using BackEnd.Shared.Interfaces;
 using BackEnd.Shared.Models.Common;
+using BackEnd.Shared.Models.Planning;
 using BackEnd.Shared.Models.Quotes;
 using BackEnd.Shared.Models.SiteAssignments;
 using BackEnd.Shared.Models.Sites;
@@ -31,6 +32,16 @@ public class SitesController : ControllerBase
         _assignmentService = assignmentService;
         _db = db;
         _tenantContext = tenantContext;
+    }
+
+    [HttpGet("calendar")]
+    public async Task<IActionResult> GetCalendarSites([FromQuery] string start, [FromQuery] string end)
+    {
+        if (!DateOnly.TryParse(start, out var startDate) || !DateOnly.TryParse(end, out var endDate))
+            return BadRequest(new { message = "Les paramètres start et end doivent être au format yyyy-MM-dd" });
+
+        var result = await _siteService.GetCalendarSitesAsync(startDate, endDate);
+        return Ok(new ApiResponse<List<SiteCalendarResponse>>(result));
     }
 
     [HttpPost]

@@ -5,6 +5,7 @@ using BackEnd.Shared.Exceptions;
 using BackEnd.Shared.Interfaces;
 using BackEnd.Shared.Models.Common;
 using BackEnd.Shared.Models.CustomFields;
+using BackEnd.Shared.Models.Planning;
 using BackEnd.Shared.Models.Quotes;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
@@ -37,6 +38,26 @@ public class QuoteService : IQuoteService
         _auditService = auditService;
         _httpContextAccessor = httpContextAccessor;
         _logger = logger;
+    }
+
+    public async Task<List<QuoteReminderResponse>> GetRemindersAsync(DateOnly start, DateOnly end)
+    {
+        return await _db.Quotes
+            .AsNoTracking()
+            .Include(q => q.Customer)
+            .Where(q => q.ReminderDate != null
+                && q.ReminderDate >= start && q.ReminderDate <= end)
+            .OrderBy(q => q.ReminderDate)
+            .Select(q => new QuoteReminderResponse
+            {
+                Id = q.Id,
+                Reference = q.Reference,
+                Subject = q.Subject,
+                CustomerName = (q.Customer.LastName + " " + q.Customer.FirstName).Trim(),
+                ReminderDate = q.ReminderDate!.Value.ToString("yyyy-MM-dd"),
+                Status = q.Status.ToString()
+            })
+            .ToListAsync();
     }
 
     public async Task<QuoteResponse> CreateAsync(CreateQuoteRequest request)
