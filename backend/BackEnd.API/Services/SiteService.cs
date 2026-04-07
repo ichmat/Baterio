@@ -66,6 +66,8 @@ public class SiteService : ISiteService
         // 3d. Validate dates
         var startDate = ServiceHelpers.ParseDateOnly(request.StartDate);
         var endDate = ServiceHelpers.ParseDateOnly(request.EndDate);
+        if (startDate.HasValue != endDate.HasValue)
+            throw new ApiErrorException(ApiError.SiteDatesPairRequired);
         if (startDate.HasValue && endDate.HasValue && endDate < startDate)
             throw new ApiErrorException(ApiError.SiteEndDateBeforeStartDate);
 
@@ -374,6 +376,8 @@ public class SiteService : ISiteService
 
         var startDate = ServiceHelpers.ParseDateOnly(request.StartDate);
         var endDate = ServiceHelpers.ParseDateOnly(request.EndDate);
+        if (startDate.HasValue != endDate.HasValue)
+            throw new ApiErrorException(ApiError.SiteDatesPairRequired);
         if (startDate.HasValue && endDate.HasValue && endDate < startDate)
             throw new ApiErrorException(ApiError.SiteEndDateBeforeStartDate);
 
@@ -443,6 +447,25 @@ public class SiteService : ISiteService
             .Include(a => a.User)
             .Where(a => a.SiteId == site.Id && a.StartDatetime != null && a.EndDatetime != null)
             .ToListAsync();
+
+        // If site dates are removed, propose deletion of all precise assignments
+        if (site.StartDate == null && site.EndDate == null)
+        {
+            foreach (var a in assignments)
+            {
+                adjustments.Add(new ProposedAdjustment
+                {
+                    AssignmentId = a.Id,
+                    UserFullName = $"{a.User.LastName} {a.User.FirstName}".Trim(),
+                    OldStartDatetime = a.StartDatetime,
+                    OldEndDatetime = a.EndDatetime,
+                    NewStartDatetime = null,
+                    NewEndDatetime = null,
+                    Action = "delete"
+                });
+            }
+            return adjustments;
+        }
 
         var siteStart = site.StartDate?.ToDateTime(TimeOnly.MinValue);
         var siteEnd = site.EndDate?.ToDateTime(TimeOnly.MaxValue);

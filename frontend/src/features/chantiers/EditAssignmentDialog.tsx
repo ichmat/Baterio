@@ -7,6 +7,7 @@ import { AlertTriangle, Loader2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useUpdateAssignment, useDeleteAssignment, useCheckConflicts } from './useSites'
 import type { SiteAssignment, AssignmentConflict } from './types'
+import { readErrorOrDefault } from '../error/utils';
 
 interface EditAssignmentDialogProps {
   siteId: number
@@ -47,8 +48,8 @@ export function EditAssignmentDialog({ siteId, assignment, open, onOpenChange }:
       })
       toast.success('Attribution modifiée')
       onOpenChange(false)
-    } catch {
-      toast.error('Erreur lors de la modification')
+    } catch (e) {
+      toast.error(readErrorOrDefault(e,'Erreur lors de la modification'))
     }
   }
 

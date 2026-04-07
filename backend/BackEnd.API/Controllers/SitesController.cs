@@ -1,3 +1,5 @@
+using System.Text.Json;
+using BackEnd.API.Data;
 using BackEnd.API.Infrastructure;
 using BackEnd.Shared.Enums;
 using BackEnd.Shared.Exceptions;
@@ -8,6 +10,7 @@ using BackEnd.Shared.Models.SiteAssignments;
 using BackEnd.Shared.Models.Sites;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace BackEnd.API.Controllers;
 
@@ -19,11 +22,15 @@ public class SitesController : ControllerBase
 {
     private readonly ISiteService _siteService;
     private readonly ISiteAssignmentService _assignmentService;
+    private readonly AppDbContext _db;
+    private readonly ITenantContext _tenantContext;
 
-    public SitesController(ISiteService siteService, ISiteAssignmentService assignmentService)
+    public SitesController(ISiteService siteService, ISiteAssignmentService assignmentService, AppDbContext db, ITenantContext tenantContext)
     {
         _siteService = siteService;
         _assignmentService = assignmentService;
+        _db = db;
+        _tenantContext = tenantContext;
     }
 
     [HttpPost]
@@ -140,5 +147,69 @@ public class SitesController : ControllerBase
     {
         var result = await _assignmentService.ApplyAdjustmentsAsync(id, adjustments);
         return Ok(new ApiResponse<List<SiteAssignmentResponse>>(result));
+    }
+
+    // --- Assignment Presets ---
+
+    private static readonly List<AssignmentPresetDto> DefaultPresets =
+    [
+        new() { Label = "Matin", StartTime = "08:00", EndTime = "12:00", Order = 0 },
+        new() { Label = "Après-midi", StartTime = "12:00", EndTime = "17:00", Order = 1 },
+        new() { Label = "Journée complète", StartTime = "08:00", EndTime = "17:00", Order = 2 }
+    ];
+
+    [HttpGet("assignment-presets")]
+    public async Task<IActionResult> GetAssignmentPresets()
+    {
+        var companyInfo = await _db.CompanyInfos.FirstOrDefaultAsync();
+        List<AssignmentPresetDto> presets;
+
+        if (companyInfo?.AssignmentPresets != null)
+        {
+            presets = JsonSerializer.Deserialize<List<AssignmentPresetDto>>(companyInfo.AssignmentPresets,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? DefaultPresets;
+        }
+        else
+        {
+            presets = DefaultPresets;
+        }
+
+        return Ok(new ApiResponse<List<AssignmentPresetDto>>(presets));
+    }
+
+    [HttpPut("assignment-presets")]
+    [RoleAuthorize(UserRole.Admin)]
+    public async Task<IActionResult> UpdateAssignmentPresets([FromBody] List<AssignmentPresetDto> presets)
+    {
+        if (presets == null || presets.Count == 0)
+            throw new ApiErrorException(ApiError.AssignmentPresetsListEmpty);
+
+        foreach (var preset in presets)
+        {
+            if (string.IsNullOrWhiteSpace(preset.Label))
+                throw new ApiErrorException(ApiError.AssignmentPresetLabelRequired);
+
+            if (!TimeOnly.TryParse(preset.StartTime, out var startTime) ||
+                !TimeOnly.TryParse(preset.EndTime, out var endTime) ||
+                endTime <= startTime)
+                throw new ApiErrorException(ApiError.AssignmentPresetInvalidTime);
+        }
+
+        var companyInfo = await _db.CompanyInfos.FirstOrDefaultAsync();
+        if (companyInfo == null)
+        {
+            companyInfo = new BackEnd.Shared.Entities.CompanyInfo
+            {
+                TenantId = _tenantContext.TenantId,
+                CreatedAt = DateTime.UtcNow
+            };
+            _db.CompanyInfos.Add(companyInfo);
+        }
+
+        companyInfo.AssignmentPresets = JsonSerializer.Serialize(presets);
+        companyInfo.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        return Ok(new ApiResponse<List<AssignmentPresetDto>>(presets));
     }
 }

@@ -113,6 +113,7 @@ export interface AssignmentAdjustment {
   assignmentId: number
   newStartDatetime: string | null
   newEndDatetime: string | null
+  action: 'adjust' | 'delete'
 }
 
 export interface ProposedAdjustment {
@@ -122,6 +123,7 @@ export interface ProposedAdjustment {
   oldEndDatetime: string | null
   newStartDatetime: string | null
   newEndDatetime: string | null
+  action: 'adjust' | 'delete'
 }
 
 export interface AssignedWorkersInfo {

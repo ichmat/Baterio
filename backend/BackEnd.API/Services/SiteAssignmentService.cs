@@ -266,8 +266,20 @@ public class SiteAssignmentService : ISiteAssignmentService
         if (assignments.Count != adjustments.Count)
             throw new ApiErrorException(ApiError.AssignmentNotFound);
 
+        var deletedIds = new List<int>();
+
         foreach (var adj in adjustments)
         {
+            var assignment = assignments.First(a => a.Id == adj.AssignmentId);
+
+            if (adj.Action == "delete")
+            {
+                auditEntries.Add((assignment.Id, assignment.StartDatetime, assignment.EndDatetime, null, null));
+                _db.SiteAssignments.Remove(assignment);
+                deletedIds.Add(assignment.Id);
+                continue;
+            }
+
             // Validate: both provided or both null, and start < end
             var hasStart = adj.NewStartDatetime.HasValue;
             var hasEnd = adj.NewEndDatetime.HasValue;
@@ -276,7 +288,6 @@ public class SiteAssignmentService : ISiteAssignmentService
             if (hasStart && hasEnd && adj.NewEndDatetime <= adj.NewStartDatetime)
                 throw new ApiErrorException(ApiError.AssignmentInvalidDateRange);
 
-            var assignment = assignments.First(a => a.Id == adj.AssignmentId);
             auditEntries.Add((assignment.Id, assignment.StartDatetime, assignment.EndDatetime, adj.NewStartDatetime, adj.NewEndDatetime));
 
             assignment.StartDatetime = adj.NewStartDatetime;
@@ -285,7 +296,9 @@ public class SiteAssignmentService : ISiteAssignmentService
         }
 
         // Validate adjusted assignments are within site date range
-        var preciseAssignments = assignments.Where(a => a.StartDatetime.HasValue && a.EndDatetime.HasValue).ToList();
+        var preciseAssignments = assignments
+            .Where(a => !deletedIds.Contains(a.Id) && a.StartDatetime.HasValue && a.EndDatetime.HasValue)
+            .ToList();
         if (preciseAssignments.Count > 0)
             ValidateAssignmentsWithinSiteDates(preciseAssignments, site);
 
@@ -293,16 +306,18 @@ public class SiteAssignmentService : ISiteAssignmentService
 
         foreach (var entry in auditEntries)
         {
-            await _auditService.LogEventAsync("SiteAssignment", entry.Id, AuditAction.Updated,
+            var action = deletedIds.Contains(entry.Id) ? AuditAction.Deleted : AuditAction.Updated;
+            var reason = deletedIds.Contains(entry.Id) ? "DeletedAfterSiteDatesRemoved" : "AdjustmentAfterSiteDateChange";
+            await _auditService.LogEventAsync("SiteAssignment", entry.Id, action,
                 new
                 {
-                    Reason = "AdjustmentAfterSiteDateChange",
+                    Reason = reason,
                     StartDatetime = new { Old = entry.OldStart, New = entry.NewStart },
                     EndDatetime = new { Old = entry.OldEnd, New = entry.NewEnd }
                 });
         }
 
-        return assignments.Select(a => MapToResponse(a, a.User)).ToList();
+        return assignments.Where(a => !deletedIds.Contains(a.Id)).Select(a => MapToResponse(a, a.User)).ToList();
     }
 
     // --- Private helpers ---

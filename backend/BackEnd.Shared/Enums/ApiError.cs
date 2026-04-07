@@ -428,4 +428,10 @@ public enum ApiError
 
     [ApiErrorInfo(400, "Le chantier n'a pas de dates définies. Seul le mode 'Toute la durée' est autorisé.")]
     AssignmentSiteDatesRequired,
+
+    [ApiErrorInfo(400, "La liste des presets ne peut pas être vide.")]
+    AssignmentPresetsListEmpty,
+
+    [ApiErrorInfo(400, "Les dates de début et de fin doivent être renseignées ensemble ou toutes les deux vides.")]
+    SiteDatesPairRequired,
 }

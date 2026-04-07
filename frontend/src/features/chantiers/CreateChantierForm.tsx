@@ -84,6 +84,13 @@ export function CreateChantierForm() {
       return
     }
 
+    const hasStart = !!data.startDate
+    const hasEnd = !!data.endDate
+    if (hasStart !== hasEnd) {
+      toast.error('Les dates de début et de fin doivent être renseignées ensemble')
+      return
+    }
+
     const payload: CreateSiteRequest = {
       customerId: data.customerId || (quote?.customerId ?? 0),
       quoteId: quoteId ?? undefined,

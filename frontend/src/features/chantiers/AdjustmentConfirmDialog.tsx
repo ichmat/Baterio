@@ -22,6 +22,9 @@ function fmtDt(d: string | null): string {
 export function AdjustmentConfirmDialog({ siteId, adjustments, open, onOpenChange, onConfirmed, onCancel }: AdjustmentConfirmDialogProps) {
   const confirmMutation = useConfirmAdjustments(siteId)
 
+  const hasDeletes = adjustments.some(a => a.action === 'delete')
+  const hasAdjusts = adjustments.some(a => a.action === 'adjust')
+
   const handleConfirm = async () => {
     try {
       await confirmMutation.mutateAsync(
@@ -29,9 +32,10 @@ export function AdjustmentConfirmDialog({ siteId, adjustments, open, onOpenChang
           assignmentId: a.assignmentId,
           newStartDatetime: a.newStartDatetime,
           newEndDatetime: a.newEndDatetime,
+          action: a.action,
         }))
       )
-      toast.success('Attributions ajustées')
+      toast.success(hasDeletes && !hasAdjusts ? 'Attributions supprimées' : 'Attributions ajustées')
       onConfirmed()
       onOpenChange(false)
     } catch {
@@ -49,14 +53,18 @@ export function AdjustmentConfirmDialog({ siteId, adjustments, open, onOpenChang
           </DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Les dates du chantier ont été enregistrées. Les attributions suivantes dépassent les nouvelles dates et doivent être ajustées :
+          {hasDeletes && !hasAdjusts
+            ? "Les dates du chantier ont été supprimées. Les attributions avec des dates précises suivantes seront supprimées :"
+            : "Les dates du chantier ont été enregistrées. Les attributions suivantes dépassent les nouvelles dates et doivent être ajustées :"}
         </p>
         <div className="space-y-2">
           {adjustments.map(a => (
-            <div key={a.assignmentId} className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm">
+            <div key={a.assignmentId} className={`rounded-md border p-3 text-sm ${a.action === 'delete' ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'}`}>
               <p className="font-medium">{a.userFullName}</p>
               <p className="text-muted-foreground">
-                {fmtDt(a.oldStartDatetime)} - {fmtDt(a.oldEndDatetime)} → {fmtDt(a.newStartDatetime)} - {fmtDt(a.newEndDatetime)}
+                {a.action === 'delete'
+                  ? `${fmtDt(a.oldStartDatetime)} - ${fmtDt(a.oldEndDatetime)} — sera supprimée`
+                  : `${fmtDt(a.oldStartDatetime)} - ${fmtDt(a.oldEndDatetime)} → ${fmtDt(a.newStartDatetime)} - ${fmtDt(a.newEndDatetime)}`}
               </p>
             </div>
           ))}
@@ -65,8 +73,8 @@ export function AdjustmentConfirmDialog({ siteId, adjustments, open, onOpenChang
           <Button variant="outline" onClick={() => { onCancel(); onOpenChange(false) }}>
             Ignorer les ajustements
           </Button>
-          <Button onClick={handleConfirm} disabled={confirmMutation.isPending}>
-            {confirmMutation.isPending ? 'Ajustement...' : 'Confirmer les ajustements'}
+          <Button onClick={handleConfirm} disabled={confirmMutation.isPending} variant={hasDeletes && !hasAdjusts ? 'destructive' : 'default'}>
+            {confirmMutation.isPending ? 'Traitement...' : hasDeletes && !hasAdjusts ? 'Confirmer les suppressions' : 'Confirmer les ajustements'}
           </Button>
         </DialogFooter>
       </DialogContent>

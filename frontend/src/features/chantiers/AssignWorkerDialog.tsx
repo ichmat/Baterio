@@ -99,6 +99,7 @@ export function AssignWorkerDialog({ siteId, siteStartDate, siteEndDate, open, o
       if (!cfg.presetStartTime || !cfg.presetEndTime) return 'Sélectionnez un preset horaire'
     } else if (cfg.mode === 'range_preset') {
       if (!cfg.startDate || !cfg.endDate) return 'Les dates de début et fin sont requises'
+      if (cfg.endDate < cfg.startDate) return 'La date de fin doit être après la date de début'
       if (!cfg.presetStartTime || !cfg.presetEndTime) return 'Sélectionnez un preset horaire'
     } else if (cfg.mode === 'free') {
       if (!cfg.startDatetime || !cfg.endDatetime) return 'Les dates/heures sont requises'

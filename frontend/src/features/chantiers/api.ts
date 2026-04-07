@@ -132,12 +132,12 @@ export async function confirmAdjustments(siteId: number, adjustments: Assignment
 }
 
 export async function getAssignmentPresets(): Promise<AssignmentPreset[]> {
-  const res = await apiClient<ApiResponse<AssignmentPreset[]>>('/company/assignment-presets')
+  const res = await apiClient<ApiResponse<AssignmentPreset[]>>('/sites/assignment-presets')
   return res.data
 }
 
 export async function updateAssignmentPresets(presets: AssignmentPreset[]): Promise<AssignmentPreset[]> {
-  const res = await apiClient<ApiResponse<AssignmentPreset[]>>('/company/assignment-presets', {
+  const res = await apiClient<ApiResponse<AssignmentPreset[]>>('/sites/assignment-presets', {
     method: 'PUT',
     body: JSON.stringify(presets),
   })

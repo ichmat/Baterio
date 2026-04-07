@@ -54,6 +54,13 @@ export function EditChantierForm({ site, onSuccess }: EditChantierFormProps) {
   }, [cfDefs.length, site.customFields, form])
 
   const onSubmit = async (data: UpdateSiteRequest) => {
+    const hasStart = !!data.startDate
+    const hasEnd = !!data.endDate
+    if (hasStart !== hasEnd) {
+      toast.error('Les dates de début et de fin doivent être renseignées ensemble')
+      return
+    }
+
     const customFields = cfDefs.map((def) => ({
       id: def.id,
       label: def.label,
