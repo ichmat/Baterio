@@ -80,7 +80,7 @@ export function ChantierDetailPage({ siteId: propSiteId, showBackButton = true }
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4">
       {/* 1. Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center flex-wrap gap-4 sm:flex-row sm:justify-between">
         {showBackButton && (
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4" />
@@ -88,7 +88,7 @@ export function ChantierDetailPage({ siteId: propSiteId, showBackButton = true }
         )}
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <Building2 className="h-5 w-5 text-muted-foreground" />
+            <Building2 className="h-5 w-5 text-muted-foreground shrink-0" />
             <h1 className="text-2xl font-bold">{site.reference}</h1>
             <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusCfg.color}`}>
               <StatusIcon className="h-3 w-3" />
@@ -97,7 +97,7 @@ export function ChantierDetailPage({ siteId: propSiteId, showBackButton = true }
           </div>
           <p className="mt-1 text-muted-foreground">{site.subject}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center flex-wrap gap-2 sm:flex-row sm:items-center sm:justify-between">
           {(attachments?.length ?? 0) > 0 && (
             <Button variant="outline" size="sm" onClick={() => setGalleryOpen(true)}>
               <ImageIcon className="mr-2 h-4 w-4" />
