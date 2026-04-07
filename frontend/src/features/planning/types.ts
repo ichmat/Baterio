@@ -50,3 +50,12 @@ export interface PlanningFilters {
   showReminders: boolean
   siteStatuses: string[]
 }
+
+export type PlanningViewMode = 'calendar' | 'gantt'
+
+export interface GanttWorkerGroup {
+  userId: number
+  userFullName: string
+  userAvatarUrl?: string | null
+  assignments: SiteCalendarAssignment[]
+}
